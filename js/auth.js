@@ -16,7 +16,7 @@ function updateAuthUI() {
     // ดึงข้อมูลผู้ใช้จาก localStorage (ที่บันทึกไว้ตอน Login)
     const user = JSON.parse(localStorage.getItem('user'));
 
-    if (user) {
+    if (user && user.id) {
         // 🟢 กรณีล็อกอินแล้ว: แสดงปุ่มรูปและชื่อโปรไฟล์
         authNavContainer.innerHTML = `
             <div class="dropdown">
