@@ -64,6 +64,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? '<span class="badge bg-warning text-dark me-1">ให้เช่า</span>'
                 : '<span class="badge bg-success me-1">แจกฟรี</span>';
 
+        const statusLabel = item.status === 'reserved'
+            ? 'จองแล้ว'
+            : item.status === 'completed'
+                ? 'เสร็จสิ้น'
+                : 'พร้อมใช้งาน';
+
         const priceTagText = itemType === 'sell'
             ? `฿${Number(price).toLocaleString()}`
             : itemType === 'rent'
@@ -76,11 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="btn btn-outline-primary btn-sm flex-grow-1 item-edit-btn" type="button">แก้ไข</button>
                 <button class="btn btn-outline-danger btn-sm flex-grow-1 item-delete-btn" type="button">ลบ</button>
                 <button class="btn btn-outline-success btn-sm flex-grow-1 item-requests-btn" type="button">คำขอ</button>
-                <select class="form-select form-select-sm item-status-select" aria-label="สถานะรายการ">
-                    <option value="available" ${item.status === 'available' ? 'selected' : ''}>พร้อมใช้งาน</option>
-                    <option value="reserved" ${item.status === 'reserved' ? 'selected' : ''}>จองแล้ว</option>
-                    <option value="completed" ${item.status === 'completed' ? 'selected' : ''}>เสร็จสิ้น</option>
-                </select>
+                <button class="btn btn-outline-dark btn-sm flex-grow-1 item-messages-btn" type="button">ข้อความ</button>
             </div>
         ` : '';
 
@@ -99,12 +101,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <p class="card-text text-muted small mb-2">📍 ${item.location || 'ไม่ระบุสถานที่'}</p>
                         <p class="card-text text-secondary text-truncate small">${item.description || ''}</p>
+                        <div class="mb-2">
+                            <span class="badge bg-secondary">สถานะ: ${statusLabel}</span>
+                        </div>
                         <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
                             <span class="small text-muted">โพสต์เมื่อ ${new Date(item.created_at || Date.now()).toLocaleDateString('th-TH')}</span>
                             <button class="btn btn-outline-success btn-sm px-3 rounded-pill fw-bold request-btn"
                                 data-title="${item.title}"
                                 data-category="${item.category}"
                                 data-type="${itemType}"
+                                data-owner-id="${itemOwnerId}"
                                 data-price="${price}"
                                 data-location="${item.location || ''}"
                                 data-description="${item.description || ''}"
@@ -202,6 +208,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btn.closest('.hero-section') || btn.closest('.navbar')) return;
 
             const card = btn.closest('.card');
+            const itemCard = btn.closest('.item-element');
+            const itemId = itemCard?.dataset.itemId;
+            const ownerId = btn.dataset.ownerId;
             const title = btn.dataset.title || card?.querySelector('.card-title')?.innerText || 'รายการสิ่งของ';
             const category = btn.dataset.category || 'ของใช้';
             const location = btn.dataset.location || card?.querySelector('.text-muted')?.innerText || 'ใกล้ตัวคุณ';
@@ -228,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 else images.push('https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=800&auto=format&fit=crop&q=80');
             }
 
-            showItemDetailModal({ itemId, title, category, itemType, price, location, description, images });
+            showItemDetailModal({ itemId, ownerId, title, category, itemType, price, location, description, images });
         }
     });
 
@@ -238,6 +247,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function showItemDetailModal(item) {
         const oldModal = document.getElementById('itemDetailModal');
         if (oldModal) oldModal.remove();
+
+        const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+        const currentUserId = currentUser?.id || currentUser?.user_id || currentUser?.userId;
+        const isOwner = currentUserId && String(currentUserId) === String(item.ownerId);
 
         // สร้าง Thumbnails ถ้ามีหลายรูป
         let thumbnailsHTML = '';
@@ -253,29 +266,31 @@ document.addEventListener('DOMContentLoaded', () => {
             thumbnailsHTML += `</div>`;
         }
 
-        // ปุ่มการทำรายการ
+        // ปุ่มการทำรายการจะแสดงเฉพาะผู้ใช้ที่ไม่ใช่เจ้าของรายการ
         let actionButtonsHTML = '';
-        if (item.itemType === 'free') {
+        if (isOwner) {
+            actionButtonsHTML = '';
+        } else {
             actionButtonsHTML = `
                 <button class="btn btn-success w-100 p-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
-                        style="background-color: #198754;" data-action="free">
-                    🎁 ยืนยันขอรับของฟรี
-                    <div class="fs-6 opacity-75 fw-normal mt-1">นัดรับด้วยตนเอง หรือผ่านจุดฝากของชุมชน</div>
+                        style="background-color: #198754;" data-action="request-options">
+                    🤝 นัดรับสินค้า
+                    <div class="fs-6 opacity-75 fw-normal mt-1">ส่งคำขอให้ผู้ขายยืนยันการนัดรับ</div>
                 </button>
             `;
-        } else {
-            const typeLabel = item.itemType === 'sell' ? `ซื้อขาย (฿${Number(item.price).toLocaleString()})` : `ให้เช่า (฿${Number(item.price).toLocaleString()}/วัน)`;
-            actionButtonsHTML = `
-                <button class="btn btn-primary w-100 p-3 rounded-4 mb-3 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
-                        style="background-color: #0d6efd;" data-action="escrow">
-                    🛡️ ดำเนินการ${typeLabel} ผ่านระบบคนกลาง
-                    <div class="fs-6 opacity-75 fw-normal mt-1">ชำระเงินปลอดภัย พักเงินไว้ที่ระบบจนกว่าจะได้รับของเรียบร้อย</div>
-                </button>
-                <button class="btn btn-outline-secondary w-100 p-3 rounded-4 btn-select-option fs-5 fw-bold" data-action="direct">
-                    🤝 นัดเจอตกลงโดยตรงกับผู้ประกาศ
-                    <div class="fs-6 opacity-75 fw-normal mt-1">ติดต่อผู้ขาย ชำระเงินและรับมอบสินค้ากันเองโดยตรง</div>
-                </button>
-            `;
+
+            if (item.itemType !== 'free') {
+                const typeLabel = item.itemType === 'sell'
+                    ? `ซื้อขาย (฿${Number(item.price).toLocaleString()})`
+                    : `ให้เช่า (฿${Number(item.price).toLocaleString()}/วัน)`;
+                actionButtonsHTML += `
+                    <button class="btn btn-primary w-100 p-3 mt-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
+                            style="background-color: #0d6efd;" data-action="escrow">
+                        🛡️ ดำเนินการ${typeLabel} ผ่านระบบคนกลาง
+                        <div class="fs-6 opacity-75 fw-normal mt-1">ชำระเงินปลอดภัย พักเงินไว้ที่ระบบจนกว่าจะได้รับของเรียบร้อย</div>
+                    </button>
+                `;
+            }
         }
 
         const detailModalHTML = `
@@ -308,11 +323,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <p class="text-secondary fs-5 mb-0" style="line-height: 1.6; white-space: pre-line;">${item.description}</p>
                             </div>
 
-                            <!-- 🛒 3. รูปแบบการซื้อขายอยู่ล่างสุด -->
-                            <div>
-                                <h5 class="fw-bold text-dark mb-3">เลือกลักษณะการทำรายการ:</h5>
-                                ${actionButtonsHTML}
-                            </div>
+                            ${!isOwner ? `
+                                <!-- 🛒 3. รูปแบบการซื้อขายอยู่ล่างสุด -->
+                                <div>
+                                    <h5 class="fw-bold text-dark mb-3">เลือกลักษณะการทำรายการ:</h5>
+                                    ${actionButtonsHTML}
+                                </div>
+                            ` : ''}
 
                         </div>
                     </div>
@@ -341,8 +358,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const action = e.currentTarget.dataset.action;
                 detailModal.hide();
 
-                if (typeof window.submitItemRequest === 'function') {
+                if (action === 'request-options' && typeof window.showRequestOptions === 'function') {
+                    window.showRequestOptions(item);
+                } else if (action === 'escrow') {
+                    if (typeof window.startEscrowPurchase === 'function') {
+                        window.startEscrowPurchase(item);
+                    }
+                } else if (action !== 'direct' && typeof window.submitItemRequest === 'function') {
                     window.submitItemRequest(item.itemId, action);
+                }
+                if (action === 'direct' && typeof window.openChat === 'function') {
+                    window.openChat(item.ownerId, item.title, item.itemId);
                 }
             });
         });

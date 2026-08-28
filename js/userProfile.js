@@ -13,7 +13,7 @@ function updateProfileUI() {
 
     if (!authContainer) return;
 
-    if (userJson) {
+    if (userJson && localStorage.getItem('authToken')) {
         const user = JSON.parse(userJson);
         const userId = user.id || user.user_id || user.userId || user._id;
 
@@ -43,6 +43,9 @@ function updateProfileUI() {
                         <small class="text-muted">${user.email || ''}</small>
                     </li>
                     <li>
+                        <a class="dropdown-item" href="#" id="profileOpenBtn">โปรไฟล์ของฉัน</a>
+                    </li>
+                    <li>
                         <button class="dropdown-item text-danger mt-1" onclick="logoutUser()">
                             <i class="bi bi-box-arrow-right me-2"></i>ออกจากระบบ
                         </button>
@@ -63,5 +66,6 @@ function updateProfileUI() {
 
 function logoutUser() {
     localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
     location.reload();
 }

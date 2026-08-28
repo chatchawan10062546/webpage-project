@@ -44,6 +44,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    window.showRequestOptions = (item) => {
+        document.getElementById('requestOptionsModal')?.remove();
+        document.body.insertAdjacentHTML('beforeend', `
+            <div class="modal fade" id="requestOptionsModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-lg rounded-4">
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title">นัดรับ: ${item.title}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <p class="text-muted">เลือกสิ่งที่ต้องการทำกับรายการนี้</p>
+                            <button type="button" class="btn btn-success w-100 py-3 mb-3 request-option-btn" data-request-action="send-request">
+                                ส่งคำขอรับของ
+                            </button>
+                            <button type="button" class="btn btn-outline-primary w-100 py-3 request-option-btn" data-request-action="ask-more">
+                                ส่งข้อความสอบถามเพิ่มเติม
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        const modalElement = document.getElementById('requestOptionsModal');
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        modalElement.addEventListener('click', (event) => {
+            const button = event.target.closest('.request-option-btn');
+            if (!button) return;
+            modal.hide();
+            if (button.dataset.requestAction === 'send-request') {
+                window.submitItemRequest(item.itemId, 'free');
+            } else if (typeof window.openChat === 'function') {
+                window.openChat(item.ownerId, item.title, item.itemId);
+            }
+        });
+        modalElement.addEventListener('hidden.bs.modal', () => modalElement.remove(), { once: true });
+    };
+
     function showRequests(card) {
         const itemId = card.dataset.itemId;
         const userId = getUserId();

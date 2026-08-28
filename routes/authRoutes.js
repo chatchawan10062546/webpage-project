@@ -4,7 +4,9 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const db = require('../config/db'); // ดึงไฟล์เชื่อมฐานข้อมูลมาใช้
+const { jwtSecret } = require('../middleware/authMiddleware');
 
 // 1. API สมัครสมาชิก (/api/register)
 router.post('/register', async (req, res) => {
@@ -66,6 +68,7 @@ router.post('/login', (req, res) => {
         res.json({
             success: true,
             message: 'เข้าสู่ระบบสำเร็จ',
+            token: jwt.sign({ userId, name: user.name }, jwtSecret, { expiresIn: '7d' }),
             user: { 
                 id: userId,
                 user_id: userId,

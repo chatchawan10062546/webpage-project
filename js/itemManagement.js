@@ -1,5 +1,5 @@
 // ====================================================
-// 🛠️ itemManagement.js : แก้ไข ลบ และเปลี่ยนสถานะรายการของตัวเอง
+// 🛠️ itemManagement.js : แก้ไขและลบรายการของตัวเอง
 // ====================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -130,22 +130,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }).then(() => card.remove())
                 .catch(error => alert('ไม่สามารถลบรายการได้: ' + error.message));
         }
-    });
-
-    itemGrid.addEventListener('change', (event) => {
-        if (!event.target.classList.contains('item-status-select')) return;
-        const card = event.target.closest('.item-element');
-        const itemId = card?.dataset.itemId;
-        if (!itemId) return;
-
-        sendRequest(`http://localhost:3000/api/items/${itemId}/status`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: event.target.value, user_id: getUserId() })
-        }).catch(error => {
-            alert('ไม่สามารถเปลี่ยนสถานะได้: ' + error.message);
-            location.reload();
-        });
     });
 
     document.addEventListener('submit', (event) => {

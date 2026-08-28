@@ -9,6 +9,9 @@ const fs = require('fs');
 // ดึงไฟล์ Routes ที่เราแยกไว้มาใช้งาน
 const authRoutes = require('./routes/authRoutes');
 const itemRoutes = require('./routes/itemRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,6 +43,9 @@ app.use('/uploads', express.static(uploadDir));
 // ----------------------------------------------------
 app.use('/api', authRoutes); // เรียกใช้งาน /api/register และ /api/login
 app.use('/api', itemRoutes); // เรียกใช้งาน /api/items
+app.use('/api', chatRoutes); // เรียกใช้งานระบบแชต
+app.use('/api', profileRoutes); // เรียกใช้งานระบบโปรไฟล์
+app.use('/api', transactionRoutes); // เรียกใช้งานระบบธุรกรรมคนกลาง
 
 // ----------------------------------------------------
 // ❓ Handle 404 Not Found (กรณีเรียก Route ที่ไม่มีอยู่จริง)

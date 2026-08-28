@@ -19,7 +19,7 @@ function updateAuthUI() {
     // เช็ก ID แบบยืดหยุ่น รองรับทั้ง id, user_id, userId, _id
     const userId = user?.id || user?.user_id || user?.userId || user?._id;
 
-    if (user && userId) {
+    if (user && userId && localStorage.getItem('authToken')) {
         // 🟢 กรณีล็อกอินแล้ว: แสดงปุ่มรูปและชื่อโปรไฟล์
         authNavContainer.innerHTML = `
             <div class="dropdown">
@@ -28,7 +28,7 @@ function updateAuthUI() {
                     <span>${user.name || 'สมาชิก'}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 rounded-3">
-                    <li><a class="dropdown-item" href="#">โปรไฟล์ของฉัน</a></li>
+                    <li><a class="dropdown-item" href="#" id="profileOpenBtn">โปรไฟล์ของฉัน</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item text-danger fw-bold" href="#" id="logoutBtn">ออกจากระบบ</a></li>
                 </ul>
@@ -41,6 +41,7 @@ function updateAuthUI() {
             logoutBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 localStorage.removeItem('user'); // ลบข้อมูล Logged in
+                localStorage.removeItem('authToken');
                 location.reload(); // รีโหลดหน้าเพื่อกลับสู่สถานะยังไม่ได้ล็อกอิน
             });
         }
@@ -160,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (data.success) {
+                    localStorage.setItem('authToken', data.token);
                     // ดึง ID ออกมาจากข้อมูลที่ Backend ส่งมา
                     const extractedId = data.user.id || data.user.user_id || data.user.userId || data.user.ID;
 

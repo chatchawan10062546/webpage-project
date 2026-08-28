@@ -6,6 +6,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const db = require('../config/db');
+const { requireAuth } = require('../middleware/authMiddleware');
 
 const storage = multer.diskStorage({
    destination: (req, file, cb) => cb(null, 'uploads/'),
@@ -27,8 +28,9 @@ router.get('/items', (req, res) => {
 });
 
 // 📌 2. API บันทึกรายการใหม่ลง DB
-router.post('/items', upload.single('image'), (req, res) => {
-   const { title, category, description, location, user_id, item_type, price } = req.body;
+router.post('/items', requireAuth, upload.single('image'), (req, res) => {
+   const { title, category, description, location, item_type, price } = req.body;
+   const user_id = req.authUser.userId;
 
    if (!title || !category || !user_id) {
       return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
@@ -54,8 +56,9 @@ router.post('/items', upload.single('image'), (req, res) => {
 });
 
 // 📌 3. API แก้ไขรายการของตัวเอง
-router.put('/items/:itemId', upload.single('image'), (req, res) => {
-   const { title, category, description, location, user_id, item_type, price } = req.body;
+router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => {
+   const { title, category, description, location, item_type, price } = req.body;
+   const user_id = req.authUser.userId;
    const { itemId } = req.params;
 
    if (!title || !category || !user_id) {
@@ -96,43 +99,9 @@ router.put('/items/:itemId', upload.single('image'), (req, res) => {
    });
 });
 
-// 📌 4. API เปลี่ยนสถานะรายการของตัวเอง
-router.patch('/items/:itemId/status', (req, res) => {
-   const { status, user_id } = req.body;
-   const { itemId } = req.params;
-   const validStatuses = ['available', 'reserved', 'completed'];
-
-   if (!validStatuses.includes(status) || !user_id) {
-      return res.status(400).json({ success: false, message: 'สถานะหรือรหัสผู้ใช้ไม่ถูกต้อง' });
-   }
-
-   db.query(
-      'UPDATE items SET status = ? WHERE item_id = ? AND user_id = ?',
-      [status, itemId, user_id],
-      (err, result) => {
-         if (err) {
-            console.error('Update Item Status Error:', err);
-            return res.status(500).json({ success: false, message: 'เปลี่ยนสถานะไม่สำเร็จ' });
-         }
-         if (result.affectedRows === 0) {
-            return db.query('SELECT item_id FROM items WHERE item_id = ? AND user_id = ?', [itemId, user_id], (checkErr, rows) => {
-               if (checkErr) {
-                  return res.status(500).json({ success: false, message: 'ตรวจสอบสิทธิ์ไม่สำเร็จ' });
-               }
-               if (rows.length === 0) {
-                  return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์เปลี่ยนสถานะรายการนี้' });
-               }
-               res.json({ success: true, message: 'เปลี่ยนสถานะสำเร็จ' });
-            });
-         }
-         res.json({ success: true, message: 'เปลี่ยนสถานะสำเร็จ' });
-      }
-   );
-});
-
-// 📌 5. API ลบรายการของตัวเอง
-router.delete('/items/:itemId', (req, res) => {
-   const { user_id } = req.body;
+// 📌 4. API ลบรายการของตัวเอง
+router.delete('/items/:itemId', requireAuth, (req, res) => {
+   const user_id = req.authUser.userId;
    const { itemId } = req.params;
 
    if (!user_id) {
@@ -151,9 +120,10 @@ router.delete('/items/:itemId', (req, res) => {
    });
 });
 
-// 📌 6. API ส่งคำขอรับรายการ
-router.post('/items/:itemId/requests', (req, res) => {
-   const { requester_id, message } = req.body;
+// 📌 5. API ส่งคำขอรับรายการ
+router.post('/items/:itemId/requests', requireAuth, (req, res) => {
+   const { message } = req.body;
+   const requester_id = req.authUser.userId;
    const { itemId } = req.params;
 
    if (!requester_id) {
@@ -187,9 +157,9 @@ router.post('/items/:itemId/requests', (req, res) => {
    });
 });
 
-// 📌 7. API ดูคำขอของรายการตัวเอง
-router.get('/items/:itemId/requests', (req, res) => {
-   const { user_id } = req.query;
+// 📌 6. API ดูคำขอของรายการตัวเอง
+router.get('/items/:itemId/requests', requireAuth, (req, res) => {
+   const user_id = req.authUser.userId;
    const { itemId } = req.params;
 
    if (!user_id) return res.status(400).json({ success: false, message: 'ไม่พบรหัสผู้ใช้' });
@@ -212,9 +182,10 @@ router.get('/items/:itemId/requests', (req, res) => {
    });
 });
 
-// 📌 8. API เจ้าของรายการยอมรับหรือปฏิเสธคำขอ
-router.patch('/item-requests/:requestId', (req, res) => {
-   const { status, user_id } = req.body;
+// 📌 7. API เจ้าของรายการยอมรับหรือปฏิเสธคำขอ
+router.patch('/item-requests/:requestId', requireAuth, (req, res) => {
+   const { status } = req.body;
+   const user_id = req.authUser.userId;
    const { requestId } = req.params;
 
    if (!['accepted', 'rejected'].includes(status) || !user_id) {

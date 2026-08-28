@@ -35,6 +35,24 @@ CREATE TABLE IF NOT EXISTS item_images (
     FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS chat_rooms (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    item_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    room_id INT NOT NULL,
+    user_id INT,
+    user_name VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS item_requests (
     request_id INT AUTO_INCREMENT PRIMARY KEY,
     item_id INT NOT NULL,
@@ -46,4 +64,44 @@ CREATE TABLE IF NOT EXISTS item_requests (
     UNIQUE KEY unique_item_requester (item_id, requester_id),
     FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE,
     FOREIGN KEY (requester_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS transactions (
+    trans_id INT AUTO_INCREMENT PRIMARY KEY,
+    item_id INT NOT NULL,
+    request_id INT NULL,
+    giver_id INT NOT NULL,
+    receiver_id INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    status ENUM('awaiting_payment', 'paid', 'awaiting_shipment', 'shipped', 'received', 'released', 'cancelled', 'refunded', 'disputed') NOT NULL DEFAULT 'awaiting_payment',
+    payment_status ENUM('pending', 'held', 'released', 'refunded', 'failed') NOT NULL DEFAULT 'pending',
+    shipping_status ENUM('pending', 'shipped', 'delivered') NOT NULL DEFAULT 'pending',
+    payment_reference VARCHAR(255),
+    tracking_number VARCHAR(100),
+    paid_at TIMESTAMP NULL,
+    shipped_at TIMESTAMP NULL,
+    received_at TIMESTAMP NULL,
+    release_at TIMESTAMP NULL,
+    released_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_transactions_item (item_id),
+    KEY idx_transactions_giver (giver_id),
+    KEY idx_transactions_receiver (receiver_id),
+    KEY idx_transactions_release (status, release_at),
+    FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE,
+    FOREIGN KEY (request_id) REFERENCES item_requests(request_id) ON DELETE SET NULL,
+    FOREIGN KEY (giver_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS item_id INT NULL;
+
+CREATE TABLE IF NOT EXISTS chat_room_members (
+    room_id INT NOT NULL,
+    user_id INT NOT NULL,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (room_id, user_id),
+    FOREIGN KEY (room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
