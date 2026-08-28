@@ -141,8 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ----------------------------------------------------
-    // 🔥 4. ระบบเข้าสู่ระบบ (ส่งข้อมูลเข้า Database ผ่าน API)
-    // ----------------------------------------------------
+// 🔥 4. ระบบเข้าสู่ระบบ (ส่งข้อมูลเข้า Database ผ่าน API)
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
@@ -161,8 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (data.success) {
-                    // 📌 ดึงค่า ID จากทุกลูกเล่นที่ Backend อาจส่งมา (data.user.id / data.user.user_id / data.user._id / data.id)
-                    const extractedId = data.user?.id || data.user?.user_id || data.user?.userId || data.user?._id || data.userId || data.id;
+                    // ดึง ID ออกมาจากข้อมูลที่ Backend ส่งมา
+                    const extractedId = data.user.id || data.user.user_id || data.user.userId || data.user.ID;
 
                     const userData = {
                         ...data.user,
@@ -170,13 +169,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         user_id: extractedId
                     };
 
-                    // บันทึกข้อมูลที่มี ID ลงใน localStorage
+                    // บันทึกลง localStorage
                     localStorage.setItem('user', JSON.stringify(userData));
 
                     if (window.loginModal) window.loginModal.hide();
                     loginForm.reset();
                     
-                    // รีโหลดหน้าเพื่อให้ Navbar แสดงชื่อผู้ใช้
                     location.reload();
                 } else {
                     alert('❌ ' + data.message);
