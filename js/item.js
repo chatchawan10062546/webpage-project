@@ -39,6 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderItemCard(item, prepend = true) {
         if (!itemGrid) return;
 
+        const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+        const currentUserId = currentUser?.id || currentUser?.user_id || currentUser?.userId;
+        const itemId = item.item_id || item.id;
+        const itemOwnerId = item.user_id || item.userId;
+        const isOwner = currentUserId && String(currentUserId) === String(itemOwnerId);
+
         // จัดการเรื่องภาพ (แปลง URL หรือใช้ภาพตั้งต้น)
         let imagesArray = [];
         if (item.image_url) {
@@ -65,9 +71,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 : 'ฟรี';
 
         const imagesJson = JSON.stringify(imagesArray).replace(/"/g, '&quot;');
+        const ownerControls = isOwner ? `
+            <div class="item-owner-controls mt-3 pt-3 border-top d-flex gap-2" data-item-id="${itemId}">
+                <button class="btn btn-outline-primary btn-sm flex-grow-1 item-edit-btn" type="button">แก้ไข</button>
+                <button class="btn btn-outline-danger btn-sm flex-grow-1 item-delete-btn" type="button">ลบ</button>
+                <select class="form-select form-select-sm item-status-select" aria-label="สถานะรายการ">
+                    <option value="available" ${item.status === 'available' ? 'selected' : ''}>พร้อมใช้งาน</option>
+                    <option value="reserved" ${item.status === 'reserved' ? 'selected' : ''}>จองแล้ว</option>
+                    <option value="completed" ${item.status === 'completed' ? 'selected' : ''}>เสร็จสิ้น</option>
+                </select>
+            </div>
+        ` : '';
 
         const newCardHTML = `
-            <div class="col-md-4 col-sm-6 item-element" data-category="${item.category}" data-title="${item.title}">
+            <div class="col-md-4 col-sm-6 item-element" data-item-id="${itemId}" data-category="${item.category}" data-title="${item.title}">
                 <div class="card item-card h-100 position-relative shadow-sm border-0 rounded-4 overflow-hidden">
                     <div class="position-absolute top-0 start-0 p-2 z-2">
                         ${typeBadge}
@@ -94,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ดูรายละเอียด
                             </button>
                         </div>
+                        ${ownerControls}
                     </div>
                 </div>
             </div>
