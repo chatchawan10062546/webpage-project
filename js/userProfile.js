@@ -4,10 +4,10 @@
 // ====================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    updateAuthUI();
+    updateProfileUI();
 });
 
-function updateAuthUI() {
+function updateProfileUI() {
     const userJson = localStorage.getItem('user');
     const authContainer = document.getElementById('authNavContainer');
 
@@ -15,6 +15,15 @@ function updateAuthUI() {
 
     if (userJson) {
         const user = JSON.parse(userJson);
+        const userId = user.id || user.user_id || user.userId || user._id;
+
+        if (!userId) {
+            authContainer.innerHTML = `
+                <button class="btn btn-light text-success fw-bold px-4 rounded-pill shadow-sm"
+                    data-bs-toggle="modal" data-bs-target="#loginModal">เข้าสู่ระบบ</button>
+            `;
+            return;
+        }
         
         // เช็กว่าผู้ใช้มีรูปโปรไฟล์หรือไม่ (ถ้ามีใช้รูป ถ้าไม่มีใช้ไอคอน)
         const avatarHtml = user.avatar_url 
