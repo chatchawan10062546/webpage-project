@@ -15,14 +15,17 @@ function updateAuthUI() {
 
     // ดึงข้อมูลผู้ใช้จาก localStorage (ที่บันทึกไว้ตอน Login)
     const user = JSON.parse(localStorage.getItem('user'));
+    
+    // 📌 [แก้ไข] เช็ก id แบบยืดหยุ่น (รองรับทั้ง id, user_id, userId)
+    const userId = user?.id || user?.user_id || user?.userId;
 
-    if (user && user.id) {
+    if (user && userId) {
         // 🟢 กรณีล็อกอินแล้ว: แสดงปุ่มรูปและชื่อโปรไฟล์
         authNavContainer.innerHTML = `
             <div class="dropdown">
                 <button class="btn btn-light dropdown-toggle rounded-pill fw-bold text-success d-flex align-items-center gap-2 px-3 shadow-sm" type="button" data-bs-toggle="dropdown">
                     <img src="${user.avatar || 'https://via.placeholder.com/30'}" class="rounded-circle" width="28" height="28" style="object-fit: cover;">
-                    <span>${user.name}</span>
+                    <span>${user.name || 'สมาชิก'}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 rounded-3">
                     <li><a class="dropdown-item" href="#">โปรไฟล์ของฉัน</a></li>
@@ -160,8 +163,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (data.success) {
+                    // 📌 [ปรับปรุง] Normalize ข้อมูล User ให้มีทั้ง id และ user_id ก่อนบันทึก
+                    const userData = {
+                        ...data.user,
+                        id: data.user.id || data.user.user_id || data.user.userId,
+                        user_id: data.user.id || data.user.user_id || data.user.userId
+                    };
+
                     // ✅ 1. บันทึกข้อมูลผู้ใช้ลงเครื่อง (เพื่อให้ดึงไปแสดงผล)
-                    localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.setItem('user', JSON.stringify(userData));
 
                     // ✅ 2. ปิด Modal Login
                     if (window.loginModal) window.loginModal.hide();

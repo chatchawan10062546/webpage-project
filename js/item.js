@@ -113,9 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target && e.target.id === 'postItemForm') {
             e.preventDefault();
 
-            // ตรวจสอบผู้ใช้ที่ล็อกอินผ่าน LocalStorage
+            // 📌 [แก้ไข] ตรวจสอบผู้ใช้ผ่าน LocalStorage แบบยืดหยุ่น (รองรับ id / user_id / userId)
             const user = JSON.parse(localStorage.getItem('user'));
-            if (!user || !user.id) {
+            const userId = user?.id || user?.user_id || user?.userId;
+
+            if (!user || !userId) {
                 alert('⚠️ กรุณาเข้าสู่ระบบก่อนทำการลงประกาศสิ่งของ');
                 return;
             }
@@ -130,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // จัดเตรียมข้อมูลส่งแบบ FormData เพื่อรองรับการอัปโหลดไฟล์
             const formData = new FormData();
-            formData.append('user_id', user.id);
+            formData.append('user_id', userId); // 📌 ส่ง userId ที่เช็กผ่านแน่ๆ ไปยัง Backend
             formData.append('title', title);
             formData.append('category', category);
             formData.append('item_type', itemType);
