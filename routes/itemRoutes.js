@@ -16,7 +16,7 @@ const upload = multer({ storage: storage });
 
 // 📌 1. API ดึงรายการสิ่งของทั้งหมดจาก DB
 router.get('/items', (req, res) => {
-    const sql = 'SELECT * FROM items ORDER BY id DESC';
+   const sql = 'SELECT * FROM items ORDER BY item_id DESC';
     db.query(sql, (err, results) => {
         if (err) {
             console.error('Fetch Items Error:', err);
