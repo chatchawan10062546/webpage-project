@@ -63,9 +63,11 @@ router.post('/login', (req, res) => {
             success: true,
             message: 'เข้าสู่ระบบสำเร็จ',
             user: { 
-                ...user,            // ส่งข้อมูลทุกอย่างใน DB กลับไป
-                id: userId,          // แนบ id 
-                user_id: userId      // แนบ user_id
+                id: user.user_id,        // ดึงจากคอลัมน์ user_id ใน phpMyAdmin
+                user_id: user.user_id,   // แนบไว้ทั้งสองชื่อ
+                name: user.name, 
+                email: user.email, 
+                phone: user.phone 
             }
         });
     });
