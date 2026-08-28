@@ -1,5 +1,5 @@
 // ====================================================
-// 🎁 routes/itemRoutes.js : API จัดการสิ่งของแจก + อัปโหลดรูปภาพ
+// 🎁 routes/itemRoutes.js : API จัดการรายการสิ่งของ (Database)
 // ====================================================
 const express = require('express');
 const router = express.Router();
@@ -7,22 +7,28 @@ const multer = require('multer');
 const path = require('path');
 const db = require('../config/db');
 
-// ตั้งค่าที่เก็บรูปภาพอัปโหลด
 const storage = multer.diskStorage({
-   destination: (req, file, cb) => {
-      cb(null, 'uploads/');
-   },
-   filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      cb(null, uniqueSuffix + path.extname(file.originalname));
-   }
+   destination: (req, file, cb) => cb(null, 'uploads/'),
+   filename: (req, file, cb) => cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname))
 });
 
 const upload = multer({ storage: storage });
 
-// API ลงประกาศแจกของ (/api/items)
+// 📌 1. API ดึงรายการสิ่งของทั้งหมดจาก DB
+router.get('/items', (req, res) => {
+    const sql = 'SELECT * FROM items ORDER BY id DESC';
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error('Fetch Items Error:', err);
+            return res.status(500).json({ success: false, message: 'ดึงข้อมูลไม่สำเร็จ' });
+        }
+        res.json({ success: true, items: results });
+    });
+});
+
+// 📌 2. API บันทึกรายการใหม่ลง DB
 router.post('/items', upload.single('image'), (req, res) => {
-   const { title, category, description, location, user_id } = req.body;
+   const { title, category, description, location, user_id, item_type, price } = req.body;
 
    if (!title || !category || !user_id) {
       return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
@@ -34,16 +40,16 @@ router.post('/items', upload.single('image'), (req, res) => {
    }
 
    const sql = `
-        INSERT INTO items (title, category, description, image_url, location, status, user_id) 
-        VALUES (?, ?, ?, ?, ?, 'available', ?)
-    `;
+        INSERT INTO items (title, category, description, image_url, location, status, user_id, item_type, price) 
+        VALUES (?, ?, ?, ?, ?, 'available', ?, ?, ?)
+    `;
 
-   db.query(sql, [title, category, description || '', image_url, location || '', user_id], (err, result) => {
+   db.query(sql, [title, category, description || '', image_url, location || '', user_id, item_type || 'free', price || 0], (err, result) => {
       if (err) {
          console.error('Post Item Error:', err);
-         return res.status(500).json({ success: false, message: 'ไม่สามารถลงประกาศได้' });
+         return res.status(500).json({ success: false, message: 'ไม่สามารถบันทึกลงฐานข้อมูลได้' });
       }
-      res.json({ success: true, message: 'ลงประกาศแจกของสำเร็จ!', item_id: result.insertId });
+      res.json({ success: true, message: 'ลงประกาศสำเร็จ!', item_id: result.insertId });
    });
 });
 

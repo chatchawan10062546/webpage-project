@@ -1,41 +1,67 @@
 // ====================================================
-// 📦 item.js : เพิ่มประกาศ + Modal แนวตั้งทรงใหญ่ + Gallery รูปภาพ
+// 📦 js/item.js : เพิ่มประกาศ + Modal แนวตั้งทรงใหญ่ + Gallery รูปภาพ (เชื่อมต่อ Database)
 // ====================================================
 
 document.addEventListener('DOMContentLoaded', () => {
     const itemGrid = document.getElementById('itemGrid');
-    const storedItemsKey = 'pankanPostedItems';
 
-    function getStoredItems() {
+    // ----------------------------------------------------
+    // 1. ดึงข้อมูลรายการสิ่งของทั้งหมดจากฐานข้อมูล (Backend Database)
+    // ----------------------------------------------------
+    async function loadItemsFromDB() {
         try {
-            return JSON.parse(localStorage.getItem(storedItemsKey) || '[]');
+            const response = await fetch('http://localhost:3000/api/items');
+            const data = await response.json();
+
+            if (data.success && itemGrid) {
+                itemGrid.innerHTML = ''; // ล้างข้อมูลเก่าออกก่อนแสดงผลใหม่
+
+                if (data.items.length === 0) {
+                    itemGrid.innerHTML = `
+                        <div class="col-12 text-center py-5">
+                            <p class="text-muted fs-5">ยังไม่มีรายการสิ่งของในขณะนี้</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // วนลูปเรนเดอร์การ์ดสิ่งของ
+                data.items.forEach(item => renderItemCard(item, false));
+            }
         } catch (err) {
-            console.error('Error reading stored items', err);
-            return [];
+            console.error('Error loading items from database:', err);
         }
     }
 
-    function saveStoredItems(items) {
-        localStorage.setItem(storedItemsKey, JSON.stringify(items));
-    }
-
+    // ----------------------------------------------------
+    // 2. ฟังก์ชันแสดงผลการ์ดสิ่งของ (Item Card)
+    // ----------------------------------------------------
     function renderItemCard(item, prepend = true) {
         if (!itemGrid) return;
 
-        const imagesArray = Array.isArray(item.images) && item.images.length > 0
-            ? item.images
-            : ['https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=800&auto=format&fit=crop&q=80'];
+        // จัดการเรื่องภาพ (แปลง URL หรือใช้ภาพตั้งต้น)
+        let imagesArray = [];
+        if (item.image_url) {
+            imagesArray = [item.image_url];
+        } else if (Array.isArray(item.images) && item.images.length > 0) {
+            imagesArray = item.images;
+        } else {
+            imagesArray = ['https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=800&auto=format&fit=crop&q=80'];
+        }
 
-        const typeBadge = item.itemType === 'sell'
+        const itemType = item.item_type || item.itemType || 'free';
+        const price = item.price || 0;
+
+        const typeBadge = itemType === 'sell'
             ? '<span class="badge bg-primary me-1">ขาย</span>'
-            : item.itemType === 'rent'
+            : itemType === 'rent'
                 ? '<span class="badge bg-warning text-dark me-1">ให้เช่า</span>'
                 : '<span class="badge bg-success me-1">แจกฟรี</span>';
 
-        const priceTagText = item.itemType === 'sell'
-            ? `฿${item.price}`
-            : item.itemType === 'rent'
-                ? `฿${item.price}/วัน`
+        const priceTagText = itemType === 'sell'
+            ? `฿${Number(price).toLocaleString()}`
+            : itemType === 'rent'
+                ? `฿${Number(price).toLocaleString()}/วัน`
                 : 'ฟรี';
 
         const imagesJson = JSON.stringify(imagesArray).replace(/"/g, '&quot;');
@@ -53,17 +79,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             <h5 class="card-title fw-bold mb-0">${item.title}</h5>
                             <span class="fw-bold text-success fs-5">${priceTagText}</span>
                         </div>
-                        <p class="card-text text-muted small mb-2">📍 ${item.location}</p>
-                        <p class="card-text text-secondary text-truncate small">${item.description}</p>
+                        <p class="card-text text-muted small mb-2">📍 ${item.location || 'ไม่ระบุสถานที่'}</p>
+                        <p class="card-text text-secondary text-truncate small">${item.description || ''}</p>
                         <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
-                            <span class="small text-muted">เมื่อสักครู่นี้</span>
+                            <span class="small text-muted">โพสต์เมื่อ ${new Date(item.created_at || Date.now()).toLocaleDateString('th-TH')}</span>
                             <button class="btn btn-outline-success btn-sm px-3 rounded-pill fw-bold request-btn"
                                 data-title="${item.title}"
                                 data-category="${item.category}"
-                                data-type="${item.itemType}"
-                                data-price="${item.price}"
-                                data-location="${item.location}"
-                                data-description="${item.description}"
+                                data-type="${itemType}"
+                                data-price="${price}"
+                                data-location="${item.location || ''}"
+                                data-description="${item.description || ''}"
                                 data-images="${imagesJson}">
                                 ดูรายละเอียด
                             </button>
@@ -77,80 +103,78 @@ document.addEventListener('DOMContentLoaded', () => {
         else itemGrid.insertAdjacentHTML('beforeend', newCardHTML);
     }
 
-    function loadSavedItems() {
-        const savedItems = getStoredItems();
-        savedItems.forEach(item => renderItemCard(item, false));
-    }
+    // เรียกดึงข้อมูลจาก Database เมื่อโหลดหน้าเว็บ
+    loadItemsFromDB();
 
-    loadSavedItems();
-
-    // 1. ดักจับการลงประกาศใหม่
-    document.addEventListener('submit', (e) => {
+    // ----------------------------------------------------
+    // 3. ดักจับการลงประกาศใหม่ (บันทึกลง Database ผ่าน API)
+    // ----------------------------------------------------
+    document.addEventListener('submit', async (e) => {
         if (e.target && e.target.id === 'postItemForm') {
             e.preventDefault();
+
+            // ตรวจสอบผู้ใช้ที่ล็อกอินผ่าน LocalStorage
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user || !user.id) {
+                alert('⚠️ กรุณาเข้าสู่ระบบก่อนทำการลงประกาศสิ่งของ');
+                return;
+            }
 
             const itemType = document.querySelector('input[name="itemType"]:checked')?.value || 'free';
             const price = document.getElementById('postPrice')?.value || '0';
             const title = document.getElementById('postTitle')?.value || 'รายการใหม่';
             const category = document.getElementById('postCategory')?.value || 'อื่นๆ';
             const location = document.getElementById('postLocation')?.value || 'ละแวกใกล้เคียง';
-            const description = document.getElementById('postDescription')?.value || 'ไม่มีรายละเอียดเพิ่มเติม';
+            const description = document.getElementById('postDescription')?.value || '';
             const imageInput = document.getElementById('postImageFile');
 
-            let imagesArray = [];
-
-            const createNewItemObject = (images) => ({
-                itemType,
-                price,
-                title,
-                category,
-                location,
-                description,
-                images
-            });
-
-            const appendNewItem = (images) => {
-                const item = createNewItemObject(images);
-                renderItemCard(item);
-
-                const savedItems = getStoredItems();
-                savedItems.unshift(item);
-                saveStoredItems(savedItems);
-            };
-
-            const processAndAppend = () => {
-                if (imagesArray.length === 0) {
-                    imagesArray.push('https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=800&auto=format&fit=crop&q=80');
-                }
-
-                appendNewItem(imagesArray);
-
-                e.target.reset();
-                const postModalEl = document.getElementById('postItemModal');
-                if (postModalEl) {
-                    (bootstrap.Modal.getInstance(postModalEl) || new bootstrap.Modal(postModalEl)).hide();
-                }
-                alert('🎉 ลงประกาศเรียบร้อยแล้ว!');
-            };
+            // จัดเตรียมข้อมูลส่งแบบ FormData เพื่อรองรับการอัปโหลดไฟล์
+            const formData = new FormData();
+            formData.append('user_id', user.id);
+            formData.append('title', title);
+            formData.append('category', category);
+            formData.append('item_type', itemType);
+            formData.append('price', price);
+            formData.append('location', location);
+            formData.append('description', description);
 
             if (imageInput && imageInput.files && imageInput.files.length > 0) {
-                let loadedCount = 0;
-                Array.from(imageInput.files).forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        imagesArray.push(event.target.result);
-                        loadedCount++;
-                        if (loadedCount === imageInput.files.length) processAndAppend();
-                    };
-                    reader.readAsDataURL(file);
+                formData.append('image', imageInput.files[0]);
+            }
+
+            try {
+                const response = await fetch('http://localhost:3000/api/items', {
+                    method: 'POST',
+                    body: formData
                 });
-            } else {
-                processAndAppend();
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('🎉 ลงประกาศและบันทึกข้อมูลสำเร็จเรียบร้อยแล้ว!');
+                    
+                    e.target.reset();
+
+                    const postModalEl = document.getElementById('postItemModal');
+                    if (postModalEl) {
+                        (bootstrap.Modal.getInstance(postModalEl) || new bootstrap.Modal(postModalEl)).hide();
+                    }
+
+                    // โหลดรายการสิ่งของใหม่ทั้งหมดจาก Database
+                    loadItemsFromDB();
+                } else {
+                    alert('❌ ไม่สามารถบันทึกข้อมูลได้: ' + data.message);
+                }
+            } catch (err) {
+                console.error('Error submitting item:', err);
+                alert('⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
             }
         }
     });
 
-    // 2. ดักจับการกดปุ่ม "ดูรายละเอียด"
+    // ----------------------------------------------------
+    // 4. ดักจับการกดปุ่ม "ดูรายละเอียด"
+    // ----------------------------------------------------
     document.addEventListener('click', (e) => {
         if (e.target && e.target.classList.contains('request-btn')) {
             const btn = e.target;
@@ -172,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             itemType = itemType || 'free';
 
-            // จัดการรูปภาพหลายรูป
+            // จัดการรูปภาพหลายรูปสำหรับ Gallery
             let images = [];
             if (btn.dataset.images) {
                 try { images = JSON.parse(btn.dataset.images); } catch (err) {}
@@ -187,7 +211,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 3. ฟังก์ชันสร้าง Modal ขนาดใหญ่ + Layout แนวตั้ง (รูปบน -> ข้อมูลกลาง -> ปุ่มล่าง)
+    // ----------------------------------------------------
+    // 5. ฟังก์ชันสร้าง Modal ขนาดใหญ่ + Layout แนวตั้ง (รูปบน -> ข้อมูลกลาง -> ปุ่มล่าง)
+    // ----------------------------------------------------
     function showItemDetailModal(item) {
         const oldModal = document.getElementById('itemDetailModal');
         if (oldModal) oldModal.remove();
@@ -206,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
             thumbnailsHTML += `</div>`;
         }
 
-        // ปุ่มการทำรายการ (ใหญ่ และอ่านง่าย)
+        // ปุ่มการทำรายการ
         let actionButtonsHTML = '';
         if (item.itemType === 'free') {
             actionButtonsHTML = `
@@ -217,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
             `;
         } else {
-            const typeLabel = item.itemType === 'sell' ? `ซื้อขาย (฿${item.price})` : `ให้เช่า (฿${item.price}/วัน)`;
+            const typeLabel = item.itemType === 'sell' ? `ซื้อขาย (฿${Number(item.price).toLocaleString()})` : `ให้เช่า (฿${Number(item.price).toLocaleString()}/วัน)`;
             actionButtonsHTML = `
                 <button class="btn btn-primary w-100 p-3 rounded-4 mb-3 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
                         style="background-color: #0d6efd;" data-action="escrow">
@@ -277,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const detailModal = new bootstrap.Modal(document.getElementById('itemDetailModal'));
         detailModal.show();
 
-        // คลิกเปลี่ยนรูป
+        // คลิกเปลี่ยนรูปใน Gallery
         document.querySelectorAll('.thumbnail-btn').forEach(thumb => {
             thumb.addEventListener('click', (e) => {
                 const newSrc = e.currentTarget.dataset.targetSrc;
@@ -288,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // ดักจับปุ่มกดเลือกการซื้อขาย
+        // ดักจับปุ่มกดเลือกการทำรายการ
         document.querySelectorAll('.btn-select-option').forEach(button => {
             button.addEventListener('click', (e) => {
                 const action = e.currentTarget.dataset.action;
@@ -304,4 +330,4 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
-});
+});ผ
