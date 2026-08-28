@@ -59,12 +59,16 @@ router.post('/login', (req, res) => {
         // 📌 ดึง ID ไม่ว่าจะชื่ออะไรก็ตามใน Database
         const userId = user.id || user.user_id || user.userId || user.ID || user.User_ID;
 
+        if (!userId) {
+            return res.status(500).json({ success: false, message: 'ไม่พบรหัสผู้ใช้ในฐานข้อมูล' });
+        }
+
         res.json({
             success: true,
             message: 'เข้าสู่ระบบสำเร็จ',
             user: { 
-                id: user.user_id,        // ดึงจากคอลัมน์ user_id ใน phpMyAdmin
-                user_id: user.user_id,   // แนบไว้ทั้งสองชื่อ
+                id: userId,
+                user_id: userId,
                 name: user.name, 
                 email: user.email, 
                 phone: user.phone 
