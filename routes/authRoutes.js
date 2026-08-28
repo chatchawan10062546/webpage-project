@@ -53,10 +53,19 @@ router.post('/login', (req, res) => {
             return res.status(400).json({ success: false, message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
         }
 
+        // 📌 ดึงค่า ID ของผู้ใช้จาก Database (รองรับทั้งชื่อคอลัมน์ id หรือ user_id)
+        const userId = user.id || user.user_id || user.userId;
+
         res.json({
             success: true,
             message: 'เข้าสู่ระบบสำเร็จ',
-            user: { id: user.id, name: user.name, email: user.email, phone: user.phone }
+            user: { 
+                id: userId,          // ส่ง ID ให้ Front-end
+                user_id: userId,     // สำรองฟิลด์ user_id อีกทาง
+                name: user.name, 
+                email: user.email, 
+                phone: user.phone 
+            }
         });
     });
 });

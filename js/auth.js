@@ -16,8 +16,8 @@ function updateAuthUI() {
     // ดึงข้อมูลผู้ใช้จาก localStorage (ที่บันทึกไว้ตอน Login)
     const user = JSON.parse(localStorage.getItem('user'));
     
-    // 📌 [แก้ไข] เช็ก id แบบยืดหยุ่น (รองรับทั้ง id, user_id, userId)
-    const userId = user?.id || user?.user_id || user?.userId;
+    // เช็ก ID แบบยืดหยุ่น รองรับทั้ง id, user_id, userId, _id
+    const userId = user?.id || user?.user_id || user?.userId || user?._id;
 
     if (user && userId) {
         // 🟢 กรณีล็อกอินแล้ว: แสดงปุ่มรูปและชื่อโปรไฟล์
@@ -45,7 +45,7 @@ function updateAuthUI() {
             });
         }
     } else {
-        // 🔴 กรณีที่ยังไม่ได้ล็อกอิน: แสดงปุ่มสีขาว กรอบมน สวยงาม
+        // 🔴 กรณีที่ยังไม่ได้ล็อกอิน: แสดงปุ่มเข้าสู่ระบบ
         authNavContainer.innerHTML = `
             <button class="btn btn-light text-success fw-bold px-4 rounded-pill shadow-sm"
                 data-bs-toggle="modal" data-bs-target="#loginModal">เข้าสู่ระบบ</button>
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault(); // ป้องกันไม่ให้หน้าเว็บรีเฟรช
+            e.preventDefault();
 
             const name = document.getElementById('regName').value;
             const email = document.getElementById('regEmail').value;
@@ -117,16 +117,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (data.success) {
-                    // ปิด Modal สมัครสมาชิก
                     const regModalElement = document.getElementById('registerModal');
                     if (regModalElement) {
                         const regModal = bootstrap.Modal.getInstance(regModalElement) || new bootstrap.Modal(regModalElement);
                         regModal.hide();
                     }
 
-                    registerForm.reset(); // ล้างข้อมูลในฟอร์ม
+                    registerForm.reset();
 
-                    // แสดง Modal สมัครสำเร็จ
                     const successModalElement = document.getElementById('regSuccessModal');
                     if (successModalElement) {
                         const successModal = new bootstrap.Modal(successModalElement);
@@ -163,21 +161,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (data.success) {
-                    // 📌 [ปรับปรุง] Normalize ข้อมูล User ให้มีทั้ง id และ user_id ก่อนบันทึก
+                    // 📌 ดึงค่า ID จากทุกลูกเล่นที่ Backend อาจส่งมา (data.user.id / data.user.user_id / data.user._id / data.id)
+                    const extractedId = data.user?.id || data.user?.user_id || data.user?.userId || data.user?._id || data.userId || data.id;
+
                     const userData = {
                         ...data.user,
-                        id: data.user.id || data.user.user_id || data.user.userId,
-                        user_id: data.user.id || data.user.user_id || data.user.userId
+                        id: extractedId,
+                        user_id: extractedId
                     };
 
-                    // ✅ 1. บันทึกข้อมูลผู้ใช้ลงเครื่อง (เพื่อให้ดึงไปแสดงผล)
+                    // บันทึกข้อมูลที่มี ID ลงใน localStorage
                     localStorage.setItem('user', JSON.stringify(userData));
 
-                    // ✅ 2. ปิด Modal Login
                     if (window.loginModal) window.loginModal.hide();
                     loginForm.reset();
-
-                    // ✅ 3. รีโหลดหน้าเว็บ 1 ครั้ง เพื่ออัปเดต Navbar
+                    
+                    // รีโหลดหน้าเพื่อให้ Navbar แสดงชื่อผู้ใช้
                     location.reload();
                 } else {
                     alert('❌ ' + data.message);
