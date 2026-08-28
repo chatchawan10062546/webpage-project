@@ -34,3 +34,16 @@ CREATE TABLE IF NOT EXISTS item_images (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS item_requests (
+    request_id INT AUTO_INCREMENT PRIMARY KEY,
+    item_id INT NOT NULL,
+    requester_id INT NOT NULL,
+    message TEXT,
+    status ENUM('pending', 'accepted', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_item_requester (item_id, requester_id),
+    FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE,
+    FOREIGN KEY (requester_id) REFERENCES users(user_id) ON DELETE CASCADE
+);

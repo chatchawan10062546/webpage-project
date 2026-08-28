@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="item-owner-controls mt-3 pt-3 border-top d-flex gap-2" data-item-id="${itemId}">
                 <button class="btn btn-outline-primary btn-sm flex-grow-1 item-edit-btn" type="button">แก้ไข</button>
                 <button class="btn btn-outline-danger btn-sm flex-grow-1 item-delete-btn" type="button">ลบ</button>
+                <button class="btn btn-outline-success btn-sm flex-grow-1 item-requests-btn" type="button">คำขอ</button>
                 <select class="form-select form-select-sm item-status-select" aria-label="สถานะรายการ">
                     <option value="available" ${item.status === 'available' ? 'selected' : ''}>พร้อมใช้งาน</option>
                     <option value="reserved" ${item.status === 'reserved' ? 'selected' : ''}>จองแล้ว</option>
@@ -227,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 else images.push('https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=800&auto=format&fit=crop&q=80');
             }
 
-            showItemDetailModal({ title, category, itemType, price, location, description, images });
+            showItemDetailModal({ itemId, title, category, itemType, price, location, description, images });
         }
     });
 
@@ -340,12 +341,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const action = e.currentTarget.dataset.action;
                 detailModal.hide();
 
-                if (action === 'free') {
-                    alert('🎁 ส่งคำขอรับของฟรีเรียบร้อยแล้ว!\nระบบกำลังนำท่านไปสู่การนัดรับสิ่งของ...');
-                } else if (action === 'escrow') {
-                    alert('🛡️ คุณเลือก: ซื้อขายผ่านคนกลางปลอดภัย\nกำลังนำเข้าสู่หน้าระบบถือเงิน (Escrow System)...');
-                } else if (action === 'direct') {
-                    alert('🤝 คุณเลือก: นัดเจอตกลงโดยตรง\nกำลังเปิดช่องทางติดต่อแชตกับผู้ประกาศ...');
+                if (typeof window.submitItemRequest === 'function') {
+                    window.submitItemRequest(item.itemId, action);
                 }
             });
         });
