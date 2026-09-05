@@ -16,6 +16,15 @@ body {
     letter-spacing: 0.5px;
 }
 
+#reportNavContainer .nav-link {
+    color: #ffe3e3;
+    font-weight: 600;
+}
+
+#reportNavContainer .nav-link:hover {
+    color: #ffffff;
+}
+
 /* ==========================================
    2. ตกแต่งการ์ดของแจก (Item Card)
    ========================================== */
@@ -263,6 +272,125 @@ body {
 .report-modal .modal-title {
     color: #a52828;
     font-weight: 700;
+}
+
+.admin-page {
+    background: #f4f8f5;
+}
+
+.admin-filter {
+    max-width: 190px;
+}
+
+.admin-stat,
+.admin-panel {
+    background: #ffffff;
+    border: 1px solid #dce9df;
+    border-radius: 16px;
+    box-shadow: 0 8px 22px rgba(25, 80, 49, 0.07);
+}
+
+.admin-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 1rem;
+    width: 100%;
+    border: 0;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.admin-summary-card:hover {
+    background: #f1faf3;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 25px rgba(25, 80, 49, 0.13);
+}
+
+.admin-stat i {
+    color: #198754;
+    font-size: 1.6rem;
+}
+
+.admin-stat strong {
+    color: #183b29;
+    font-size: 1.45rem;
+}
+
+.admin-panel {
+    padding: 1.25rem;
+}
+
+.admin-tabs {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.admin-tab {
+    border: 1px solid #cfe3d4;
+    border-radius: 9px;
+    padding: 0.55rem 0.9rem;
+    background: #ffffff;
+    color: #286443;
+    font-weight: 600;
+}
+
+.admin-tab.active,
+.admin-tab:hover {
+    background: #198754;
+    border-color: #198754;
+    color: #ffffff;
+}
+
+.admin-table {
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
+.admin-table thead th {
+    background: #f1faf3;
+    color: #286443;
+    white-space: nowrap;
+}
+
+.admin-table tbody tr:hover {
+    background: #fbfefc;
+}
+
+.admin-report-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid #edf2ee;
+}
+
+.admin-report-main {
+    min-width: 0;
+}
+
+.admin-report-actions {
+    display: flex;
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 0.45rem;
+    flex-shrink: 0;
+}
+
+@media (max-width: 576px) {
+    .admin-filter {
+        max-width: 150px;
+    }
+
+    .admin-report-row {
+        flex-direction: column;
+    }
+
+    .admin-report-actions {
+        align-items: flex-start;
+    }
 }
 
 .chat-inbox-modal {

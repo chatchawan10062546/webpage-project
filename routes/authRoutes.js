@@ -68,13 +68,14 @@ router.post('/login', (req, res) => {
         res.json({
             success: true,
             message: 'เข้าสู่ระบบสำเร็จ',
-            token: jwt.sign({ userId, name: user.name }, jwtSecret, { expiresIn: '7d' }),
+            token: jwt.sign({ userId, name: user.name, role: user.role }, jwtSecret, { expiresIn: '7d' }),
             user: { 
                 id: userId,
                 user_id: userId,
                 name: user.name, 
                 email: user.email, 
-                phone: user.phone 
+                phone: user.phone,
+                role: user.role
             }
         });
     });

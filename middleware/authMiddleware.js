@@ -21,4 +21,13 @@ function requireAuth(req, res, next) {
     }
 }
 
-module.exports = { jwtSecret, requireAuth };
+function requireAdmin(req, res, next) {
+    requireAuth(req, res, () => {
+        if (req.authUser.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'เฉพาะผู้ดูแลระบบเท่านั้น' });
+        }
+        next();
+    });
+}
+
+module.exports = { jwtSecret, requireAuth, requireAdmin };

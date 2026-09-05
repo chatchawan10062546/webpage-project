@@ -10,12 +10,17 @@ document.addEventListener('DOMContentLoaded', () => {
 function updateProfileUI() {
     const userJson = localStorage.getItem('user');
     const authContainer = document.getElementById('authNavContainer');
+    const reportNavContainer = document.getElementById('reportNavContainer');
 
     if (!authContainer) return;
 
     if (userJson && localStorage.getItem('authToken')) {
         const user = JSON.parse(userJson);
         const userId = user.id || user.user_id || user.userId || user._id;
+
+        if (reportNavContainer) {
+            reportNavContainer.innerHTML = '<a class="nav-link" href="#" id="reportProblemBtn">แจ้งปัญหา</a>';
+        }
 
         if (!userId) {
             authContainer.innerHTML = `
@@ -45,9 +50,7 @@ function updateProfileUI() {
                     <li>
                         <a class="dropdown-item" href="#" id="profileOpenBtn">โปรไฟล์ของฉัน</a>
                     </li>
-                    <li>
-                        <a class="dropdown-item" href="#" id="reportProblemBtn">แจ้งปัญหา</a>
-                    </li>
+                    ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html">หลังบ้านแอดมิน</a></li>' : ''}
                     <li>
                         <button class="dropdown-item text-danger mt-1" onclick="logoutUser()">
                             <i class="bi bi-box-arrow-right me-2"></i>ออกจากระบบ
@@ -57,6 +60,7 @@ function updateProfileUI() {
             </div>
         `;
     } else {
+        if (reportNavContainer) reportNavContainer.innerHTML = '';
         // ✅ แก้ไขตรงนี้: เปลี่ยนเป็นปุ่มสีขาว ขอบมน ตัวหนังสือสีเขียว (btn-light text-success fw-bold)
         authContainer.innerHTML = `
             <button class="btn btn-light text-success fw-bold px-4 rounded-pill shadow-sm" 

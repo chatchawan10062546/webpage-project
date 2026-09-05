@@ -13,6 +13,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +49,7 @@ app.use('/api', chatRoutes); // เรียกใช้งานระบบแ
 app.use('/api', profileRoutes); // เรียกใช้งานระบบโปรไฟล์
 app.use('/api', transactionRoutes); // เรียกใช้งานระบบธุรกรรมคนกลาง
 app.use('/api', reportRoutes); // เรียกใช้งานระบบแจ้งปัญหา
+app.use('/api', adminRoutes); // เรียกใช้งานระบบหลังบ้านแอดมิน
 
 // ----------------------------------------------------
 // ❓ Handle 404 Not Found (กรณีเรียก Route ที่ไม่มีอยู่จริง)

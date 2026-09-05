@@ -11,6 +11,7 @@ window.loginModal = null;
 // ----------------------------------------------------
 function updateAuthUI() {
     const authNavContainer = document.getElementById('authNavContainer');
+    const reportNavContainer = document.getElementById('reportNavContainer');
     if (!authNavContainer) return;
 
     // ดึงข้อมูลผู้ใช้จาก localStorage (ที่บันทึกไว้ตอน Login)
@@ -20,6 +21,9 @@ function updateAuthUI() {
     const userId = user?.id || user?.user_id || user?.userId || user?._id;
 
     if (user && userId && localStorage.getItem('authToken')) {
+        if (reportNavContainer) {
+            reportNavContainer.innerHTML = '<a class="nav-link" href="#" id="reportProblemBtn">แจ้งปัญหา</a>';
+        }
         // 🟢 กรณีล็อกอินแล้ว: แสดงปุ่มรูปและชื่อโปรไฟล์
         authNavContainer.innerHTML = `
             <div class="dropdown">
@@ -29,7 +33,7 @@ function updateAuthUI() {
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 rounded-3">
                     <li><a class="dropdown-item" href="#" id="profileOpenBtn">โปรไฟล์ของฉัน</a></li>
-                    <li><a class="dropdown-item" href="#" id="reportProblemBtn">แจ้งปัญหา</a></li>
+                    ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html">หลังบ้านแอดมิน</a></li>' : ''}
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item text-danger fw-bold" href="#" id="logoutBtn">ออกจากระบบ</a></li>
                 </ul>
@@ -47,6 +51,7 @@ function updateAuthUI() {
             });
         }
     } else {
+        if (reportNavContainer) reportNavContainer.innerHTML = '';
         // 🔴 กรณีที่ยังไม่ได้ล็อกอิน: แสดงปุ่มเข้าสู่ระบบ
         authNavContainer.innerHTML = `
             <button class="btn btn-light text-success fw-bold px-4 rounded-pill shadow-sm"
@@ -177,8 +182,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (window.loginModal) window.loginModal.hide();
                     loginForm.reset();
-                    
-                    location.reload();
+
+                    if (userData.role === 'admin') {
+                        window.location.href = 'admin.html';
+                    } else {
+                        location.reload();
+                    }
                 } else {
                     alert('❌ ' + data.message);
                 }
