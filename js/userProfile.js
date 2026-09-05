@@ -46,6 +46,9 @@ function updateProfileUI() {
                         <a class="dropdown-item" href="#" id="profileOpenBtn">โปรไฟล์ของฉัน</a>
                     </li>
                     <li>
+                        <a class="dropdown-item" href="#" id="reportProblemBtn">แจ้งปัญหา</a>
+                    </li>
+                    <li>
                         <button class="dropdown-item text-danger mt-1" onclick="logoutUser()">
                             <i class="bi bi-box-arrow-right me-2"></i>ออกจากระบบ
                         </button>

@@ -29,6 +29,7 @@ function updateAuthUI() {
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 rounded-3">
                     <li><a class="dropdown-item" href="#" id="profileOpenBtn">โปรไฟล์ของฉัน</a></li>
+                    <li><a class="dropdown-item" href="#" id="reportProblemBtn">แจ้งปัญหา</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item text-danger fw-bold" href="#" id="logoutBtn">ออกจากระบบ</a></li>
                 </ul>

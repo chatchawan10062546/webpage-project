@@ -95,6 +95,19 @@ CREATE TABLE IF NOT EXISTS transactions (
     FOREIGN KEY (receiver_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS reports (
+    report_id INT AUTO_INCREMENT PRIMARY KEY,
+    item_id INT NOT NULL,
+    reporter_id INT NOT NULL,
+    reason TEXT NOT NULL,
+    status ENUM('pending', 'resolved') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_reports_item (item_id),
+    KEY idx_reports_reporter (reporter_id),
+    FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE,
+    FOREIGN KEY (reporter_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS item_id INT NULL;
 
 CREATE TABLE IF NOT EXISTS chat_room_members (
