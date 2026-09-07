@@ -11,9 +11,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    document.getElementById('adminUserName').textContent = user.name || 'ผู้ดูแลระบบ';
+    document.getElementById('adminUserEmail').textContent = user.email || 'admin';
+    document.getElementById('adminAccountName').textContent = user.name || 'ผู้ดูแลระบบ';
+    document.getElementById('adminAccountEmail').textContent = user.email || 'admin';
+
     const summaryElement = document.getElementById('adminSummary');
     const reportsElement = document.getElementById('adminReportsList');
     const filterElement = document.getElementById('reportStatusFilter');
+    document.getElementById('adminDateLabel').textContent = `วันนี้ ${new Date().toLocaleDateString('th-TH')}`;
     const viewElements = {
         reports: document.getElementById('adminViewReports'),
         users: document.getElementById('adminViewUsers'),

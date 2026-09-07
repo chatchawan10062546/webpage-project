@@ -4,15 +4,18 @@
 document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchInput');
     const filterBtns = document.querySelectorAll('.filter-btn');
-    const items = document.querySelectorAll('.item-element');
     const selectedCategoryText = document.getElementById('selectedCategoryText');
+
+    function getItems() {
+        return document.querySelectorAll('#itemGrid .item-element');
+    }
 
     // 1. ระบบค้นหา Real-time
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const searchText = e.target.value.toLowerCase().trim();
 
-            items.forEach(item => {
+            getItems().forEach(item => {
                 const title = item.getAttribute('data-title') ? item.getAttribute('data-title').toLowerCase() : '';
                 item.style.display = title.includes(searchText) ? 'block' : 'none';
             });
@@ -33,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedCategoryText.innerText = filterValue === 'all' ? 'หมวดหมู่' : btn.innerText.trim();
             }
 
-            items.forEach(item => {
+            getItems().forEach(item => {
                 const category = item.getAttribute('data-category');
                 item.style.display = (filterValue === 'all' || category === filterValue) ? 'block' : 'none';
             });

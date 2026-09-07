@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS items (
     price DECIMAL(10,2) NOT NULL DEFAULT 0,
     image_url VARCHAR(255),
     status ENUM('available', 'reserved', 'completed') DEFAULT 'available',
+    latitude DECIMAL(10,7),
+    longitude DECIMAL(10,7),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );

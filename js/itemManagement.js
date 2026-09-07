@@ -5,6 +5,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const itemGrid = document.getElementById('itemGrid');
     if (!itemGrid) return;
+    let editingItem = null;
 
     function getCurrentUser() {
         return JSON.parse(localStorage.getItem('user') || 'null');
@@ -15,10 +16,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return user?.id || user?.user_id || user?.userId;
     }
 
+    function getCurrentCoordinates() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('เบราว์เซอร์ไม่รองรับการระบุตำแหน่ง'));
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                position => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+                () => reject(new Error('กรุณาอนุญาตการเข้าถึงตำแหน่งเพื่อบันทึกสินค้า')),
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+            );
+        });
+    }
+
     function getItemData(card) {
         const detailButton = card.querySelector('.request-btn');
         return {
             itemId: card.dataset.itemId,
+            latitude: card.dataset.latitude || '',
+            longitude: card.dataset.longitude || '',
             title: detailButton?.dataset.title || '',
             category: detailButton?.dataset.category || '',
             itemType: detailButton?.dataset.type || 'free',
@@ -117,7 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!card) return;
 
         if (editButton) {
-            showEditModal(getItemData(card));
+            editingItem = getItemData(card);
+            showEditModal(editingItem);
         }
 
         if (deleteButton) {
@@ -132,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.addEventListener('submit', (event) => {
+    document.addEventListener('submit', async (event) => {
         if (event.target.id !== 'editItemForm') return;
         event.preventDefault();
 
@@ -147,6 +165,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const image = document.getElementById('editImage').files[0];
         if (image) formData.append('image', image);
+
+        let latitude = editingItem?.latitude || '';
+        let longitude = editingItem?.longitude || '';
+        if (!latitude || !longitude) {
+            try {
+                const coordinates = await getCurrentCoordinates();
+                latitude = coordinates.latitude;
+                longitude = coordinates.longitude;
+            } catch (error) {
+                alert(error.message);
+                return;
+            }
+        }
+        formData.append('latitude', latitude);
+        formData.append('longitude', longitude);
 
         const itemId = document.getElementById('editItemId').value;
         sendRequest(`http://localhost:3000/api/items/${itemId}`, { method: 'PUT', body: formData })

@@ -5,6 +5,20 @@
 document.addEventListener('DOMContentLoaded', () => {
     const itemGrid = document.getElementById('itemGrid');
 
+    function getCurrentCoordinates() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('เบราว์เซอร์ไม่รองรับการระบุตำแหน่ง'));
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                position => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+                () => reject(new Error('กรุณาอนุญาตการเข้าถึงตำแหน่งเพื่อบันทึกสินค้า')),
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+            );
+        });
+    }
+
     // ----------------------------------------------------
     // 1. ดึงข้อมูลรายการสิ่งของทั้งหมดจากฐานข้อมูล (Backend Database)
     // ----------------------------------------------------
@@ -27,6 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // วนลูปเรนเดอร์การ์ดสิ่งของ
                 data.items.forEach(item => renderItemCard(item, false));
+                if (window.currentUserCoordinates) {
+                    updateAllItemDistances(window.currentUserCoordinates.latitude, window.currentUserCoordinates.longitude);
+                }
             }
         } catch (err) {
             console.error('Error loading items from database:', err);
@@ -57,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const itemType = item.item_type || item.itemType || 'free';
         const price = item.price || 0;
+        const hasCoordinates = Number.isFinite(Number(item.latitude)) && Number.isFinite(Number(item.longitude));
 
         const typeBadge = itemType === 'sell'
             ? '<span class="badge bg-primary me-1">ขาย</span>'
@@ -87,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ` : '';
 
         const newCardHTML = `
-            <div class="col-md-4 col-sm-6 item-element" data-item-id="${itemId}" data-category="${item.category}" data-title="${item.title}">
+            <div class="col-md-4 col-sm-6 item-element" data-item-id="${itemId}" data-category="${item.category}" data-title="${item.title}" data-latitude="${hasCoordinates ? item.latitude : ''}" data-longitude="${hasCoordinates ? item.longitude : ''}">
                 <div class="card item-card h-100 position-relative shadow-sm border-0 rounded-4 overflow-hidden">
                     <div class="position-absolute top-0 start-0 p-2 z-2">
                         ${typeBadge}
@@ -99,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <h5 class="card-title fw-bold mb-0">${item.title}</h5>
                             <span class="fw-bold text-success fs-5">${priceTagText}</span>
                         </div>
-                        <p class="card-text text-muted small mb-2">📍 ${item.location || 'ไม่ระบุสถานที่'}</p>
+                        <p class="card-text text-muted small mb-2">📍 ${item.location || 'ไม่ระบุสถานที่'} ${hasCoordinates ? '<span class="item-distance text-success fw-semibold">กำลังคำนวณ...</span>' : ''}</p>
                         <p class="card-text text-secondary text-truncate small">${item.description || ''}</p>
                         <div class="mb-2">
                             <span class="badge bg-secondary">สถานะ: ${statusLabel}</span>
@@ -111,6 +129,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 data-category="${item.category}"
                                 data-type="${itemType}"
                                 data-owner-id="${itemOwnerId}"
+                                data-latitude="${hasCoordinates ? item.latitude : ''}"
+                                data-longitude="${hasCoordinates ? item.longitude : ''}"
                                 data-price="${price}"
                                 data-location="${item.location || ''}"
                                 data-description="${item.description || ''}"
@@ -155,6 +175,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const description = document.getElementById('postDescription')?.value || '';
             const imageInput = document.getElementById('postImageFile');
 
+            let coordinates;
+            try {
+                coordinates = await getCurrentCoordinates();
+            } catch (error) {
+                alert(error.message);
+                return;
+            }
+
             // จัดเตรียมข้อมูลส่งแบบ FormData เพื่อรองรับการอัปโหลดไฟล์
             const formData = new FormData();
             formData.append('user_id', userId); // 📌 ส่ง userId ที่เช็กผ่านแน่ๆ ไปยัง Backend
@@ -164,6 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('price', price);
             formData.append('location', location);
             formData.append('description', description);
+            formData.append('latitude', coordinates.latitude);
+            formData.append('longitude', coordinates.longitude);
 
             if (imageInput && imageInput.files && imageInput.files.length > 0) {
                 formData.append('image', imageInput.files[0]);
@@ -216,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const location = btn.dataset.location || card?.querySelector('.text-muted')?.innerText || 'ใกล้ตัวคุณ';
             const description = btn.dataset.description || card?.querySelector('.text-secondary')?.innerText || 'ไม่มีรายละเอียด';
             const price = btn.dataset.price || '0';
+            const distance = btn.dataset.distance || '';
 
             let itemType = btn.dataset.type;
             if (!itemType && card) {
@@ -237,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 else images.push('https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=800&auto=format&fit=crop&q=80');
             }
 
-            showItemDetailModal({ itemId, ownerId, title, category, itemType, price, location, description, images });
+            showItemDetailModal({ itemId, ownerId, title, category, itemType, price, location, description, images, distance });
         }
     });
 
@@ -317,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <!-- 📝 2. รายละเอียดสินค้าอยู่ตรงกลาง -->
                             <div class="bg-light p-4 rounded-4 mb-4 border">
                                 <h2 class="fw-bold text-success mb-2">${item.title}</h2>
-                                <p class="text-muted fs-6 mb-3">📍 ${item.location}</p>
+                                <p class="text-muted fs-6 mb-3">📍 ${item.location} ${item.distance ? `<span class="text-success fw-semibold">(${item.distance})</span>` : ''}</p>
                                 <hr class="my-3">
                                 <h5 class="fw-bold text-dark mb-2">รายละเอียดสินค้า:</h5>
                                 <p class="text-secondary fs-5 mb-0" style="line-height: 1.6; white-space: pre-line;">${item.description}</p>

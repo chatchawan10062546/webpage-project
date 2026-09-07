@@ -29,10 +29,10 @@ router.get('/items', (req, res) => {
 
 // 📌 2. API บันทึกรายการใหม่ลง DB
 router.post('/items', requireAuth, upload.single('image'), (req, res) => {
-   const { title, category, description, location, item_type, price } = req.body;
+   const { title, category, description, location, latitude, longitude, item_type, price } = req.body;
    const user_id = req.authUser.userId;
 
-   if (!title || !category || !user_id) {
+   if (!title || !category || !user_id || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
       return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
    }
 
@@ -42,11 +42,11 @@ router.post('/items', requireAuth, upload.single('image'), (req, res) => {
    }
 
    const sql = `
-        INSERT INTO items (title, category, description, image_url, location, status, user_id, item_type, price) 
-        VALUES (?, ?, ?, ?, ?, 'available', ?, ?, ?)
+      INSERT INTO items (title, category, description, image_url, location, latitude, longitude, status, user_id, item_type, price) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'available', ?, ?, ?)
     `;
 
-   db.query(sql, [title, category, description || '', image_url, location || '', user_id, item_type || 'free', price || 0], (err, result) => {
+   db.query(sql, [title, category, description || '', image_url, location || '', latitude, longitude, user_id, item_type || 'free', price || 0], (err, result) => {
       if (err) {
          console.error('Post Item Error:', err);
          return res.status(500).json({ success: false, message: 'ไม่สามารถบันทึกลงฐานข้อมูลได้' });
@@ -57,7 +57,7 @@ router.post('/items', requireAuth, upload.single('image'), (req, res) => {
 
 // 📌 3. API แก้ไขรายการของตัวเอง
 router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => {
-   const { title, category, description, location, item_type, price } = req.body;
+   const { title, category, description, location, latitude, longitude, item_type, price } = req.body;
    const user_id = req.authUser.userId;
    const { itemId } = req.params;
 
@@ -65,10 +65,10 @@ router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => 
       return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
    }
 
-   const values = [title, category, description || '', location || '', item_type || 'free', price || 0];
+   const values = [title, category, description || '', location || '', latitude, longitude, item_type || 'free', price || 0];
    let sql = `
       UPDATE items
-      SET title = ?, category = ?, description = ?, location = ?, item_type = ?, price = ?
+      SET title = ?, category = ?, description = ?, location = ?, latitude = ?, longitude = ?, item_type = ?, price = ?
    `;
 
    if (req.file) {
