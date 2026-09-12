@@ -6,17 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const itemGrid = document.getElementById('itemGrid');
 
     function getCurrentCoordinates() {
-        return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
-                reject(new Error('เบราว์เซอร์ไม่รองรับการระบุตำแหน่ง'));
-                return;
-            }
-            navigator.geolocation.getCurrentPosition(
-                position => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
-                () => reject(new Error('กรุณาอนุญาตการเข้าถึงตำแหน่งเพื่อบันทึกสินค้า')),
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-            );
-        });
+        return getUserCoordinates();
     }
 
     // ----------------------------------------------------
@@ -119,8 +109,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <p class="card-text text-muted small mb-2">📍 ${item.location || 'ไม่ระบุสถานที่'} ${hasCoordinates ? '<span class="item-distance text-success fw-semibold">กำลังคำนวณ...</span>' : ''}</p>
                         <p class="card-text text-secondary text-truncate small">${item.description || ''}</p>
-                        <div class="mb-2">
+                        <div class="mb-2 d-flex justify-content-between align-items-center">
                             <span class="badge bg-secondary">สถานะ: ${statusLabel}</span>
+                            ${(item.quantity !== undefined && item.quantity > 0) ? `<span class="badge bg-info text-dark">เหลือ ${item.quantity} ชิ้น</span>` : (item.quantity === 0 ? `<span class="badge bg-danger">หมดแล้ว</span>` : '')}
                         </div>
                         <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
                             <span class="small text-muted">โพสต์เมื่อ ${new Date(item.created_at || Date.now()).toLocaleDateString('th-TH')}</span>
@@ -132,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 data-latitude="${hasCoordinates ? item.latitude : ''}"
                                 data-longitude="${hasCoordinates ? item.longitude : ''}"
                                 data-price="${price}"
+                                data-quantity="${item.quantity ?? 1}"
                                 data-location="${item.location || ''}"
                                 data-description="${item.description || ''}"
                                 data-images="${imagesJson}">
@@ -169,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const itemType = document.querySelector('input[name="itemType"]:checked')?.value || 'free';
             const price = document.getElementById('postPrice')?.value || '0';
+            const quantity = document.getElementById('postQuantity')?.value || '1';
             const title = document.getElementById('postTitle')?.value || 'รายการใหม่';
             const category = document.getElementById('postCategory')?.value || 'อื่นๆ';
             const location = document.getElementById('postLocation')?.value || 'ละแวกใกล้เคียง';
@@ -188,6 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('user_id', userId); // 📌 ส่ง userId ที่เช็กผ่านแน่ๆ ไปยัง Backend
             formData.append('title', title);
             formData.append('category', category);
+            formData.append('quantity', quantity);
             formData.append('item_type', itemType);
             formData.append('price', price);
             formData.append('location', location);
@@ -332,7 +326,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         <!-- Header -->
                         <div class="d-flex justify-content-between align-items-center pb-2">
                             <span class="badge bg-success px-3 py-2 rounded-pill fs-6 fw-bold">${item.category}</span>
-                            <button type="button" class="btn-close fs-4" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <div>
+                                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill me-2 fw-bold report-item-btn" 
+                                        data-item-id="${item.itemId}" data-owner-id="${item.ownerId}" data-title="${item.title}">
+                                    🚨 รายงาน
+                                </button>
+                                <button type="button" class="btn-close fs-4" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
                         </div>
 
                         <div class="modal-body p-2 p-md-3">
@@ -403,5 +403,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+    }
+});
+document.addEventListener('click', (e) => {
+    const reportBtn = e.target.closest('.report-item-btn');
+    if (reportBtn && window.openReportModal) {
+        const itemId = reportBtn.dataset.itemId;
+        const ownerId = reportBtn.dataset.ownerId;
+        const title = reportBtn.dataset.title;
+        const detailModal = bootstrap.Modal.getInstance(document.getElementById('itemDetailModal'));
+        if (detailModal) detailModal.hide();
+        window.openReportModal(itemId, ownerId, `โพสต์: ${title}`);
     }
 });

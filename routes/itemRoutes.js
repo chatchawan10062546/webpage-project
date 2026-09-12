@@ -15,9 +15,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// 📌 1. API ดึงรายการสิ่งของทั้งหมดจาก DB
+// 📌 1. API ดึงรายการสิ่งของทั้งหมดจาก DB (เฉพาะที่อนุมัติแล้ว)
 router.get('/items', (req, res) => {
-   const sql = 'SELECT * FROM items ORDER BY item_id DESC';
+   const sql = 'SELECT * FROM items WHERE is_approved = TRUE ORDER BY item_id DESC';
     db.query(sql, (err, results) => {
         if (err) {
             console.error('Fetch Items Error:', err);
@@ -29,7 +29,7 @@ router.get('/items', (req, res) => {
 
 // 📌 2. API บันทึกรายการใหม่ลง DB
 router.post('/items', requireAuth, upload.single('image'), (req, res) => {
-   const { title, category, description, location, latitude, longitude, item_type, price } = req.body;
+   const { title, category, description, location, latitude, longitude, item_type, price, quantity } = req.body;
    const user_id = req.authUser.userId;
 
    if (!title || !category || !user_id || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
@@ -42,22 +42,22 @@ router.post('/items', requireAuth, upload.single('image'), (req, res) => {
    }
 
    const sql = `
-      INSERT INTO items (title, category, description, image_url, location, latitude, longitude, status, user_id, item_type, price) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'available', ?, ?, ?)
+      INSERT INTO items (title, category, description, image_url, location, latitude, longitude, status, user_id, item_type, price, quantity) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'available', ?, ?, ?, ?)
     `;
 
-   db.query(sql, [title, category, description || '', image_url, location || '', latitude, longitude, user_id, item_type || 'free', price || 0], (err, result) => {
+   db.query(sql, [title, category, description || '', image_url, location || '', latitude, longitude, user_id, item_type || 'free', price || 0, quantity || 1], (err, result) => {
       if (err) {
          console.error('Post Item Error:', err);
          return res.status(500).json({ success: false, message: 'ไม่สามารถบันทึกลงฐานข้อมูลได้' });
       }
-      res.json({ success: true, message: 'ลงประกาศสำเร็จ!', item_id: result.insertId });
+      res.json({ success: true, message: 'ลงประกาศสำเร็จ! กรุณารอแอดมินตรวจสอบก่อนแสดงผลบนหน้าเว็บ', item_id: result.insertId });
    });
 });
 
 // 📌 3. API แก้ไขรายการของตัวเอง
 router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => {
-   const { title, category, description, location, latitude, longitude, item_type, price } = req.body;
+   const { title, category, description, location, latitude, longitude, item_type, price, quantity } = req.body;
    const user_id = req.authUser.userId;
    const { itemId } = req.params;
 
@@ -65,10 +65,10 @@ router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => 
       return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
    }
 
-   const values = [title, category, description || '', location || '', latitude, longitude, item_type || 'free', price || 0];
+   const values = [title, category, description || '', location || '', latitude, longitude, item_type || 'free', price || 0, quantity || 1];
    let sql = `
       UPDATE items
-      SET title = ?, category = ?, description = ?, location = ?, latitude = ?, longitude = ?, item_type = ?, price = ?
+      SET title = ?, category = ?, description = ?, location = ?, latitude = ?, longitude = ?, item_type = ?, price = ?, quantity = ?
    `;
 
    if (req.file) {
@@ -208,9 +208,15 @@ router.patch('/item-requests/:requestId', requireAuth, (req, res) => {
       db.query('UPDATE item_requests SET status = ? WHERE request_id = ?', [status, requestId], (updateErr) => {
          if (updateErr) return res.status(500).json({ success: false, message: 'อัปเดตคำขอไม่สำเร็จ' });
          if (status === 'accepted') {
-            return db.query('UPDATE items SET status = \'reserved\' WHERE item_id = ?', [rows[0].item_id], (itemErr) => {
+            const updateSql = `
+               UPDATE items 
+               SET quantity = GREATEST(quantity - 1, 0),
+                   status = CASE WHEN (quantity - 1) <= 0 THEN 'reserved' ELSE status END
+               WHERE item_id = ?
+            `;
+            return db.query(updateSql, [rows[0].item_id], (itemErr) => {
                if (itemErr) return res.status(500).json({ success: false, message: 'อัปเดตสถานะรายการไม่สำเร็จ' });
-               res.json({ success: true, message: 'ยอมรับคำขอและจองรายการสำเร็จ' });
+               res.json({ success: true, message: 'ยอมรับคำขอและปรับลดจำนวนสำเร็จ' });
             });
          }
          res.json({ success: true, message: 'ปฏิเสธคำขอสำเร็จ' });

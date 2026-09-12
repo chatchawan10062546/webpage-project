@@ -5,6 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+require('dotenv').config();
 
 // ดึงไฟล์ Routes ที่เราแยกไว้มาใช้งาน
 const authRoutes = require('./routes/authRoutes');
@@ -39,6 +40,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // 3. เปิดให้เบราว์เซอร์เข้าถึงรูปภาพในโฟลเดอร์ 'uploads' ได้
 app.use('/uploads', express.static(uploadDir));
+
+// 4. เปิดให้เบราว์เซอร์เข้าถึงไฟล์หน้าเว็บ (HTML/CSS/JS) ทั้งหมดผ่าน localhost ได้
+app.use(express.static(__dirname));
 
 // ----------------------------------------------------
 // 📌 API Routes

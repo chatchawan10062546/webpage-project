@@ -10,6 +10,7 @@ router.get('/admin/summary', requireAdmin, (req, res) => {
     const queries = {
         users: 'SELECT COUNT(*) AS total FROM users',
         items: 'SELECT COUNT(*) AS total FROM items',
+        pendingItems: 'SELECT COUNT(*) AS total FROM items WHERE is_approved = FALSE',
         pendingReports: "SELECT COUNT(*) AS total FROM reports WHERE status = 'pending'",
         transactions: 'SELECT COUNT(*) AS total FROM transactions'
     };
@@ -32,10 +33,12 @@ router.get('/admin/reports', requireAdmin, (req, res) => {
     const sql = `
         SELECT r.report_id, r.item_id, i.title AS item_title, i.status AS item_status,
                r.reporter_id, u.name AS reporter_name, u.email AS reporter_email,
+               r.reported_user_id, ru.name AS reported_name, ru.email AS reported_email,
                r.reason, r.status, r.created_at
         FROM reports r
-        JOIN items i ON i.item_id = r.item_id
         JOIN users u ON u.user_id = r.reporter_id
+        LEFT JOIN items i ON i.item_id = r.item_id
+        LEFT JOIN users ru ON ru.user_id = r.reported_user_id
         ${status ? 'WHERE r.status = ?' : ''}
         ORDER BY r.report_id DESC
     `;
@@ -57,7 +60,7 @@ router.get('/admin/users', requireAdmin, (req, res) => {
 
 router.get('/admin/items', requireAdmin, (req, res) => {
     db.query(
-        `SELECT i.item_id, i.title, i.category, i.item_type, i.price, i.status,
+        `SELECT i.item_id, i.title, i.category, i.item_type, i.price, i.quantity, i.status,
                 i.image_url, i.created_at, u.name AS owner_name, u.email AS owner_email
          FROM items i JOIN users u ON u.user_id = i.user_id
          ORDER BY i.item_id DESC`,
@@ -99,6 +102,57 @@ router.patch('/admin/reports/:reportId', requireAdmin, (req, res) => {
             res.json({ success: true, message: 'อัปเดตรายงานสำเร็จ' });
         }
     );
+});
+
+// 📌 ดึงรายการสินค้าที่รอตรวจสอบ
+router.get('/admin/items/pending', requireAdmin, (req, res) => {
+    db.query(
+        `SELECT i.item_id, i.title, i.category, i.item_type, i.price, i.quantity, i.status,
+                i.image_url, i.created_at, u.name AS owner_name, u.email AS owner_email
+         FROM items i JOIN users u ON u.user_id = i.user_id
+         WHERE i.is_approved = FALSE
+         ORDER BY i.item_id DESC`,
+        (err, items) => {
+            if (err) return res.status(500).json({ success: false, message: 'โหลดสินค้ารอตรวจสอบไม่สำเร็จ' });
+            res.json({ success: true, items });
+        }
+    );
+});
+
+// 📌 อนุมัติสินค้า
+router.patch('/admin/items/:itemId/approve', requireAdmin, (req, res) => {
+    db.query('UPDATE items SET is_approved = TRUE WHERE item_id = ?', [req.params.itemId], (err, result) => {
+        if (err) return res.status(500).json({ success: false, message: 'อนุมัติรายการไม่สำเร็จ' });
+        if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'ไม่พบรายการ' });
+        res.json({ success: true, message: 'อนุมัติรายการสำเร็จ' });
+    });
+});
+
+// 📌 ปฏิเสธรายการ (ลบทิ้ง)
+router.delete('/admin/items/:itemId/reject', requireAdmin, (req, res) => {
+    db.query('DELETE FROM items WHERE item_id = ?', [req.params.itemId], (err, result) => {
+        if (err) return res.status(500).json({ success: false, message: 'ปฏิเสธรายการไม่สำเร็จ' });
+        if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'ไม่พบรายการ' });
+        res.json({ success: true, message: 'ปฏิเสธ (ลบ) รายการสำเร็จ' });
+    });
+});
+
+// 📌 แบนบัญชีผู้ใช้
+router.patch('/admin/users/:userId/ban', requireAdmin, (req, res) => {
+    db.query('UPDATE users SET is_banned = TRUE WHERE user_id = ?', [req.params.userId], (err, result) => {
+        if (err) return res.status(500).json({ success: false, message: 'แบนบัญชีไม่สำเร็จ' });
+        if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'ไม่พบบัญชีผู้ใช้นี้' });
+        res.json({ success: true, message: 'ระงับบัญชี (Ban) สำเร็จ' });
+    });
+});
+
+// 📌 ปลดแบนบัญชีผู้ใช้
+router.patch('/admin/users/:userId/unban', requireAdmin, (req, res) => {
+    db.query('UPDATE users SET is_banned = FALSE WHERE user_id = ?', [req.params.userId], (err, result) => {
+        if (err) return res.status(500).json({ success: false, message: 'ปลดแบนบัญชีไม่สำเร็จ' });
+        if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'ไม่พบบัญชีผู้ใช้นี้' });
+        res.json({ success: true, message: 'ปลดแบนบัญชี (Unban) สำเร็จ' });
+    });
 });
 
 module.exports = router;

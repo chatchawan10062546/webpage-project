@@ -4,24 +4,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ปันกัน - แพลตฟอร์มแบ่งปันในชุมชน</title>
+    <title>ปันสุข - แพลตฟอร์มแบ่งปันในชุมชน</title>
 
-    <!-- ดึง Bootstrap 5 CSS -->
+    <!-- โหลด Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- ดึง Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- โหลด Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- ฟอนต์ Noto Sans Thai -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- เชื่อมโยงไฟล์ตกแต่ง CSS -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/userProfile.css">
+    
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
 <body>
 
-    <!-- แถบเมนูด้านบน (Navbar) -->
+    <!-- 1. แถบเมนูด้านบน (Navbar) -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-success sticky-top shadow-sm">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="webpage.html">🌱 ปันกัน (PanKan)</a>
+            <!-- โลโก้และชื่อเว็บ -->
+            <a class="navbar-brand fw-bold" href="webpage.html">🌱 ปันสุข (PanSuk)</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -194,6 +200,25 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
+                    <div id="googleLoginBtnContainer" class="d-flex justify-content-center mb-3">
+                        <div id="g_id_onload"
+                            data-client_id="115389573865-2agneufcurpncrh5mgl0nrbu3c0pbia7.apps.googleusercontent.com"
+                            data-context="signin"
+                            data-ux_mode="popup"
+                            data-callback="handleCredentialResponse"
+                            data-auto_prompt="false">
+                        </div>
+                        <div class="g_id_signin"
+                            data-type="standard"
+                            data-shape="pill"
+                            data-theme="outline"
+                            data-text="signin_with"
+                            data-size="large"
+                            data-logo_alignment="left">
+                        </div>
+                    </div>
+                    <div class="text-center text-muted mb-3">หรือเข้าสู่ระบบด้วยอีเมล</div>
+                    
                     <form id="loginForm">
                         <div class="mb-3">
                             <label for="loginEmail" class="form-label fw-bold">อีเมล</label>
@@ -247,10 +272,10 @@
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="regPhone" class="form-label fw-bold">เบอร์โทรศัพท์</label>
+                            <label for="regPhone" class="form-label fw-bold">เบอร์โทรศัพท์ (ถ้ามี)</label>
                             <input type="tel" class="form-control" id="regPhone" placeholder="08x-xxx-xxxx">
                         </div>
-                        <button type="submit" class="btn btn-success w-100 py-3 rounded-pill fw-bold">สมัครสมาชิก</button>
+                        <button type="submit" class="btn btn-success w-100 py-3 rounded-pill fw-bold">สมัครสมาชิก (และรับรหัส OTP)</button>
                     </form>
                     <div class="text-center mt-3">
                         <span class="text-muted">มีบัญชีแล้ว?</span>
@@ -261,17 +286,23 @@
         </div>
     </div>
 
-    <!-- Modal แสดงผลสมัครสมาชิกสำเร็จ -->
-    <div class="modal fade" id="regSuccessModal" tabindex="-1" aria-hidden="true">
+    <!-- Modal ยืนยัน OTP -->
+    <div class="modal fade" id="otpModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-4">
                 <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title fw-bold">สำเร็จ!</h5>
+                    <h5 class="modal-title fw-bold">📧 ยืนยันอีเมลด้วยรหัส OTP</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4 text-center">
-                    <p class="mb-3">🎉 สมัครสมาชิกเรียบร้อยแล้ว คุณสามารถเข้าสู่ระบบได้ทันที</p>
-                    <button type="button" class="btn btn-success w-100 py-3 rounded-pill fw-bold" data-bs-dismiss="modal">ปิด</button>
+                    <p class="mb-3 text-muted">ระบบได้ส่งรหัส OTP 6 หลักไปที่อีเมลของคุณแล้ว<br><small>(ในขั้นตอนทดสอบ ให้ดูรหัส OTP ในหน้าจอ Terminal ของ Server)</small></p>
+                    <form id="otpForm">
+                        <input type="hidden" id="otpEmailHidden">
+                        <div class="mb-3">
+                            <input type="text" class="form-control form-control-lg text-center fw-bold fs-3" id="otpCode" placeholder="000000" maxlength="6" required>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 py-3 rounded-pill fw-bold">ตรวจสอบรหัส OTP</button>
+                    </form>
                 </div>
             </div>
         </div>

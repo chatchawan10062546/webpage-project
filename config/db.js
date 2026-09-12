@@ -1,14 +1,15 @@
 // ====================================================
 // ⚙️ config/db.js : ไฟล์จัดการเชื่อมต่อฐานข้อมูล MySQL
 // ====================================================
+require('dotenv').config();
 const mysql = require('mysql2');
 
 const db = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: '',        // รหัสผ่าน XAMPP (ถ้าไม่มีเว้นว่างไว้)
-    database: 'pankan_db', // ชื่อฐานข้อมูลใน phpMyAdmin
-    port: 3307,          // 👈 ใส่ Port 3307 ตรงนี้ครับ!
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'pankan_db',
+    port: process.env.DB_PORT || 3307,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0

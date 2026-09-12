@@ -42,7 +42,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="profile-item-row">
                     <img src="${escapeHtml(item.image_url || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80')}" alt="">
                     <div class="flex-grow-1 min-width-0">
-                        <div class="fw-bold text-truncate">${escapeHtml(item.title)}</div>
+                        <div class="fw-bold text-truncate">
+                            ${escapeHtml(item.title)}
+                            ${!item.is_approved ? '<span class="badge text-bg-warning ms-2">รอตรวจสอบ</span>' : ''}
+                        </div>
                         <small class="text-muted">${escapeHtml(item.category)} · ${escapeHtml(item.status)}</small>
                     </div>
                     <span class="fw-bold text-success">${item.item_type === 'free' ? 'ฟรี' : `฿${Number(item.price).toLocaleString()}`}</span>

@@ -1,10 +1,41 @@
 // ====================================================
-// 🔐 auth.js: ระบบสมาชิก (Login, Register, Toggle Password, Auth UI)
+// 🔐 auth.js: ระบบสมาชิก (Login, Register, Toggle Password, Auth UI, Google)
 // โฟลเดอร์: js/auth.js
 // ====================================================
 
 // 📌 1. ประกาศตัวแปร Global ไว้บนสุดเพื่อให้ไฟล์อื่นเรียกใช้ได้
 window.loginModal = null;
+
+// Callback สำหรับ Google Identity Services
+window.handleCredentialResponse = async (response) => {
+    try {
+        const res = await fetch('http://localhost:3000/api/auth/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential: response.credential })
+        });
+        const data = await res.json();
+        if (data.success) {
+            localStorage.setItem('authToken', data.token);
+            const extractedId = data.user.id || data.user.user_id || data.user.userId || data.user.ID;
+            const userData = { ...data.user, id: extractedId, user_id: extractedId };
+            localStorage.setItem('user', JSON.stringify(userData));
+            
+            if (window.loginModal) window.loginModal.hide();
+            
+            if (userData.role === 'admin') {
+                window.location.href = 'admin.html';
+            } else {
+                location.reload();
+            }
+        } else {
+            alert('❌ ' + data.message);
+        }
+    } catch (error) {
+        console.error('Google Auth Error:', error);
+        alert('⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    }
+};
 
 // ----------------------------------------------------
 // 🎨 ฟังก์ชันจัดการการแสดงผลปุ่ม Navbar ตามสถานะล็อกอิน
@@ -132,10 +163,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     registerForm.reset();
 
-                    const successModalElement = document.getElementById('regSuccessModal');
-                    if (successModalElement) {
-                        const successModal = new bootstrap.Modal(successModalElement);
-                        successModal.show();
+                    // เปิด OTP Modal แทน
+                    const otpModalElement = document.getElementById('otpModal');
+                    if (otpModalElement) {
+                        document.getElementById('otpEmailHidden').value = data.email || email;
+                        const otpModal = new bootstrap.Modal(otpModalElement);
+                        otpModal.show();
                     }
                 } else {
                     alert('❌ ' + (data.message || 'ไม่สามารถสมัครสมาชิกได้'));
@@ -189,11 +222,58 @@ document.addEventListener('DOMContentLoaded', () => {
                         location.reload();
                     }
                 } else {
-                    alert('❌ ' + data.message);
+                    if (data.requires_otp) {
+                        alert('⚠️ ' + data.message);
+                        if (window.loginModal) window.loginModal.hide();
+                        const otpModalElement = document.getElementById('otpModal');
+                        if (otpModalElement) {
+                            document.getElementById('otpEmailHidden').value = data.email || email;
+                            const otpModal = new bootstrap.Modal(otpModalElement);
+                            otpModal.show();
+                        }
+                    } else {
+                        alert('❌ ' + data.message);
+                    }
                 }
             } catch (error) {
                 console.error('Error:', error);
                 alert('⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+            }
+        });
+    }
+
+    // ----------------------------------------------------
+    // 🔥 5. ระบบยืนยัน OTP
+    const otpForm = document.getElementById('otpForm');
+    if (otpForm) {
+        otpForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('otpEmailHidden').value;
+            const otp = document.getElementById('otpCode').value;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, otp })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('authToken', data.token);
+                    const extractedId = data.user.id || data.user.user_id || data.user.userId || data.user.ID;
+                    const userData = { ...data.user, id: extractedId, user_id: extractedId };
+                    localStorage.setItem('user', JSON.stringify(userData));
+
+                    alert('✅ ยืนยันอีเมลสำเร็จ!');
+                    location.reload();
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (error) {
+                console.error('OTP Error:', error);
+                alert('⚠️ เกิดข้อผิดพลาดในการตรวจสอบรหัส');
             }
         });
     }

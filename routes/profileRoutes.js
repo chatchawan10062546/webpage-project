@@ -30,7 +30,7 @@ router.get('/profile/items', requireAuth, (req, res) => {
    if (!userId) return res.status(400).json({ success: false, message: 'ไม่พบรหัสผู้ใช้' });
 
    db.query(
-      'SELECT item_id, title, category, item_type, price, status, image_url, created_at FROM items WHERE user_id = ? ORDER BY item_id DESC',
+      'SELECT item_id, title, category, item_type, price, quantity, status, is_approved, image_url, created_at FROM items WHERE user_id = ? ORDER BY item_id DESC',
       [userId],
       (err, items) => {
          if (err) return res.status(500).json({ success: false, message: 'ดึงรายการของฉันไม่สำเร็จ' });

@@ -5,9 +5,15 @@ CREATE TABLE IF NOT EXISTS users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NULL, -- Allow NULL for Google login
     phone VARCHAR(20),
     role ENUM('user', 'admin') DEFAULT 'user',
+    is_email_verified BOOLEAN DEFAULT FALSE,
+    otp_code VARCHAR(10),
+    otp_expires_at DATETIME,
+    auth_provider ENUM('local', 'google') DEFAULT 'local',
+    google_id VARCHAR(255),
+    is_banned BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -20,8 +26,10 @@ CREATE TABLE IF NOT EXISTS items (
     location VARCHAR(100),
     item_type ENUM('free', 'sell', 'rent') NOT NULL DEFAULT 'free',
     price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    quantity INT DEFAULT 1,
     image_url VARCHAR(255),
     status ENUM('available', 'reserved', 'completed') DEFAULT 'available',
+    is_approved BOOLEAN DEFAULT FALSE,
     latitude DECIMAL(10,7),
     longitude DECIMAL(10,7),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -99,15 +107,17 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE TABLE IF NOT EXISTS reports (
     report_id INT AUTO_INCREMENT PRIMARY KEY,
-    item_id INT NOT NULL,
+    item_id INT NULL,
     reporter_id INT NOT NULL,
+    reported_user_id INT NULL,
     reason TEXT NOT NULL,
     status ENUM('pending', 'resolved') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     KEY idx_reports_item (item_id),
     KEY idx_reports_reporter (reporter_id),
     FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE,
-    FOREIGN KEY (reporter_id) REFERENCES users(user_id) ON DELETE CASCADE
+    FOREIGN KEY (reporter_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (reported_user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
 ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS item_id INT NULL;

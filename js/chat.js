@@ -86,7 +86,10 @@
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title">แชต: ${itemTitle}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                <div>
+                                    <button type="button" class="btn btn-outline-danger btn-sm me-2 report-chat-btn" data-other-user-id="${otherUserId}" data-item-id="${itemId}" data-title="${itemTitle}">🚨 รายงาน</button>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
                             </div>
                             <div class="modal-body">
                                 <div id="chatMessages" class="border rounded p-3 mb-3" style="height: 280px; overflow-y: auto;"></div>
@@ -136,3 +139,15 @@
         window.openItemMessages(card.dataset.itemId, card.dataset.title || card.querySelector('.card-title')?.innerText || 'รายการ');
     });
 })();
+
+document.addEventListener('click', (e) => {
+    const reportChatBtn = e.target.closest('.report-chat-btn');
+    if (reportChatBtn && window.openReportModal) {
+        const itemId = reportChatBtn.dataset.itemId !== 'null' ? reportChatBtn.dataset.itemId : null;
+        const otherUserId = reportChatBtn.dataset.otherUserId;
+        const title = reportChatBtn.dataset.title;
+        const chatModal = bootstrap.Modal.getInstance(document.getElementById('chatModal'));
+        if (chatModal) chatModal.hide();
+        window.openReportModal(itemId, otherUserId, `ผู้ใช้จากแชต: ${title}`);
+    }
+});

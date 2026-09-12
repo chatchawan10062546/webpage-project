@@ -17,17 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getCurrentCoordinates() {
-        return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
-                reject(new Error('เบราว์เซอร์ไม่รองรับการระบุตำแหน่ง'));
-                return;
-            }
-            navigator.geolocation.getCurrentPosition(
-                position => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
-                () => reject(new Error('กรุณาอนุญาตการเข้าถึงตำแหน่งเพื่อบันทึกสินค้า')),
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-            );
-        });
+        return getUserCoordinates();
     }
 
     function getItemData(card) {
@@ -40,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
             category: detailButton?.dataset.category || '',
             itemType: detailButton?.dataset.type || 'free',
             price: detailButton?.dataset.price || '0',
+            quantity: detailButton?.dataset.quantity || '1',
             location: detailButton?.dataset.location || '',
             description: detailButton?.dataset.description || ''
         };
@@ -85,6 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <input id="editPrice" class="form-control" type="number" min="0">
                                 </div>
                                 <div class="mb-3">
+                                    <label for="editQuantity" class="form-label fw-bold">จำนวนชิ้น</label>
+                                    <input id="editQuantity" class="form-control" type="number" min="1">
+                                </div>
+                                <div class="mb-3">
                                     <label for="editLocation" class="form-label fw-bold">สถานที่ / ชุมชน</label>
                                     <input id="editLocation" class="form-control">
                                 </div>
@@ -111,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('editCategory').value = item.category;
         document.getElementById('editType').value = item.itemType;
         document.getElementById('editPrice').value = item.price;
+        document.getElementById('editQuantity').value = item.quantity || 1;
         document.getElementById('editLocation').value = item.location;
         document.getElementById('editDescription').value = item.description;
 
@@ -160,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('category', document.getElementById('editCategory').value);
         formData.append('item_type', document.getElementById('editType').value);
         formData.append('price', document.getElementById('editPrice').value || '0');
+        formData.append('quantity', document.getElementById('editQuantity').value || '1');
         formData.append('location', document.getElementById('editLocation').value);
         formData.append('description', document.getElementById('editDescription').value);
 

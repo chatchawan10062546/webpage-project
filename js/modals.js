@@ -57,6 +57,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </select>
                             </div>
 
+                            <!-- ช่องระบุจำนวนชิ้น -->
+                            <div class="mb-3">
+                                <label for="postQuantity" class="form-label fw-bold">จำนวนชิ้น <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="postQuantity" value="1" min="1" required>
+                                <div class="form-text text-muted">ลดจำนวนลงอัตโนมัติเมื่อกดอนุมัติคำขอรับของ</div>
+                            </div>
+
                             <div class="mb-3">
                                 <label for="postLocation" class="form-label fw-bold">สถานที่ / ชุมชน</label>
                                 <input type="text" class="form-control" id="postLocation" placeholder="เช่น ชุมชน มมส., หน้าหอพัก A">
