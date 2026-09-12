@@ -94,6 +94,14 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         ` : '';
 
+        const ownerBadgeHTML = item.owner_name ? `
+            <div class="small text-muted mb-1 d-flex align-items-center gap-1">
+                <span class="fw-bold text-dark">👤 ${item.owner_name}</span>
+                <span class="badge bg-purple text-white rounded-pill" style="background-color: #6f42c1;">Lv.${item.owner_level || 1}</span>
+                <span class="text-warning fw-bold">⭐ ${Number(item.owner_rating || 0).toFixed(1)}</span>
+            </div>
+        ` : '';
+
         const newCardHTML = `
             <div class="col-md-4 col-sm-6 item-element" data-item-id="${itemId}" data-category="${item.category}" data-title="${item.title}" data-latitude="${hasCoordinates ? item.latitude : ''}" data-longitude="${hasCoordinates ? item.longitude : ''}">
                 <div class="card item-card h-100 position-relative shadow-sm border-0 rounded-4 overflow-hidden">
@@ -103,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <img src="${imagesArray[0]}" class="card-img-top" alt="${item.title}" style="height: 220px; object-fit: cover;">
                     <div class="card-body d-flex flex-column">
+                        ${ownerBadgeHTML}
                         <div class="d-flex justify-content-between align-items-start mb-1">
                             <h5 class="card-title fw-bold mb-0">${item.title}</h5>
                             <span class="fw-bold text-success fs-5">${priceTagText}</span>
@@ -120,6 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 data-category="${item.category}"
                                 data-type="${itemType}"
                                 data-owner-id="${itemOwnerId}"
+                                data-owner-name="${item.owner_name || ''}"
+                                data-owner-level="${item.owner_level || 1}"
+                                data-owner-rating="${Number(item.owner_rating || 0).toFixed(1)}"
                                 data-latitude="${hasCoordinates ? item.latitude : ''}"
                                 data-longitude="${hasCoordinates ? item.longitude : ''}"
                                 data-price="${price}"
@@ -262,7 +274,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 else images.push('https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=800&auto=format&fit=crop&q=80');
             }
 
-            showItemDetailModal({ itemId, ownerId, title, category, itemType, price, location, description, images, distance });
+            const ownerName = btn.dataset.ownerName || '';
+            const ownerLevel = btn.dataset.ownerLevel || '1';
+            const ownerRating = btn.dataset.ownerRating || '0.0';
+
+            showItemDetailModal({ itemId, ownerId, ownerName, ownerLevel, ownerRating, title, category, itemType, price, location, description, images, distance });
         }
     });
 
@@ -348,6 +364,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             <!-- 📝 2. รายละเอียดสินค้าอยู่ตรงกลาง -->
                             <div class="bg-light p-4 rounded-4 mb-4 border">
                                 <h2 class="fw-bold text-success mb-2">${item.title}</h2>
+                                ${item.ownerName ? `
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <span class="fw-bold text-dark fs-6">👤 ${item.ownerName}</span>
+                                        <span class="badge rounded-pill text-white" style="background-color: #6f42c1;">Lv.${item.ownerLevel}</span>
+                                        <span class="text-warning fw-bold fs-6">⭐ ${item.ownerRating}</span>
+                                    </div>
+                                ` : ''}
                                 <p class="text-muted fs-6 mb-3">📍 ${item.location} ${item.distance ? `<span class="text-success fw-semibold">(${item.distance})</span>` : ''}</p>
                                 <hr class="my-3">
                                 <h5 class="fw-bold text-dark mb-2">รายละเอียดสินค้า:</h5>

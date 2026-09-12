@@ -87,6 +87,7 @@
                             <div class="modal-header">
                                 <h5 class="modal-title">แชต: ${itemTitle}</h5>
                                 <div>
+                                    <button type="button" class="btn btn-outline-warning text-dark fw-bold btn-sm me-2 review-chat-btn" data-other-user-id="${otherUserId}" data-item-id="${itemId}" data-title="${itemTitle}">⭐ ให้คะแนน</button>
                                     <button type="button" class="btn btn-outline-danger btn-sm me-2 report-chat-btn" data-other-user-id="${otherUserId}" data-item-id="${itemId}" data-title="${itemTitle}">🚨 รายงาน</button>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
@@ -149,5 +150,17 @@ document.addEventListener('click', (e) => {
         const chatModal = bootstrap.Modal.getInstance(document.getElementById('chatModal'));
         if (chatModal) chatModal.hide();
         window.openReportModal(itemId, otherUserId, `ผู้ใช้จากแชต: ${title}`);
+    }
+});
+
+document.addEventListener('click', (e) => {
+    const reviewBtn = e.target.closest('.review-chat-btn');
+    if (reviewBtn && window.openReviewModal) {
+        const itemId = reviewBtn.dataset.itemId !== 'null' ? reviewBtn.dataset.itemId : null;
+        const otherUserId = reviewBtn.dataset.otherUserId;
+        const title = reviewBtn.dataset.title;
+        const chatModal = bootstrap.Modal.getInstance(document.getElementById('chatModal'));
+        if (chatModal) chatModal.hide();
+        window.openReviewModal(itemId, otherUserId, `คู่สนทนา`, title);
     }
 });

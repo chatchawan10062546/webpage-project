@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
     auth_provider ENUM('local', 'google') DEFAULT 'local',
     google_id VARCHAR(255),
     is_banned BOOLEAN DEFAULT FALSE,
+    xp INT DEFAULT 0,
+    level INT DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -129,4 +131,17 @@ CREATE TABLE IF NOT EXISTS chat_room_members (
     PRIMARY KEY (room_id, user_id),
     FOREIGN KEY (room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+    review_id INT AUTO_INCREMENT PRIMARY KEY,
+    item_id INT NULL,
+    reviewer_id INT NOT NULL,
+    reviewee_id INT NOT NULL,
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE SET NULL,
+    FOREIGN KEY (reviewer_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewee_id) REFERENCES users(user_id) ON DELETE CASCADE
 );

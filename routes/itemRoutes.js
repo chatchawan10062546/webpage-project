@@ -15,9 +15,24 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+const { addXP } = require('../utils/xpHelper');
+
 // 📌 1. API ดึงรายการสิ่งของทั้งหมดจาก DB (เฉพาะที่อนุมัติแล้ว)
 router.get('/items', (req, res) => {
-   const sql = 'SELECT * FROM items WHERE is_approved = TRUE ORDER BY item_id DESC';
+   const sql = `
+       SELECT i.*, 
+              u.name AS owner_name, 
+              u.level AS owner_level, 
+              u.xp AS owner_xp,
+              COALESCE(AVG(r.rating), 0) AS owner_rating,
+              COUNT(r.review_id) AS owner_review_count
+       FROM items i
+       JOIN users u ON u.user_id = i.user_id
+       LEFT JOIN reviews r ON r.reviewee_id = i.user_id
+       WHERE i.is_approved = TRUE
+       GROUP BY i.item_id
+       ORDER BY i.item_id DESC
+   `;
     db.query(sql, (err, results) => {
         if (err) {
             console.error('Fetch Items Error:', err);
@@ -193,7 +208,7 @@ router.patch('/item-requests/:requestId', requireAuth, (req, res) => {
    }
 
    const sql = `
-      SELECT r.item_id, r.status AS request_status
+      SELECT r.item_id, r.status AS request_status, i.item_type
       FROM item_requests r
       JOIN items i ON i.item_id = r.item_id
       WHERE r.request_id = ? AND i.user_id = ?
@@ -208,6 +223,10 @@ router.patch('/item-requests/:requestId', requireAuth, (req, res) => {
       db.query('UPDATE item_requests SET status = ? WHERE request_id = ?', [status, requestId], (updateErr) => {
          if (updateErr) return res.status(500).json({ success: false, message: 'อัปเดตคำขอไม่สำเร็จ' });
          if (status === 'accepted') {
+            // 🌟 ให้ XP แก่ผู้แจก/ผู้ขาย (+50 สำหรับแจกฟรี, +20 สำหรับขาย/เช่า)
+            const xpGained = rows[0].item_type === 'free' ? 50 : 20;
+            addXP(user_id, xpGained);
+
             const updateSql = `
                UPDATE items 
                SET quantity = GREATEST(quantity - 1, 0),
@@ -216,7 +235,7 @@ router.patch('/item-requests/:requestId', requireAuth, (req, res) => {
             `;
             return db.query(updateSql, [rows[0].item_id], (itemErr) => {
                if (itemErr) return res.status(500).json({ success: false, message: 'อัปเดตสถานะรายการไม่สำเร็จ' });
-               res.json({ success: true, message: 'ยอมรับคำขอและปรับลดจำนวนสำเร็จ' });
+               res.json({ success: true, message: `ยอมรับคำขอและปรับลดจำนวนสำเร็จ (ได้รับ +${xpGained} XP!)` });
             });
          }
          res.json({ success: true, message: 'ปฏิเสธคำขอสำเร็จ' });

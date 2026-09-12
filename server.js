@@ -15,6 +15,7 @@ const profileRoutes = require('./routes/profileRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,6 +55,7 @@ app.use('/api', profileRoutes); // เรียกใช้งานระบบ
 app.use('/api', transactionRoutes); // เรียกใช้งานระบบธุรกรรมคนกลาง
 app.use('/api', reportRoutes); // เรียกใช้งานระบบแจ้งปัญหา
 app.use('/api', adminRoutes); // เรียกใช้งานระบบหลังบ้านแอดมิน
+app.use('/api', reviewRoutes); // เรียกใช้งานระบบรีวิวและเลเวล
 
 // ----------------------------------------------------
 // ❓ Handle 404 Not Found (กรณีเรียก Route ที่ไม่มีอยู่จริง)
