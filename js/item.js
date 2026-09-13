@@ -136,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 data-longitude="${hasCoordinates ? item.longitude : ''}"
                                 data-price="${price}"
                                 data-quantity="${item.quantity ?? 1}"
+                                data-status="${item.status || 'available'}"
                                 data-location="${item.location || ''}"
                                 data-description="${item.description || ''}"
                                 data-images="${imagesJson}">
@@ -277,8 +278,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const ownerName = btn.dataset.ownerName || '';
             const ownerLevel = btn.dataset.ownerLevel || '1';
             const ownerRating = btn.dataset.ownerRating || '0.0';
+            const quantity = Number(btn.dataset.quantity ?? 1);
+            const status = btn.dataset.status || 'available';
 
-            showItemDetailModal({ itemId, ownerId, ownerName, ownerLevel, ownerRating, title, category, itemType, price, location, description, images, distance });
+            showItemDetailModal({ itemId, ownerId, ownerName, ownerLevel, ownerRating, title, category, itemType, price, quantity, status, location, description, images, distance });
         }
     });
 
@@ -307,10 +310,19 @@ document.addEventListener('DOMContentLoaded', () => {
             thumbnailsHTML += `</div>`;
         }
 
-        // ปุ่มการทำรายการจะแสดงเฉพาะผู้ใช้ที่ไม่ใช่เจ้าของรายการ
+        // ปุ่มการทำรายการจะแสดงเฉพาะผู้ใช้ที่ไม่ใช่เจ้าของรายการ และสินค้าต้องพร้อมใช้งาน
         let actionButtonsHTML = '';
+        const isUnavailable = item.status === 'reserved' || item.status === 'completed' || (item.quantity !== undefined && Number(item.quantity) <= 0);
+
         if (isOwner) {
             actionButtonsHTML = '';
+        } else if (isUnavailable) {
+            actionButtonsHTML = `
+                <div class="alert alert-secondary text-center rounded-4 p-3 mb-0 fw-bold fs-5 border-0 shadow-sm" style="background-color: #e9ecef; color: #495057;">
+                    🔒 รายการนี้ถูกจอง หรือมีผู้ได้รับไปเรียบร้อยแล้ว
+                    <div class="fs-6 opacity-75 fw-normal mt-1">ขณะนี้สินค้าหมดชั่วคราว ไม่สามารถส่งคำขอหรือทำรายการได้</div>
+                </div>
+            `;
         } else {
             actionButtonsHTML = `
                 <button class="btn btn-success w-100 p-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
@@ -332,6 +344,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     </button>
                 `;
             }
+
+            actionButtonsHTML += `
+                <button class="btn btn-outline-primary w-100 p-3 mt-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
+                        data-action="direct">
+                    💬 แชตพูดคุยกับผู้โพสต์
+                    <div class="fs-6 opacity-75 fw-normal mt-1">สอบถามรายละเอียดเพิ่มเติม</div>
+                </button>
+            `;
         }
 
         const detailModalHTML = `
@@ -370,8 +390,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <span class="badge rounded-pill text-white" style="background-color: #6f42c1;">Lv.${item.ownerLevel}</span>
                                         <span class="text-warning fw-bold fs-6">⭐ ${item.ownerRating}</span>
                                     </div>
-                                ` : ''}
-                                <p class="text-muted fs-6 mb-3">📍 ${item.location} ${item.distance ? `<span class="text-success fw-semibold">(${item.distance})</span>` : ''}</p>
+                                `: ''}
+                                <p class="text-muted fs-6 mb-3">📍 ${item.location} ${item.distance ? `<span class="text-success fw-semibold">(${item.distance})</span>`: ''}</p>
                                 <hr class="my-3">
                                 <h5 class="fw-bold text-dark mb-2">รายละเอียดสินค้า:</h5>
                                 <p class="text-secondary fs-5 mb-0" style="line-height: 1.6; white-space: pre-line;">${item.description}</p>
@@ -379,11 +399,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             ${!isOwner ? `
                                 <!-- 🛒 3. รูปแบบการซื้อขายอยู่ล่างสุด -->
-                                <div>
-                                    <h5 class="fw-bold text-dark mb-3">เลือกลักษณะการทำรายการ:</h5>
+                                <div id="itemDetailActionContainer">
+                                    ${!isUnavailable ? '<h5 class="fw-bold text-dark mb-3">เลือกลักษณะการทำรายการ:</h5>': ''}
                                     ${actionButtonsHTML}
                                 </div>
-                            ` : ''}
+                            `: ''}
 
                         </div>
                     </div>
@@ -394,6 +414,28 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.insertAdjacentHTML('beforeend', detailModalHTML);
         const detailModal = new bootstrap.Modal(document.getElementById('itemDetailModal'));
         detailModal.show();
+
+        function showModalNotice(type, title, message) {
+            document.getElementById('modalNoticeContainer')?.remove();
+            const alertClass = type === 'success' ? 'alert-success' : (type === 'warning' ? 'alert-warning' : 'alert-danger');
+            const icon = type === 'success' ? 'bi-check-circle-fill' : (type === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-x-circle-fill');
+            const html = `
+                <div id="modalNoticeContainer" class="alert ${alertClass} alert-dismissible fade show rounded-4 shadow-sm mb-3 border-0" role="alert">
+                    <div class="d-flex align-items-center">
+                        <i class="bi ${icon} fs-3 me-3"></i>
+                        <div>
+                            <h6 class="fw-bold mb-0">${title}</h6>
+                            <small class="mb-0 opacity-90">${message}</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            const actionContainer = document.getElementById('itemDetailActionContainer');
+            if (actionContainer) {
+                actionContainer.insertAdjacentHTML('afterbegin', html);
+            }
+        }
 
         // คลิกเปลี่ยนรูปใน Gallery
         document.querySelectorAll('.thumbnail-btn').forEach(thumb => {
@@ -408,20 +450,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ดักจับปุ่มกดเลือกการทำรายการ
         document.querySelectorAll('.btn-select-option').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const action = e.currentTarget.dataset.action;
-                detailModal.hide();
+            button.addEventListener('click', async (e) => {
+                const btn = e.currentTarget;
+                const action = btn.dataset.action;
 
-                if (action === 'request-options' && typeof window.showRequestOptions === 'function') {
-                    window.showRequestOptions(item);
+                if (action === 'request-options' && typeof window.openSubmitRequestModal === 'function') {
+                    if (btn.disabled) return;
+                    window.openSubmitRequestModal(item);
+                } else if (action === 'request-options' && typeof window.showRequestOptions === 'function') {
+                    if (btn.disabled) return;
+                    btn.disabled = true;
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML = '⏳ กำลังส่งคำขอ...';
+
+                    const res = await window.submitItemRequest(item.itemId, 'free');
+                    if (res && res.success) {
+                        btn.className = 'btn btn-secondary w-100 p-3 rounded-4 shadow-sm border-0 fs-5 fw-bold';
+                        btn.style.backgroundColor = '#6c757d';
+                        btn.innerHTML = '✅ ส่งคำขอเรียบร้อยแล้ว';
+                        showModalNotice('success', 'ส่งคำขอสำเร็จเรียบร้อย! 🎉', 'ระบบส่งคำขอหาผู้ขายแล้ว สามารถตรวจสอบสถานะคำขอได้ที่เมนู "คำขอของฉัน" ครับ');
+                    } else if (res && res.isDuplicate) {
+                        btn.className = 'btn btn-secondary w-100 p-3 rounded-4 shadow-sm border-0 fs-5 fw-bold';
+                        btn.style.backgroundColor = '#6c757d';
+                        btn.innerHTML = '✅ เคยส่งคำขอรายการนี้แล้ว';
+                        showModalNotice('warning', 'คุณเคยส่งคำขอรายการนี้ไปแล้ว! ⚠️', 'คุณได้ส่งคำขอรับสินค้านี้ไว้เรียบร้อยแล้ว สามารถติดตามสถานะได้ที่เมนู "คำขอของฉัน" ครับ');
+                    } else {
+                        btn.disabled = false;
+                        btn.innerHTML = originalHTML;
+                        showModalNotice('danger', 'ส่งคำขอไม่สำเร็จ', res?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+                    }
                 } else if (action === 'escrow') {
+                    detailModal.hide();
                     if (typeof window.startEscrowPurchase === 'function') {
                         window.startEscrowPurchase(item);
                     }
                 } else if (action !== 'direct' && typeof window.submitItemRequest === 'function') {
+                    detailModal.hide();
                     window.submitItemRequest(item.itemId, action);
                 }
                 if (action === 'direct' && typeof window.openChat === 'function') {
+                    detailModal.hide();
                     window.openChat(item.ownerId, item.title, item.itemId);
                 }
             });

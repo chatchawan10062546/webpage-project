@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS item_requests (
     item_id INT NOT NULL,
     requester_id INT NOT NULL,
     message TEXT,
-    status ENUM('pending', 'accepted', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
+    status ENUM('pending', 'accepted', 'rejected', 'cancelled', 'completed') NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY unique_item_requester (item_id, requester_id),

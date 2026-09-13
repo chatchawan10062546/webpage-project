@@ -48,9 +48,12 @@ function updateProfileUI() {
                         <small class="text-muted">${user.email || ''}</small>
                     </li>
                     <li>
-                        <a class="dropdown-item" href="#" id="profileOpenBtn">โปรไฟล์ของฉัน</a>
+                        <a class="dropdown-item" href="#" id="profileOpenBtn"><i class="bi bi-person me-2"></i>โปรไฟล์ของฉัน</a>
                     </li>
-                    ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html">หลังบ้านแอดมิน</a></li>' : ''}
+                    <li>
+                        <a class="dropdown-item" href="#" id="myRequestsOpenBtn"><i class="bi bi-send me-2"></i>คำขอของฉัน</a>
+                    </li>
+                    ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html"><i class="bi bi-speedometer2 me-2"></i>หลังบ้านแอดมิน</a></li>' : ''}
                     <li>
                         <button class="dropdown-item text-danger mt-1" onclick="logoutUser()">
                             <i class="bi bi-box-arrow-right me-2"></i>ออกจากระบบ

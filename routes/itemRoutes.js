@@ -29,7 +29,7 @@ router.get('/items', (req, res) => {
        FROM items i
        JOIN users u ON u.user_id = i.user_id
        LEFT JOIN reviews r ON r.reviewee_id = i.user_id
-       WHERE i.is_approved = TRUE
+       WHERE i.is_approved = TRUE AND i.status != 'completed'
        GROUP BY i.item_id
        ORDER BY i.item_id DESC
    `;
@@ -240,6 +240,174 @@ router.patch('/item-requests/:requestId', requireAuth, (req, res) => {
          }
          res.json({ success: true, message: 'ปฏิเสธคำขอสำเร็จ' });
       });
+   });
+});
+
+// 📌 8. API ดึงคำขอรับของทั้งหมดที่ผู้ใช้งานคนนี้เป็นคนส่ง (My Sent Requests)
+router.get('/my-requests', requireAuth, (req, res) => {
+   const requesterId = req.authUser.userId;
+
+   const sql = `
+      SELECT r.request_id, r.item_id, r.message, r.status, r.created_at,
+             i.title AS item_title, i.category AS item_category, i.image_url AS item_image,
+             i.item_type, i.price, i.quantity, i.user_id AS owner_id,
+             u.name AS owner_name, u.email AS owner_email
+      FROM item_requests r
+      JOIN items i ON i.item_id = r.item_id
+      JOIN users u ON u.user_id = i.user_id
+      WHERE r.requester_id = ?
+      ORDER BY r.request_id DESC
+   `;
+   db.query(sql, [requesterId], (err, requests) => {
+      if (err) {
+         console.error('Fetch My Requests Error:', err);
+         return res.status(500).json({ success: false, message: 'ดึงรายการคำขอไม่สำเร็จ' });
+      }
+      res.json({ success: true, requests });
+   });
+});
+
+// 📌 10. API ยืนยันการรับสินค้า (สำหรับผู้ซื้อ/ผู้รับ) -> ส่งข้อมูลกลับไปเปิด Modal รีวิว
+router.patch('/item-requests/:requestId/confirm-received', requireAuth, (req, res) => {
+   const requesterId = req.authUser.userId;
+   const { requestId } = req.params;
+
+   const sqlFind = `
+      SELECT r.request_id, r.item_id, r.status AS request_status,
+             i.title AS item_title, i.user_id AS owner_id, u.name AS owner_name
+      FROM item_requests r
+      JOIN items i ON i.item_id = r.item_id
+      JOIN users u ON u.user_id = i.user_id
+      WHERE r.request_id = ? AND r.requester_id = ?
+   `;
+
+   db.query(sqlFind, [requestId, requesterId], (err, rows) => {
+      if (err) return res.status(500).json({ success: false, message: 'ตรวจสอบสิทธิ์คำขอไม่สำเร็จ' });
+      if (rows.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบคำขอนี้หรือไม่มีสิทธิ์ดำเนินการ' });
+      
+      const reqData = rows[0];
+      if (['completed', 'cancelled', 'rejected'].includes(reqData.request_status)) {
+         return res.status(400).json({ success: false, message: 'คำขอนี้ถูกดำเนินการหรือยกเลิกไปแล้ว' });
+      }
+
+      // อัปเดตสถานะคำขอเป็น completed
+      db.query('UPDATE item_requests SET status = "completed" WHERE request_id = ?', [requestId], (updateErr) => {
+         if (updateErr) return res.status(500).json({ success: false, message: 'ยืนยันรับของไม่สำเร็จ' });
+
+         // ปรับสถานะ item เป็น completed และลดจำนวนลง 1 ชิ้น
+         const updateItemSql = `
+            UPDATE items 
+            SET quantity = GREATEST(quantity - 1, 0),
+                status = CASE WHEN (quantity - 1) <= 0 THEN 'completed' ELSE status END
+            WHERE item_id = ?
+         `;
+         db.query(updateItemSql, [reqData.item_id]);
+
+         // ให้โบนัส XP ผู้ขาย/ผู้แจก +50 XP
+         addXP(reqData.owner_id, 50);
+
+         res.json({
+            success: true,
+            message: 'ยืนยันได้รับสินค้าเรียบร้อยแล้ว!',
+            item_id: reqData.item_id,
+            owner_id: reqData.owner_id,
+            owner_name: reqData.owner_name,
+            item_title: reqData.item_title
+         });
+      });
+   });
+});
+
+// 📌 11. API ผู้ซื้อขอยกเลิกคำขอ
+router.delete('/item-requests/:requestId/cancel', requireAuth, (req, res) => {
+   const requesterId = req.authUser.userId;
+   const { requestId } = req.params;
+
+   db.query('SELECT item_id, status FROM item_requests WHERE request_id = ? AND requester_id = ?', [requestId, requesterId], (err, rows) => {
+      if (err) return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด' });
+      if (rows.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบคำขอนี้' });
+
+      const reqStatus = rows[0].status;
+      if (reqStatus === 'completed' || reqStatus === 'cancelled' || reqStatus === 'rejected') {
+         return res.status(400).json({ success: false, message: 'ไม่สามารถยกเลิกคำขอนี้ได้' });
+      }
+
+      db.query('UPDATE item_requests SET status = "cancelled" WHERE request_id = ?', [requestId], (updateErr) => {
+         if (updateErr) return res.status(500).json({ success: false, message: 'ยกเลิกไม่สำเร็จ' });
+         
+         if (reqStatus === 'accepted') {
+            db.query("UPDATE items SET quantity = quantity + 1, status = CASE WHEN status = 'reserved' THEN 'available' ELSE status END WHERE item_id = ?", [rows[0].item_id]);
+         }
+         res.json({ success: true, message: 'ยกเลิกคำขอสำเร็จ' });
+      });
+   });
+});
+
+// 📌 12. API ผู้ขายขอยกเลิก/ยึดของคืน (กรณีคนซื้อเท)
+router.patch('/item-requests/:requestId/revoke', requireAuth, (req, res) => {
+   const ownerId = req.authUser.userId;
+   const { requestId } = req.params;
+
+   db.query(`
+      SELECT r.item_id, r.status AS request_status 
+      FROM item_requests r 
+      JOIN items i ON r.item_id = i.item_id 
+      WHERE r.request_id = ? AND i.user_id = ?
+   `, [requestId, ownerId], (err, rows) => {
+      if (err) return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด' });
+      if (rows.length === 0) return res.status(404).json({ success: false, message: 'ไม่มีสิทธิ์จัดการ' });
+
+      if (rows[0].request_status !== 'accepted') {
+         return res.status(400).json({ success: false, message: 'คำขอนี้ไม่ได้อยู่ในสถานะที่ยึดคืนได้' });
+      }
+
+      db.query('UPDATE item_requests SET status = "cancelled" WHERE request_id = ?', [requestId], (updateErr) => {
+         if (updateErr) return res.status(500).json({ success: false, message: 'ยึดคืนไม่สำเร็จ' });
+         
+         db.query("UPDATE items SET quantity = quantity + 1, status = CASE WHEN status = 'reserved' THEN 'available' ELSE status END WHERE item_id = ?", [rows[0].item_id]);
+         res.json({ success: true, message: 'ยึดของคืนและนำกลับเข้าสต็อกสำเร็จ' });
+      });
+   });
+});
+
+// 📌 13. API ดึงข้อมูลโพสต์และคำขอของผู้ขาย
+router.get('/my-sales', requireAuth, (req, res) => {
+   const ownerId = req.authUser.userId;
+
+   const sql = `
+      SELECT i.item_id, i.title, i.category, i.image_url, i.item_type, i.price, i.quantity, i.status AS item_status,
+             r.request_id, r.message, r.status AS request_status, r.created_at,
+             u.name AS requester_name, u.user_id AS requester_id
+      FROM items i
+      LEFT JOIN item_requests r ON i.item_id = r.item_id AND r.status IN ('pending', 'accepted')
+      LEFT JOIN users u ON r.requester_id = u.user_id
+      WHERE i.user_id = ? AND i.status != 'completed'
+      ORDER BY i.item_id DESC, r.created_at DESC
+   `;
+   db.query(sql, [ownerId], (err, results) => {
+      if (err) return res.status(500).json({ success: false, message: 'ดึงข้อมูลไม่สำเร็จ' });
+      
+      const salesMap = {};
+      results.forEach(row => {
+         if (!salesMap[row.item_id]) {
+            salesMap[row.item_id] = {
+               item_id: row.item_id, title: row.title, category: row.category, image_url: row.image_url,
+               item_type: row.item_type, price: row.price, quantity: row.quantity, item_status: row.item_status,
+               requests: []
+            };
+         }
+         if (row.request_id) {
+            salesMap[row.item_id].requests.push({
+               request_id: row.request_id,
+               requester_id: row.requester_id,
+               requester_name: row.requester_name,
+               message: row.message,
+               status: row.request_status,
+               created_at: row.created_at
+            });
+         }
+      });
+      res.json({ success: true, sales: Object.values(salesMap) });
    });
 });
 
