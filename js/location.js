@@ -57,15 +57,19 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 function updateAllItemDistances(userLat, userLng) {
     document.querySelectorAll('#itemGrid .item-element').forEach(card => {
-        const itemLat = Number(card.dataset.latitude);
-        const itemLng = Number(card.dataset.longitude);
+        const itemLat = card.dataset.latitude ? Number(card.dataset.latitude) : NaN;
+        const itemLng = card.dataset.longitude ? Number(card.dataset.longitude) : NaN;
         const distanceElement = card.querySelector('.item-distance');
         const detailButton = card.querySelector('.request-btn');
 
         if (!Number.isFinite(itemLat) || !Number.isFinite(itemLng) || !distanceElement) return;
 
-        const distance = calculateDistance(userLat, userLng, itemLat, itemLng);
-        distanceElement.textContent = `ห่างจากคุณ ${distance}`;
-        if (detailButton) detailButton.dataset.distance = distance;
+        const distanceStr = calculateDistance(userLat, userLng, itemLat, itemLng);
+        const distanceVal = distanceStr.includes('เมตร') ? parseInt(distanceStr) / 1000 : parseFloat(distanceStr);
+        distanceElement.textContent = `ห่างจากคุณ ${distanceStr}`;
+        card.dataset.distanceKm = distanceVal;
+        if (detailButton) detailButton.dataset.distance = distanceStr;
+
     });
+    window.dispatchEvent(new Event('distancesUpdated'));
 }

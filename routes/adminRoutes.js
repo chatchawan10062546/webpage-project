@@ -10,7 +10,7 @@ router.get('/admin/summary', requireAdmin, (req, res) => {
     const queries = {
         users: 'SELECT COUNT(*) AS total FROM users',
         items: 'SELECT COUNT(*) AS total FROM items',
-        pendingItems: 'SELECT COUNT(*) AS total FROM items WHERE is_approved = FALSE',
+        pendingItems: "SELECT COUNT(*) AS total FROM items WHERE is_approved = FALSE AND status != 'rejected'",
         pendingReports: "SELECT COUNT(*) AS total FROM reports WHERE status = 'pending'",
         transactions: 'SELECT COUNT(*) AS total FROM transactions'
     };
@@ -110,7 +110,7 @@ router.get('/admin/items/pending', requireAdmin, (req, res) => {
         `SELECT i.item_id, i.title, i.category, i.item_type, i.price, i.quantity, i.status,
                 i.image_url, i.created_at, u.name AS owner_name, u.email AS owner_email
          FROM items i JOIN users u ON u.user_id = i.user_id
-         WHERE i.is_approved = FALSE
+         WHERE i.is_approved = FALSE AND i.status != 'rejected'
          ORDER BY i.item_id DESC`,
         (err, items) => {
             if (err) return res.status(500).json({ success: false, message: 'โหลดสินค้ารอตรวจสอบไม่สำเร็จ' });
@@ -129,11 +129,25 @@ router.patch('/admin/items/:itemId/approve', requireAdmin, (req, res) => {
 });
 
 // 📌 ปฏิเสธรายการ (ลบทิ้ง)
-router.delete('/admin/items/:itemId/reject', requireAdmin, (req, res) => {
-    db.query('DELETE FROM items WHERE item_id = ?', [req.params.itemId], (err, result) => {
+router.patch('/admin/items/:itemId/reject', requireAdmin, (req, res) => {
+    const { reason } = req.body;
+    const itemId = req.params.itemId;
+
+    db.query('UPDATE items SET is_approved = FALSE, status = "rejected", rejection_reason = ? WHERE item_id = ?', [reason || 'ไม่ระบุเหตุผล', itemId], (err, result) => {
         if (err) return res.status(500).json({ success: false, message: 'ปฏิเสธรายการไม่สำเร็จ' });
         if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'ไม่พบรายการ' });
-        res.json({ success: true, message: 'ปฏิเสธ (ลบ) รายการสำเร็จ' });
+        
+        // 🔔 แจ้งเตือนเจ้าของโพสต์
+        db.query('SELECT user_id, title FROM items WHERE item_id = ?', [itemId], (err2, rows) => {
+            if(!err2 && rows.length > 0) {
+                const notifMsg = `รายการ "${rows[0].title}" ของคุณไม่อนุมัติ เนื่องจาก: ${reason || 'ไม่ระบุเหตุผล'}`;
+                db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, NULL, ?, ?, ?)',
+                    [rows[0].user_id, 'item_rejected', itemId, notifMsg]
+                );
+            }
+        });
+        
+        res.json({ success: true, message: 'ไม่อนุมัติรายการสำเร็จ' });
     });
 });
 

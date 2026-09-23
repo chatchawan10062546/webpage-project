@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (deleteButton) {
             const itemId = card.dataset.itemId;
             if (!confirm('ต้องการลบรายการนี้ใช่หรือไม่?')) return;
-            sendRequest(`http://localhost:3000/api/items/${itemId}`, {
+            sendRequest(`/api/items/${itemId}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: getUserId() })
@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('longitude', longitude);
 
         const itemId = document.getElementById('editItemId').value;
-        sendRequest(`http://localhost:3000/api/items/${itemId}`, { method: 'PUT', body: formData })
+        sendRequest(`/api/items/${itemId}`, { method: 'PUT', body: formData })
             .then(() => location.reload())
             .catch(error => alert('ไม่สามารถแก้ไขรายการได้: ' + error.message));
     });

@@ -19,6 +19,9 @@
     
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Leaflet Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
 <body>
@@ -27,7 +30,10 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-success sticky-top shadow-sm">
         <div class="container">
             <!-- โลโก้และชื่อเว็บ -->
-            <a class="navbar-brand fw-bold" href="webpage.html">🌱 ปันสุข (PanSuk)</a>
+            <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="webpage.html">
+                <img src="/assets/pansuk_icon.jpg?v=3" alt="Logo" class="rounded-circle border border-2 border-white shadow-sm" style="height: 45px; width: 45px; object-fit: cover;">
+                <span class="text-white" style="letter-spacing: 0.5px;">ปันสุข <small class="fw-normal opacity-75">(PanSuk)</small></span>
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -36,10 +42,26 @@
                     <li class="nav-item"><a class="nav-link active" href="webpage.html">หน้าแรก</a></li>
                     <!-- ✅ แก้ไขจุดที่ 1: เพิ่ม data-bs-toggle และ data-bs-target เปิด Modal โพสต์ของ -->
                     <li class="nav-item">
-                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#postItemModal">ลงประกาศแจกของ</a>
+                        <a class="nav-link" href="#" onclick="handlePostItemClick(event)">ลงประกาศแจกของ</a>
                     </li>
+                    
                     <li class="nav-item"><a class="nav-link" href="#" id="chatNavLink">แชตข้อความ</a></li>
                     <li class="nav-item" id="reportNavContainer"></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link" href="#" id="notifDropdownToggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            🔔 แจ้งเตือน <span class="badge bg-danger rounded-pill" id="notifBadge" style="display:none;">0</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="notifDropdownToggle" id="notifDropdownMenu" style="width: 320px; max-height: 400px; overflow-y: auto;">
+                            <li><h6 class="dropdown-header d-flex justify-content-between align-items-center">
+                                การแจ้งเตือน
+                                <button class="btn btn-sm btn-link text-decoration-none" id="markAllReadBtn">อ่านทั้งหมด</button>
+                            </h6></li>
+                            <div id="notifList">
+                                <li><span class="dropdown-item text-muted text-center">กำลังโหลด...</span></li>
+                            </div>
+                        </ul>
+                    </li>
+                    <li class="nav-item d-none" id="myRequestsNavContainer"><a class="nav-link" href="#" id="myRequestsOpenBtn">คำขอของฉัน</a></li>
                     <li class="nav-item">
                         <div id="authNavContainer">
                             <button class="btn btn-light text-success fw-bold px-4 rounded-pill shadow-sm"
@@ -67,11 +89,9 @@
 
                     <!-- ปุ่มกด -->
                     <div class="d-flex flex-wrap gap-3 mb-4">
-                        <button class="btn btn-success btn-lg fw-bold rounded-pill px-4 shadow-sm" type="button"
-                            onclick="document.getElementById('searchInput').focus();">ดูของแจกใกล้ตัวคุณ</button>
                         <!-- ✅ แก้ไขจุดที่ 2: เพิ่ม data-bs-toggle และ data-bs-target เปิด Modal โพสต์ของ -->
                         <button class="btn btn-outline-light btn-lg fw-bold rounded-pill px-4" type="button"
-                            data-bs-toggle="modal" data-bs-target="#postItemModal">ลงประกาศแจกของ</button>
+                            onclick="handlePostItemClick(event)">ลงประกาศแจกของ</button>
                     </div>
 
                     <!-- สถิติจำลอง -->
@@ -117,6 +137,25 @@
                             <li><a class="dropdown-item filter-btn" href="#" data-filter="ของใช้">📦 ของใช้</a></li>
                             <li><a class="dropdown-item filter-btn" href="#" data-filter="อื่นๆ">✨ อื่นๆ</a></li>
                         </ul>
+                    </div>
+
+                    <div class="vr my-2 text-muted opacity-25"></div>
+                    <div class="dropdown">
+                        <button
+                            class="btn btn-link text-decoration-none text-secondary px-3 py-2 d-flex align-items-center gap-2 shadow-none border-0"
+                            type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.95rem;" data-bs-auto-close="outside">
+                            <span id="distanceSliderLabel">ทุกระยะ</span>
+                            <i class="bi bi-geo-alt-fill text-success"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end rounded-3 border-0 shadow mt-2 p-3" style="width: 250px;">
+                            <label class="form-label text-success fw-bold small mb-1">ระยะทางที่ต้องการ (กม.)</label>
+                            <input type="range" class="form-range" id="distanceSlider" min="1" max="51" value="51">
+                            <div class="text-center mt-3">
+                                <button class="btn btn-sm btn-outline-success rounded-pill w-100 fw-bold" id="updateLocationBtn">
+                                    📍 อัปเดตพิกัดของคุณ
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -311,9 +350,9 @@
 <!-- ดึงไฟล์ JavaScript ตามลำดับ -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js?v=3"></script>
     <script src="js/authClient.js?v=3"></script>
-    <script src="js/modals.js?v=3"></script>
-    <script src="js/location.js?v=3"></script> <!-- 👈 เพิ่มบรรทัดนี้ -->
-    <script src="js/item.js?v=3"></script>
+    <script src="js/modals.js?v=1790196219121"></script>
+    <script src="js/location.js?v=1790195051566"></script> <!-- 👈 เพิ่มบรรทัดนี้ -->
+    <script src="js/item.js?v=1790196219121"></script>
     <script src="js/itemManagement.js?v=3"></script>
     <script src="js/itemRequests.js?v=4"></script>
     <script src="js/chat.js?v=3"></script>
@@ -322,11 +361,12 @@
     <script src="js/auth.js?v=3"></script>
     <script src="js/reports.js?v=3"></script>
     <script src="js/reviews.js?v=3"></script>
-    <script src="js/userProfile.js?v=3"></script>
-    <script src="js/profile.js?v=3"></script>
+    <script src="js/userProfile.js?v=5"></script>
+    <script src="js/profile.js?v=8"></script>
     <script src="js/transactions.js?v=3"></script>
     <script src="js/mySales.js?v=3"></script>
     <script src="js/reports.js?v=3"></script>
 
+    <script src="js/notifications.js?v=1"></script>
 </body>
 </html>

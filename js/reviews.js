@@ -96,7 +96,7 @@ window.openReviewModal = function(itemId = null, revieweeId = null, revieweeName
         submitButton.disabled = true;
 
         try {
-            const result = await requestJson('http://localhost:3000/api/reviews', {
+            const result = await requestJson('/api/reviews', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -30,8 +30,9 @@ CREATE TABLE IF NOT EXISTS items (
     price DECIMAL(10,2) NOT NULL DEFAULT 0,
     quantity INT DEFAULT 1,
     image_url VARCHAR(255),
-    status ENUM('available', 'reserved', 'completed') DEFAULT 'available',
+    status ENUM('available', 'reserved', 'completed', 'rejected') DEFAULT 'available',
     is_approved BOOLEAN DEFAULT FALSE,
+    rejection_reason TEXT NULL,
     latitude DECIMAL(10,7),
     longitude DECIMAL(10,7),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -145,3 +146,15 @@ CREATE TABLE IF NOT EXISTS reviews (
     FOREIGN KEY (reviewer_id) REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (reviewee_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS notifications (
+    notif_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    sender_id INT NULL,
+    type VARCHAR(50) NOT NULL,
+    reference_id INT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

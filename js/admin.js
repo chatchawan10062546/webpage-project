@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${escapeHtml(item.owner_name)}<div class="small text-muted">${escapeHtml(item.owner_email)}</div></td>
                 <td>
                     <button class="btn btn-success btn-sm approve-item-btn" data-item-id="${item.item_id}">✅ อนุมัติ</button>
-                    <button class="btn btn-danger btn-sm reject-item-btn" data-item-id="${item.item_id}">❌ ลบทิ้ง</button>
+                    <button class="btn btn-danger btn-sm reject-item-btn" data-item-id="${item.item_id}">❌ ไม่อนุมัติ</button>
                 </td>
             </tr>`));
     }
@@ -128,8 +128,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadDashboard() {
         try {
             const [summaryData, reportData] = await Promise.all([
-                requestJson('http://localhost:3000/api/admin/summary'),
-                requestJson(`http://localhost:3000/api/admin/reports${filterElement.value === 'all' ? '' : `?status=${filterElement.value}`}`)
+                requestJson('/api/admin/summary'),
+                requestJson(`/api/admin/reports${filterElement.value === 'all' ? '' : `?status=${filterElement.value}`}`)
             ]);
             renderSummary(summaryData.summary);
             renderReports(reportData.reports);
@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let endpoint = view;
         if (view === 'pendingItems') endpoint = 'items/pending';
         
-        const data = await requestJson(`http://localhost:3000/api/admin/${endpoint}`);
+        const data = await requestJson(`/api/admin/${endpoint}`);
         if (view === 'users') renderUsers(data.users);
         if (view === 'items') renderItems(data.items);
         if (view === 'pendingItems') renderPendingItems(data.items);
@@ -166,17 +166,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm('ยืนยันอนุมัติสินค้านี้ให้แสดงบนเว็บใช่หรือไม่?')) return;
             const itemId = event.target.dataset.itemId;
             try {
-                await requestJson(`http://localhost:3000/api/admin/items/${itemId}/approve`, { method: 'PATCH' });
+                await requestJson(`/api/admin/items/${itemId}/approve`, { method: 'PATCH' });
                 alert('อนุมัติสินค้าสำเร็จ');
                 loadView('pendingItems');
                 loadDashboard();
             } catch (err) { alert(err.message); }
         } else if (event.target.classList.contains('reject-item-btn')) {
-            if (!confirm('ยืนยันลบสินค้านี้ทิ้งใช่หรือไม่?')) return;
+            const reason = prompt('กรุณาระบุเหตุผลที่ไม่อนุมัติโพสต์นี้ (ผู้โพสต์จะเห็นข้อความนี้):');
+            if (reason === null) return;
             const itemId = event.target.dataset.itemId;
             try {
-                await requestJson(`http://localhost:3000/api/admin/items/${itemId}/reject`, { method: 'DELETE' });
-                alert('ปฏิเสธและลบสินค้าสำเร็จ');
+                await requestJson(`/api/admin/items/${itemId}/reject`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: reason })
+                });
+                alert('ไม่อนุมัติและบันทึกเหตุผลสำเร็จ');
                 loadView('pendingItems');
                 loadDashboard();
             } catch (err) { alert(err.message); }
@@ -191,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (resolveBtn) {
             resolveBtn.disabled = true;
             try {
-                await requestJson(`http://localhost:3000/api/admin/reports/${resolveBtn.dataset.reportId}`, {
+                await requestJson(`/api/admin/reports/${resolveBtn.dataset.reportId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: 'resolved' })
@@ -205,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm('ยืนยันที่จะแบนผู้ใช้นี้ใช่หรือไม่? (บัญชีนี้จะไม่สามารถเข้าสู่ระบบได้อีก)')) return;
             banBtn.disabled = true;
             try {
-                await requestJson(`http://localhost:3000/api/admin/users/${banBtn.dataset.userId}/ban`, {
+                await requestJson(`/api/admin/users/${banBtn.dataset.userId}/ban`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -216,14 +221,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(error.message);
             }
         } else if (rejectBtn) {
-            if (!confirm('ยืนยันที่จะลบโพสต์สินค้านี้ใช่หรือไม่?')) return;
+            const reason = prompt('กรุณาระบุเหตุผลที่ไม่อนุมัติโพสต์นี้ (ผู้โพสต์จะเห็นข้อความนี้):');
+            if (reason === null) return; // User clicked cancel
+            
             rejectBtn.disabled = true;
             try {
-                await requestJson(`http://localhost:3000/api/admin/items/${rejectBtn.dataset.itemId}/reject`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' }
+                await requestJson(`/api/admin/items/${rejectBtn.dataset.itemId}/reject`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: reason })
                 });
-                alert('ลบโพสต์สำเร็จ');
+                alert('ไม่อนุมัติโพสต์สำเร็จ');
                 loadDashboard();
             } catch (error) {
                 rejectBtn.disabled = false;

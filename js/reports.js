@@ -86,7 +86,7 @@ window.openReportModal = function(itemId = null, reportedUserId = null, contextT
         const fullReason = `[${category}] ${details}`;
         
         try {
-            const result = await requestJson('http://localhost:3000/api/reports', {
+            const result = await requestJson('/api/reports', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

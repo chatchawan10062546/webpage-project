@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------
     async function loadItemsFromDB() {
         try {
-            const response = await fetch('http://localhost:3000/api/items');
+            const response = await fetch('/api/items');
             const data = await response.json();
 
             if (data.success && itemGrid) {
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const itemType = item.item_type || item.itemType || 'free';
         const price = item.price || 0;
-        const hasCoordinates = Number.isFinite(Number(item.latitude)) && Number.isFinite(Number(item.longitude));
+        const latVal = item.latitude || item.lat; const lngVal = item.longitude || item.lng; const hasCoordinates = latVal !== null && latVal !== undefined && latVal !== '' && lngVal !== null && lngVal !== undefined && lngVal !== '' && Number.isFinite(Number(latVal)) && Number.isFinite(Number(lngVal));
 
         const typeBadge = itemType === 'sell'
             ? '<span class="badge bg-primary me-1">ขาย</span>'
@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="item-owner-controls mt-3 pt-3 border-top d-flex gap-2" data-item-id="${itemId}">
                 <button class="btn btn-outline-primary btn-sm flex-grow-1 item-edit-btn" type="button">แก้ไข</button>
                 <button class="btn btn-outline-danger btn-sm flex-grow-1 item-delete-btn" type="button">ลบ</button>
-                <button class="btn btn-outline-success btn-sm flex-grow-1 item-requests-btn" type="button">คำขอ</button>
+                <button class="btn btn-outline-success btn-sm flex-grow-1 item-requests-btn position-relative" type="button">คำขอ ${item.pending_requests > 0 ? `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">${item.pending_requests}</span>` : ""}</button>
                 <button class="btn btn-outline-dark btn-sm flex-grow-1 item-messages-btn" type="button">ข้อความ</button>
             </div>
         ` : '';
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ` : '';
 
         const newCardHTML = `
-            <div class="col-md-4 col-sm-6 item-element" data-item-id="${itemId}" data-category="${item.category}" data-title="${item.title}" data-latitude="${hasCoordinates ? item.latitude : ''}" data-longitude="${hasCoordinates ? item.longitude : ''}">
+            <div class="col-md-4 col-sm-6 item-element" data-item-id="${itemId}" data-category="${item.category}" data-title="${item.title}" data-latitude="${hasCoordinates ? (item.latitude || item.lat) : ''}" data-longitude="${hasCoordinates ? (item.longitude || item.lng) : ''}">
                 <div class="card item-card h-100 position-relative shadow-sm border-0 rounded-4 overflow-hidden">
                     <div class="position-absolute top-0 start-0 p-2 z-2">
                         ${typeBadge}
@@ -181,12 +181,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const description = document.getElementById('postDescription')?.value || '';
             const imageInput = document.getElementById('postImageFile');
 
-            let coordinates;
-            try {
-                coordinates = await getCurrentCoordinates();
-            } catch (error) {
-                alert(error.message);
-                return;
+            let coordinates = { latitude: null, longitude: null };
+            const showMapToggle = document.getElementById('showMapToggle');
+            const isMapEnabled = showMapToggle ? showMapToggle.checked : true;
+            
+            if (isMapEnabled) {
+                const mapLat = document.getElementById('itemLat')?.value;
+                const mapLng = document.getElementById('itemLng')?.value;
+                if (mapLat && mapLng) {
+                    coordinates.latitude = parseFloat(mapLat);
+                    coordinates.longitude = parseFloat(mapLng);
+                } else {
+                    try {
+                        coordinates = await getCurrentCoordinates();
+                    } catch (error) {
+                        alert('กรุณาปักหมุดบนแผนที่ หรืออนุญาตตำแหน่ง');
+                        return;
+                    }
+                }
             }
 
             // จัดเตรียมข้อมูลส่งแบบ FormData เพื่อรองรับการอัปโหลดไฟล์
@@ -207,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch('http://localhost:3000/api/items', {
+                const response = await fetch('/api/items', {
                     method: 'POST',
                     body: formData
                 });
@@ -280,8 +292,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const ownerRating = btn.dataset.ownerRating || '0.0';
             const quantity = Number(btn.dataset.quantity ?? 1);
             const status = btn.dataset.status || 'available';
+            const lat = btn.closest('.item-element').dataset.latitude;
+            const lng = btn.closest('.item-element').dataset.longitude;
 
-            showItemDetailModal({ itemId, ownerId, ownerName, ownerLevel, ownerRating, title, category, itemType, price, quantity, status, location, description, images, distance });
+            showItemDetailModal({ itemId, ownerId, ownerName, ownerLevel, ownerRating, title, category, itemType, price, quantity, status, location, description, images, distance, lat, lng });
         }
     });
 
@@ -355,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const detailModalHTML = `
-            <div class="modal fade" id="itemDetailModal" tabindex="-1" aria-hidden="true">
+            <div class="modal fade" id="itemDetailModal" data-lat="${item.lat || ''}" data-lng="${item.lng || ''}" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered" style="max-width: 720px;">
                     <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden p-3 p-md-4">
                         
@@ -392,8 +406,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </div>
                                 `: ''}
                                 <p class="text-muted fs-6 mb-3">📍 ${item.location} ${item.distance ? `<span class="text-success fw-semibold">(${item.distance})</span>`: ''}</p>
-                                <hr class="my-3">
-                                <h5 class="fw-bold text-dark mb-2">รายละเอียดสินค้า:</h5>
+                                
+<!-- Map section in detail -->
+<div class="mt-4 mb-4" id="detailMapSection" style="display: ${item.lat && item.lng ? 'block' : 'none'};" data-lat="${item.lat || ''}" data-lng="${item.lng || ''}">
+    <h5 class="fw-bold text-success mb-2"><i class="bi bi-geo-alt-fill me-2"></i>จุดแจกของ / นัดรับ:</h5>
+    <div id="itemDetailMap" style="height: 200px; width: 100%; border-radius: 8px; border: 1px solid #ced4da;"></div>
+</div>
+<hr class="my-3">
+<h5 class="fw-bold text-dark mb-2">รายละเอียดสินค้า:</h5>
                                 <p class="text-secondary fs-5 mb-0" style="line-height: 1.6; white-space: pre-line;">${item.description}</p>
                             </div>
 
@@ -412,6 +432,26 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         document.body.insertAdjacentHTML('beforeend', detailModalHTML);
+
+        const modalEl = document.getElementById('itemDetailModal');
+        modalEl.addEventListener('shown.bs.modal', () => {
+            const mapSec = document.getElementById('detailMapSection');
+            if (!mapSec || mapSec.style.display === 'none') return;
+            
+            const lat = parseFloat(mapSec.dataset.lat);
+            const lng = parseFloat(mapSec.dataset.lng);
+            if (isNaN(lat) || isNaN(lng)) return;
+            
+            if (window.detailMap) {
+                window.detailMap.remove(); // Destroy old map instance to detach from old DOM
+                window.detailMap = null;
+            }
+            window.detailMap = L.map('itemDetailMap').setView([lat, lng], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.detailMap);
+            window.detailMarker = L.marker([lat, lng]).addTo(window.detailMap);
+            setTimeout(() => { window.detailMap.invalidateSize(); }, 200);
+        });
+
         const detailModal = new bootstrap.Modal(document.getElementById('itemDetailModal'));
         detailModal.show();
 
@@ -507,3 +547,70 @@ document.addEventListener('click', (e) => {
         window.openReportModal(itemId, ownerId, `โพสต์: ${title}`);
     }
 });
+
+
+// ==========================================
+// 🗺️ ระบบแผนที่และการปักหมุด (Leaflet Map)
+// ==========================================
+let addMap, addMarker;
+let detailMap, detailMarker;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. แผนที่ตอนลงประกาศ
+    const addItemModalEl = document.getElementById('postItemModal');
+    if (addItemModalEl) {
+        addItemModalEl.addEventListener('shown.bs.modal', () => {
+            if (!addMap) {
+                // Initialize map at a default center (เช่น มมส)
+                addMap = L.map('addItemMap').setView([16.245, 103.250], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(addMap);
+                
+                // Add marker on click
+                addMap.on('click', (e) => {
+                    if (addMarker) {
+                        addMarker.setLatLng(e.latlng);
+                    } else {
+                        addMarker = L.marker(e.latlng).addTo(addMap);
+                    }
+                    document.getElementById('itemLat').value = e.latlng.lat;
+                    document.getElementById('itemLng').value = e.latlng.lng;
+                    document.getElementById('latLngDisplay').innerText = e.latlng.lat.toFixed(5) + ', ' + e.latlng.lng.toFixed(5);
+                    document.getElementById('latLngDisplay').classList.remove('text-danger');
+                    document.getElementById('latLngDisplay').classList.add('text-success');
+                });
+            } else {
+                addMap.invalidateSize();
+            }
+        });
+        
+        // Reset form handling
+        addItemModalEl.addEventListener('hidden.bs.modal', () => {
+            document.getElementById('itemLat').value = '';
+            document.getElementById('itemLng').value = '';
+            document.getElementById('latLngDisplay').innerText = 'ยังไม่ได้เลือก';
+            document.getElementById('latLngDisplay').classList.add('text-danger');
+            document.getElementById('latLngDisplay').classList.remove('text-success');
+            if (addMarker) {
+                addMap.removeLayer(addMarker);
+                addMarker = null;
+            }
+        });
+    }
+
+    // 2. แผนที่ตอนดูรายละเอียด
+    
+});
+
+// สูตรคำนวณระยะทาง
+window.calculateDistance = function(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return (R * c).toFixed(1);
+};

@@ -18,7 +18,7 @@ window.openMySalesModal = async () => {
     if (!userId) return alert('กรุณาเข้าสู่ระบบ');
 
     try {
-        const data = await requestJson('http://localhost:3000/api/my-sales');
+        const data = await requestJson('/api/my-sales');
         const sales = data.sales || [];
         let rowsHTML = '';
         
@@ -66,8 +66,20 @@ window.openMySalesModal = async () => {
                     }).join('');
                 }
 
+                let rejectedBanner = '';
+                if (sale.status === 'rejected' || sale.is_approved === 0 || sale.is_approved === false) {
+                    rejectedBanner = `
+                    <div class="alert alert-danger m-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                        <div>
+                            <strong>โพสต์นี้ไม่ผ่านการอนุมัติ (แอดมินปฏิเสธ)</strong><br>
+                            เหตุผล: ${sale.rejection_reason || 'ไม่ระบุเหตุผล / ผิดกฎของแพลตฟอร์ม'}
+                        </div>
+                    </div>`;
+                }
+
                 return `
-                    <div class="card mb-4 border-0 shadow-sm rounded-4 overflow-hidden my-sale-card" data-item-id="${sale.item_id}">
+                    <div class="card mb-4 border-0 shadow-sm rounded-4 overflow-hidden my-sale-card" data-item-id="${sale.item_id}">${rejectedBanner}
                         <div class="card-header bg-white p-3 border-bottom d-flex gap-3 align-items-center">
                             <img src="${sale.image_url || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80'}" 
                                  class="rounded-3" style="width: 70px; height: 70px; object-fit: cover;">
@@ -115,7 +127,7 @@ window.openMySalesModal = async () => {
             if (e.target.closest('.accept-req-btn')) {
                 if (!confirm('ยืนยันยอมรับคำขอนี้? (ของจะถูกจองให้คนนี้)')) return;
                 try {
-                    const res = await requestJson(`http://localhost:3000/api/item-requests/${requestId}`, {
+                    const res = await requestJson(`/api/item-requests/${requestId}`, {
                         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'accepted' })
                     });
                     alert(res.message);
@@ -125,7 +137,7 @@ window.openMySalesModal = async () => {
             if (e.target.closest('.reject-req-btn')) {
                 if (!confirm('ปฏิเสธคำขอนี้?')) return;
                 try {
-                    const res = await requestJson(`http://localhost:3000/api/item-requests/${requestId}`, {
+                    const res = await requestJson(`/api/item-requests/${requestId}`, {
                         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'rejected' })
                     });
                     alert(res.message);
@@ -135,7 +147,7 @@ window.openMySalesModal = async () => {
             if (e.target.closest('.revoke-req-btn')) {
                 if (!confirm('ยืนยันยึดของคืนและยกเลิกคำขอนี้? (กรณีคนซื้อไม่ยอมมารับของ)')) return;
                 try {
-                    const res = await requestJson(`http://localhost:3000/api/item-requests/${requestId}/revoke`, {
+                    const res = await requestJson(`/api/item-requests/${requestId}/revoke`, {
                         method: 'PATCH'
                     });
                     alert(res.message);

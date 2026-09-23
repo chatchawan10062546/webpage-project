@@ -14,6 +14,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 
@@ -53,7 +54,8 @@ app.use('/api', itemRoutes); // เรียกใช้งาน /api/items
 app.use('/api', chatRoutes); // เรียกใช้งานระบบแชต
 app.use('/api', profileRoutes); // เรียกใช้งานระบบโปรไฟล์
 app.use('/api', transactionRoutes); // เรียกใช้งานระบบธุรกรรมคนกลาง
-app.use('/api', reportRoutes); // เรียกใช้งานระบบแจ้งปัญหา
+app.use('/api', reportRoutes);
+app.use('/api', notificationRoutes); // เรียกใช้งานระบบแจ้งปัญหา
 app.use('/api', adminRoutes); // เรียกใช้งานระบบหลังบ้านแอดมิน
 app.use('/api', reviewRoutes); // เรียกใช้งานระบบรีวิวและเลเวล
 

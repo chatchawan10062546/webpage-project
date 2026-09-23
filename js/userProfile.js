@@ -23,7 +23,9 @@ function updateProfileUI() {
         }
 
         if (!userId) {
-            authContainer.innerHTML = `
+                    const myReqNav = document.getElementById('myRequestsNavContainer');
+        if (myReqNav) myReqNav.classList.remove('d-none');
+        authContainer.innerHTML = `
                 <button class="btn btn-light text-success fw-bold px-4 rounded-pill shadow-sm"
                     data-bs-toggle="modal" data-bs-target="#loginModal">เข้าสู่ระบบ</button>
             `;
@@ -51,7 +53,7 @@ function updateProfileUI() {
                         <a class="dropdown-item" href="#" id="profileOpenBtn"><i class="bi bi-person me-2"></i>โปรไฟล์ของฉัน</a>
                     </li>
                     <li>
-                        <a class="dropdown-item" href="#" id="myRequestsOpenBtn"><i class="bi bi-send me-2"></i>คำขอของฉัน</a>
+                        <a class="dropdown-item" href="#" id="myListingsOpenBtn"><i class="bi bi-box-seam me-2"></i>รายการที่ฉันประกาศ</a>
                     </li>
                     ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html"><i class="bi bi-speedometer2 me-2"></i>หลังบ้านแอดมิน</a></li>' : ''}
                     <li>
@@ -63,6 +65,8 @@ function updateProfileUI() {
             </div>
         `;
     } else {
+                const myReqNav = document.getElementById('myRequestsNavContainer');
+        if (myReqNav) myReqNav.classList.add('d-none');
         if (reportNavContainer) reportNavContainer.innerHTML = '';
         // ✅ แก้ไขตรงนี้: เปลี่ยนเป็นปุ่มสีขาว ขอบมน ตัวหนังสือสีเขียว (btn-light text-success fw-bold)
         authContainer.innerHTML = `

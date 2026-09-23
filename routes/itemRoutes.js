@@ -25,7 +25,8 @@ router.get('/items', (req, res) => {
               u.level AS owner_level, 
               u.xp AS owner_xp,
               COALESCE(AVG(r.rating), 0) AS owner_rating,
-              COUNT(r.review_id) AS owner_review_count
+              COUNT(r.review_id) AS owner_review_count,
+              (SELECT COUNT(*) FROM item_requests req WHERE req.item_id = i.item_id AND req.status = "pending") AS pending_requests
        FROM items i
        JOIN users u ON u.user_id = i.user_id
        LEFT JOIN reviews r ON r.reviewee_id = i.user_id
@@ -44,16 +45,18 @@ router.get('/items', (req, res) => {
 
 // 📌 2. API บันทึกรายการใหม่ลง DB
 router.post('/items', requireAuth, upload.single('image'), (req, res) => {
-   const { title, category, description, location, latitude, longitude, item_type, price, quantity } = req.body;
+   const { title, category, description, location, item_type, price, quantity } = req.body;
+   const latitude = (req.body.latitude && req.body.latitude !== 'null') ? req.body.latitude : null;
+   const longitude = (req.body.longitude && req.body.longitude !== 'null') ? req.body.longitude : null;
    const user_id = req.authUser.userId;
 
-   if (!title || !category || !user_id || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
+   if (!title || !category || !user_id) {
       return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
    }
 
    let image_url = '';
    if (req.file) {
-      image_url = `http://localhost:3000/uploads/${req.file.filename}`;
+      image_url = `/uploads/${req.file.filename}`;
    }
 
    const sql = `
@@ -88,7 +91,7 @@ router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => 
 
    if (req.file) {
       sql += ', image_url = ?';
-      values.push(`http://localhost:3000/uploads/${req.file.filename}`);
+      values.push(`/uploads/${req.file.filename}`);
    }
 
    sql += ' WHERE item_id = ? AND user_id = ?';
@@ -145,7 +148,7 @@ router.post('/items/:itemId/requests', requireAuth, (req, res) => {
       return res.status(400).json({ success: false, message: 'ไม่พบรหัสผู้ขอรับของ' });
    }
 
-   db.query('SELECT item_id, user_id, status FROM items WHERE item_id = ?', [itemId], (itemErr, items) => {
+   db.query('SELECT item_id, user_id, status, title FROM items WHERE item_id = ?', [itemId], (itemErr, items) => {
       if (itemErr) return res.status(500).json({ success: false, message: 'ตรวจสอบรายการไม่สำเร็จ' });
       if (items.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบรายการนี้' });
       if (String(items[0].user_id) === String(requester_id)) {
@@ -158,7 +161,7 @@ router.post('/items/:itemId/requests', requireAuth, (req, res) => {
       db.query(
          'INSERT INTO item_requests (item_id, requester_id, message) VALUES (?, ?, ?)',
          [itemId, requester_id, message || ''],
-         (err) => {
+         (err, insertResult) => {
             if (err) {
                if (err.code === 'ER_DUP_ENTRY') {
                   return res.status(409).json({ success: false, message: 'คุณเคยส่งคำขอรายการนี้แล้ว' });
@@ -166,6 +169,16 @@ router.post('/items/:itemId/requests', requireAuth, (req, res) => {
                console.error('Create Item Request Error:', err);
                return res.status(500).json({ success: false, message: 'ส่งคำขอไม่สำเร็จ' });
             }
+            
+            // --- 🔔 แจ้งเตือนเจ้าของของ ---
+            const titleMatch = items[0].title;
+            const ownerId = items[0].user_id;
+            const notifMsg = `มีผู้ใช้สนใจขอรับ "${titleMatch}" ของคุณ`;
+            db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, ?, ?, ?, ?)', 
+                     [ownerId, requester_id, 'request_received', insertResult.insertId, notifMsg], (notifErr) => {
+                if(notifErr) console.error(notifErr);
+            });
+            // -------------------------------
             res.json({ success: true, message: 'ส่งคำขอรับของสำเร็จ' });
          }
       );
@@ -223,6 +236,17 @@ router.patch('/item-requests/:requestId', requireAuth, (req, res) => {
       db.query('UPDATE item_requests SET status = ? WHERE request_id = ?', [status, requestId], (updateErr) => {
          if (updateErr) return res.status(500).json({ success: false, message: 'อัปเดตคำขอไม่สำเร็จ' });
          if (status === 'accepted') {
+            // --- 🔔 แจ้งเตือนผู้ขอรับ ---
+            db.query('SELECT r.requester_id, i.title FROM item_requests r JOIN items i ON r.item_id = i.item_id WHERE r.request_id = ?', [requestId], (err, notifRows) => {
+                if(!err && notifRows.length > 0) {
+                    const reqUserId = notifRows[0].requester_id;
+                    const reqItemTitle = notifRows[0].title;
+                    const notifMsg = `คำขอรับของ "${reqItemTitle}" ของคุณได้รับการอนุมัติแล้ว`;
+                    db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, ?, ?, ?, ?)',
+                             [reqUserId, user_id, 'request_accepted', requestId, notifMsg]);
+                }
+            });
+            // -------------------------------
             // 🌟 ให้ XP แก่ผู้แจก/ผู้ขาย (+50 สำหรับแจกฟรี, +20 สำหรับขาย/เช่า)
             const xpGained = rows[0].item_type === 'free' ? 50 : 20;
             addXP(user_id, xpGained);

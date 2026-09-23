@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const message = customMessage || 'สนใจรายการนี้ครับ/ค่ะ';
 
         try {
-            await requestJson(`http://localhost:3000/api/items/${itemId}/requests`, {
+            await requestJson(`/api/items/${itemId}/requests`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ requester_id: userId, message, action })
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showRequests(card) {
         const itemId = card.dataset.itemId;
         const userId = getUserId();
-        requestJson(`http://localhost:3000/api/items/${itemId}/requests?user_id=${encodeURIComponent(userId)}`)
+        requestJson(`/api/items/${itemId}/requests?user_id=${encodeURIComponent(userId)}`)
             .then(data => {
                 const rows = data.requests.map(request => `
                     <div class="border rounded p-3 mb-2 request-row" data-request-id="${request.request_id}">
@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!acceptButton && !rejectButton) return;
                     const row = event.target.closest('.request-row');
                     const status = acceptButton ? 'accepted' : 'rejected';
-                    requestJson(`http://localhost:3000/api/item-requests/${row.dataset.requestId}`, {
+                    requestJson(`/api/item-requests/${row.dataset.requestId}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ status, user_id: userId })
@@ -181,7 +181,7 @@ window.openMyRequestsModal = async () => {
     if (!userId) return alert('กรุณาเข้าสู่ระบบก่อนดูคำขอของคุณ');
 
     try {
-        const data = await requestJson('http://localhost:3000/api/my-requests');
+        const data = await requestJson('/api/my-requests');
         const requests = data.requests || [];
         let rowsHTML = '';
         
@@ -298,7 +298,7 @@ window.openMyRequestsModal = async () => {
                 const requestId = card.dataset.requestId;
                 confirmBtn.disabled = true;
                 try {
-                    const result = await requestJson(`http://localhost:3000/api/item-requests/${requestId}/confirm-received`, {
+                    const result = await requestJson(`/api/item-requests/${requestId}/confirm-received`, {
                         method: 'PATCH'
                     });
                     modal.hide();
@@ -317,7 +317,7 @@ window.openMyRequestsModal = async () => {
                 if (!confirm('ต้องการยกเลิกคำขอนี้ใช่หรือไม่?')) return;
                 const requestId = card.dataset.requestId;
                 try {
-                    await requestJson(`http://localhost:3000/api/item-requests/${requestId}/cancel`, {
+                    await requestJson(`/api/item-requests/${requestId}/cancel`, {
                         method: 'DELETE'
                     });
                     alert('ยกเลิกคำขอสำเร็จ');

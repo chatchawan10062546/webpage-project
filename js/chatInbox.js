@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const data = await requestJson(`http://localhost:3000/api/chat/rooms?user_id=${encodeURIComponent(userId)}`);
+            const data = await requestJson(`/api/chat/rooms?user_id=${encodeURIComponent(userId)}`);
             const rooms = data.rooms.map(room => `
                 <button type="button" class="list-group-item list-group-item-action chat-room-btn" data-room-id="${room.room_id}" data-item-id="${room.item_id || ''}" data-item-title="${escapeHtml(room.item_title)}" data-other-user-id="${room.other_user_id}">
                     <div class="chat-room-content">

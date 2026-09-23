@@ -28,16 +28,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
-    async function showProfile() {
+    async function showProfile(viewMode = "profile") {
         const userId = getUserId();
         if (!userId) return alert('กรุณาเข้าสู่ระบบก่อนดูโปรไฟล์');
 
         try {
             const [profileData, itemsData, statsData, reviewsData] = await Promise.all([
-                requestJson(`http://localhost:3000/api/profile?user_id=${userId}`),
-                requestJson(`http://localhost:3000/api/profile/items?user_id=${userId}`),
-                requestJson(`http://localhost:3000/api/users/${userId}/profile-stats`),
-                requestJson(`http://localhost:3000/api/users/${userId}/reviews`)
+                requestJson(`/api/profile?user_id=${userId}`),
+                requestJson(`/api/profile/items?user_id=${userId}`),
+                requestJson(`/api/users/${userId}/profile-stats`),
+                requestJson(`/api/users/${userId}/reviews`)
             ]);
             const profile = profileData.profile;
             const stats = statsData.profile || {};
@@ -53,9 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="flex-grow-1 min-width-0">
                         <div class="fw-bold text-truncate">
                             ${escapeHtml(item.title)}
-                            ${!item.is_approved ? '<span class="badge text-bg-warning ms-2">รอตรวจสอบ</span>' : ''}
+                            ${!item.is_approved ? (item.status === 'rejected' ? '<span class="badge text-bg-danger ms-2">ไม่อนุมัติ</span>' : '<span class="badge text-bg-warning ms-2">รอตรวจสอบ</span>') : ''}
                         </div>
-                        <small class="text-muted">${escapeHtml(item.category)} · ${escapeHtml(item.status)}</small>
+                        ${item.status === 'rejected' && item.rejection_reason ? `<small class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>เหตุผล: ${escapeHtml(item.rejection_reason)}</small>` : `<small class="text-muted">${escapeHtml(item.category)} · ${escapeHtml(item.status)}</small>`}
                     </div>
                     <span class="fw-bold text-success">${item.item_type === 'free' ? 'ฟรี' : `฿${Number(item.price).toLocaleString()}`}</span>
                 </div>
@@ -78,12 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="modal-dialog modal-dialog-centered modal-lg">
                         <div class="modal-content profile-modal border-0 shadow-lg rounded-4">
                             <div class="modal-header bg-success text-white">
-                                <h5 class="modal-title fw-bold">👤 โปรไฟล์ของฉัน</h5>
+                                <h5 class="modal-title fw-bold">${viewMode === "profile" ? "👤 โปรไฟล์ของฉัน" : "📦 รายการที่ฉันประกาศ"}</h5>
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body p-4" style="max-height: 80vh; overflow-y: auto;">
                                 
                                 <!-- 🏆 แผงแสดง Level & XP -->
+                                ${viewMode === "profile" ? `
                                 <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 text-white" style="background: linear-gradient(135deg, #6f42c1 0%, #a100ff 100%);">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <div>
@@ -115,16 +116,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <div class="small text-muted mt-2">อีเมล: ${escapeHtml(profile.email)}</div>
                                     <button class="btn btn-success mt-3 rounded-pill px-4" type="submit">บันทึกข้อมูล</button>
                                 </form>
+                                ` : ""}
 
-                                <div class="mb-4">
+                                ${viewMode === "listings" ? `
+<div class="mb-4">
                                     <div class="profile-list-heading fw-bold mb-2"><i class="bi bi-box-seam text-success me-2"></i>รายการที่ฉันประกาศ <span class="badge text-bg-success rounded-pill">${itemsData.items.length}</span></div>
                                     <div class="profile-items-list border p-3 rounded-4 bg-light">${items}</div>
                                 </div>
+` : ""}
 
-                                <div>
+                                ${viewMode === "profile" ? `
+<div>
                                     <div class="fw-bold mb-2"><i class="bi bi-star-fill text-warning me-2"></i>ความคิดเห็นและรีวิวจากผู้ใช้อื่น <span class="badge text-bg-secondary rounded-pill">${reviews.length}</span></div>
                                     <div class="reviews-list border p-3 rounded-4 bg-light">${reviewsHTML}</div>
                                 </div>
+` : ""}
 
                             </div>
                         </div>
@@ -137,12 +143,13 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.show();
             modalElement.addEventListener('hidden.bs.modal', () => modalElement.remove(), { once: true });
 
-            document.getElementById('profileForm').addEventListener('submit', async event => {
+            const pForm = document.getElementById('profileForm');
+            if (pForm) pForm.addEventListener('submit', async event => {
                 event.preventDefault();
                 try {
                     const updatedName = document.getElementById('profileName').value;
                     const updatedPhone = document.getElementById('profilePhone').value;
-                    const result = await requestJson('http://localhost:3000/api/profile', {
+                    const result = await requestJson('/api/profile', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ user_id: userId, name: updatedName, phone: updatedPhone })
@@ -162,6 +169,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     profileButton.addEventListener('click', event => {
         event.preventDefault();
-        showProfile();
+        showProfile('profile');
     });
+
+    // ปุ่ม "รายการที่ฉันประกาศ" — เปิดโปรไฟล์แล้วเลื่อนไปส่วนรายการ
+    const myListingsBtn = document.getElementById('myListingsOpenBtn');
+    if (myListingsBtn) {
+        myListingsBtn.addEventListener('click', event => {
+            event.preventDefault();
+            showProfile('listings');
+        });
+    }
 });

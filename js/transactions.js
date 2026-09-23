@@ -52,7 +52,7 @@
         document.getElementById('mockPayButton').addEventListener('click', async event => {
             event.target.disabled = true;
             try {
-                const result = await requestJson(`http://localhost:3000/api/transactions/${transactionId}/pay`, { method: 'POST' });
+                const result = await requestJson(`/api/transactions/${transactionId}/pay`, { method: 'POST' });
                 event.target.outerHTML = `<div class="alert alert-success mb-0">${result.message}</div>`;
             } catch (error) {
                 event.target.disabled = false;
@@ -66,7 +66,7 @@
         if (!userId) return alert('กรุณาเข้าสู่ระบบก่อนซื้อสินค้า');
 
         try {
-            const result = await requestJson('http://localhost:3000/api/transactions', {
+            const result = await requestJson('/api/transactions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ item_id: item.itemId })

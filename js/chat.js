@@ -33,7 +33,7 @@
         if (!userId) return alert('กรุณาเข้าสู่ระบบก่อนดูข้อความ');
 
         try {
-            const data = await requestJson(`http://localhost:3000/api/chat/items/${itemId}/messages?user_id=${userId}`);
+            const data = await requestJson(`/api/chat/items/${itemId}/messages?user_id=${userId}`);
             document.getElementById('itemMessagesModal')?.remove();
             document.body.insertAdjacentHTML('beforeend', `
                 <div class="modal fade" id="itemMessagesModal" tabindex="-1" aria-hidden="true">
@@ -73,7 +73,7 @@
         if (!otherUserId || String(userId) === String(otherUserId)) return alert('ไม่สามารถเปิดแชตกับตัวเองได้');
 
         try {
-            const room = await requestJson('http://localhost:3000/api/chat/rooms', {
+            const room = await requestJson('/api/chat/rooms', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: userId, other_user_id: otherUserId, item_id: itemId, name: `รายการ: ${itemTitle}` })
@@ -106,7 +106,7 @@
             const modalElement = document.getElementById('chatModal');
             const modal = new bootstrap.Modal(modalElement);
             const messagesElement = document.getElementById('chatMessages');
-            const loadMessages = () => requestJson(`http://localhost:3000/api/chat/rooms/${room.room_id}/messages?user_id=${userId}`)
+            const loadMessages = () => requestJson(`/api/chat/rooms/${room.room_id}/messages?user_id=${userId}`)
                 .then(data => renderMessages(messagesElement, data.messages))
                 .catch(error => { messagesElement.innerHTML = `<p class="text-danger">${error.message}</p>`; });
 
@@ -120,7 +120,7 @@
             document.getElementById('chatMessageForm').addEventListener('submit', event => {
                 event.preventDefault();
                 const input = document.getElementById('chatMessageInput');
-                requestJson(`http://localhost:3000/api/chat/rooms/${room.room_id}/messages`, {
+                requestJson(`/api/chat/rooms/${room.room_id}/messages`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_id: userId, user_name: user.name, message: input.value })
