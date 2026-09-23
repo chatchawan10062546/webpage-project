@@ -1,49 +1,50 @@
 ﻿const fs = require('fs');
-let aj = fs.readFileSync('js/admin.js', 'utf8');
+let c = fs.readFileSync('js/admin.js', 'utf8');
 
-// 1. Change button text
-aj = aj.replace('❌ ลบทิ้ง</button>', '❌ ไม่อนุมัติ</button>');
+const targetFunction = `    function renderPendingItems(items) {
+        renderTable(document.getElementById('adminPendingItemsList'), ['สินค้า', 'รายละเอียด', 'ผู้โพสต์', 'จัดการ'], items.map(item => \`
+            <tr>
+                <td>
+                    <img src="\${item.image_url}" alt="" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px;">
+                    <strong>\${escapeHtml(item.title)}</strong>
+                </td>
+                <td><small class="text-muted">\${escapeHtml(item.category)} • \${item.item_type === 'free' ? 'ฟรี' : \`฿\${Number(item.price).toLocaleString()}\`}</small></td>
+                <td>\${escapeHtml(item.owner_name)}<div class="small text-muted">\${escapeHtml(item.owner_email)}</div></td>
+                <td>
+                    <button class="btn btn-success btn-sm approve-item-btn" data-item-id="\${item.item_id}">✅ อนุมัติ</button>
+                    <button class="btn btn-danger btn-sm reject-item-btn" data-item-id="\${item.item_id}">❌ ไม่อนุมัติ</button>
+                </td>
+            </tr>
+        \`));
+    }`;
 
-// 2. Change logic
-const oldLogic = `} else if (rejectBtn) {
-            if (!confirm('ยืนยันที่จะลบโพสต์สินค้านี้ใช่หรือไม่?')) return;
-            rejectBtn.disabled = true;
-            try {
-                await requestJson(\`/api/admin/items/\${rejectBtn.dataset.itemId}/reject\`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                alert('ลบโพสต์สำเร็จ');
-                loadDashboard();
-            } catch (error) {
-                rejectBtn.disabled = false;
-                alert(error.message);
-            }
-        }`;
+const replacementFunction = `    function renderPendingItems(items) {
+        const newItems = items.filter(item => !item.is_edited);
+        const editedItems = items.filter(item => item.is_edited);
+        
+        const renderRow = (item) => \`
+            <tr>
+                <td>
+                    <img src="\${item.image_url}" alt="" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px;">
+                    <strong>\${escapeHtml(item.title)}</strong>
+                    \${item.is_edited ? '<span class="badge bg-warning text-dark ms-2">โพสต์ที่มีการแก้ไข</span>' : '<span class="badge bg-primary ms-2">โพสต์ใหม่</span>'}
+                </td>
+                <td><small class="text-muted">\${escapeHtml(item.category)} • \${item.item_type === 'free' ? 'ฟรี' : \`฿\${Number(item.price).toLocaleString()}\`}</small></td>
+                <td>\${escapeHtml(item.owner_name)}<div class="small text-muted">\${escapeHtml(item.owner_email)}</div></td>
+                <td>
+                    <button class="btn btn-success btn-sm approve-item-btn" data-item-id="\${item.item_id}">✅ อนุมัติ</button>
+                    <button class="btn btn-danger btn-sm reject-item-btn" data-item-id="\${item.item_id}">❌ ไม่อนุมัติ</button>
+                </td>
+            </tr>
+        \`;
 
-const newLogic = `} else if (rejectBtn) {
-            const reason = prompt('กรุณาระบุเหตุผลที่ไม่อนุมัติโพสต์นี้ (ผู้โพสต์จะเห็นข้อความนี้):');
-            if (reason === null) return; // User clicked cancel
-            
-            rejectBtn.disabled = true;
-            try {
-                await requestJson(\`/api/admin/items/\${rejectBtn.dataset.itemId}/reject\`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reason: reason })
-                });
-                alert('ไม่อนุมัติโพสต์สำเร็จ');
-                loadDashboard();
-            } catch (error) {
-                rejectBtn.disabled = false;
-                alert(error.message);
-            }
-        }`;
+        const container = document.getElementById('adminPendingItemsList');
+        container.innerHTML = '<h5>📌 รอตรวจสอบ (โพสต์ใหม่)</h5><div id="newItemsTable"></div><h5 class="mt-4">📝 รอตรวจสอบ (โพสต์ที่แก้ไขแล้ว)</h5><div id="editedItemsTable"></div>';
+        
+        renderTable(document.getElementById('newItemsTable'), ['สินค้า', 'รายละเอียด', 'ผู้โพสต์', 'จัดการ'], newItems.map(renderRow));
+        renderTable(document.getElementById('editedItemsTable'), ['สินค้า', 'รายละเอียด', 'ผู้โพสต์', 'จัดการ'], editedItems.map(renderRow));
+    }`;
 
-if (aj.includes("if (!confirm('ยืนยันที่จะลบโพสต์สินค้านี้ใช่หรือไม่?')) return;")) {
-    aj = aj.replace(oldLogic, newLogic);
-    fs.writeFileSync('js/admin.js', aj, 'utf8');
-    console.log('Updated admin.js');
-} else {
-    console.log('Could not find old logic in admin.js');
-}
+c = c.replace(targetFunction, replacementFunction);
+fs.writeFileSync('js/admin.js', c, 'utf8');
+console.log('Updated admin.js renderPendingItems');

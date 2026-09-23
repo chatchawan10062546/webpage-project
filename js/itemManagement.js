@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <option value="rent">ให้เช่า</option>
                                     </select>
                                 </div>
-                                <div class="mb-3">
+                                <div class="mb-3" id="editPriceContainer">
                                     <label for="editPrice" class="form-label fw-bold">ราคา</label>
                                     <input id="editPrice" class="form-control" type="number" min="0">
                                 </div>
@@ -111,6 +111,16 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('editDescription').value = item.description;
 
         const modalElement = document.getElementById('editItemModal');
+        
+        const editTypeEl = document.getElementById('editType');
+        if (editTypeEl) {
+            editTypeEl.addEventListener('change', (e) => {
+                const priceContainer = document.getElementById('editPriceContainer');
+                if (priceContainer) {
+                    priceContainer.style.display = (e.target.value === 'free') ? 'none' : 'block';
+                }
+            });
+        }
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
         modalElement.addEventListener('hidden.bs.modal', () => modalElement.remove(), { once: true });

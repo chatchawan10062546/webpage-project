@@ -86,7 +86,7 @@ router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => 
    const values = [title, category, description || '', location || '', latitude, longitude, item_type || 'free', price || 0, quantity || 1];
    let sql = `
       UPDATE items
-      SET title = ?, category = ?, description = ?, location = ?, latitude = ?, longitude = ?, item_type = ?, price = ?, quantity = ?
+      SET title = ?, category = ?, description = ?, location = ?, latitude = ?, longitude = ?, item_type = ?, price = ?, quantity = ?, is_approved = 0, is_edited = 1
    `;
 
    if (req.file) {

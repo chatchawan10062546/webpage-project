@@ -60,7 +60,7 @@ router.get('/admin/users', requireAdmin, (req, res) => {
 
 router.get('/admin/items', requireAdmin, (req, res) => {
     db.query(
-        `SELECT i.item_id, i.title, i.category, i.item_type, i.price, i.quantity, i.status,
+        `SELECT i.item_id, i.title, i.category, i.item_type, i.price, i.quantity, i.status, i.is_edited,
                 i.image_url, i.created_at, u.name AS owner_name, u.email AS owner_email
          FROM items i JOIN users u ON u.user_id = i.user_id
          ORDER BY i.item_id DESC`,
@@ -121,7 +121,7 @@ router.get('/admin/items/pending', requireAdmin, (req, res) => {
 
 // 📌 อนุมัติสินค้า
 router.patch('/admin/items/:itemId/approve', requireAdmin, (req, res) => {
-    db.query('UPDATE items SET is_approved = TRUE WHERE item_id = ?', [req.params.itemId], (err, result) => {
+    db.query('UPDATE items SET is_approved = TRUE, is_edited = FALSE WHERE item_id = ?', [req.params.itemId], (err, result) => {
         if (err) return res.status(500).json({ success: false, message: 'อนุมัติรายการไม่สำเร็จ' });
         if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'ไม่พบรายการ' });
         res.json({ success: true, message: 'อนุมัติรายการสำเร็จ' });

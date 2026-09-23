@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS items (
     image_url VARCHAR(255),
     status ENUM('available', 'reserved', 'completed', 'rejected') DEFAULT 'available',
     is_approved BOOLEAN DEFAULT FALSE,
+    is_edited BOOLEAN DEFAULT FALSE,
     rejection_reason TEXT NULL,
     latitude DECIMAL(10,7),
     longitude DECIMAL(10,7),
