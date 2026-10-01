@@ -107,7 +107,9 @@ router.post('/verify-otp', (req, res) => {
             if (updateErr) return res.status(500).json({ success: false, message: 'อัปเดตข้อมูลไม่สำเร็จ' });
             
             const userId = user.user_id;
-            const token = jwt.sign({ userId, name: user.name, role: user.role }, jwtSecret, { expiresIn: '7d' });
+            const token = jwt.sign({ userId, name: user.name, role: user.role,
+                promptpay_number: user.promptpay_number,
+                promptpay_name: user.promptpay_name }, jwtSecret, { expiresIn: '7d' });
 
             res.json({
                 success: true,

@@ -16,6 +16,11 @@ function updateProfileUI() {
 
     if (userJson && localStorage.getItem('authToken')) {
         const user = JSON.parse(userJson);
+        // บังคับแอดมินให้อยู่หน้า admin.html
+        if (user.role === 'admin' && (window.location.pathname.endsWith('webpage.html') || window.location.pathname.endsWith('/'))) {
+            window.location.replace('admin.html');
+            return;
+        }
         const userId = user.id || user.user_id || user.userId || user._id;
 
         if (reportNavContainer) {
@@ -55,6 +60,9 @@ function updateProfileUI() {
                     <li>
                         <a class="dropdown-item" href="#" id="myListingsOpenBtn"><i class="bi bi-box-seam me-2"></i>รายการที่ฉันประกาศ</a>
                     </li>
+                    <li>
+                        <a class="dropdown-item" href="#" id="myTransactionsOpenBtn"><i class="bi bi-bag-check me-2"></i>ประวัติซื้อขาย (คนกลาง)</a>
+                    </li>
                     ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html"><i class="bi bi-speedometer2 me-2"></i>หลังบ้านแอดมิน</a></li>' : ''}
                     <li>
                         <button class="dropdown-item text-danger mt-1" onclick="logoutUser()">
@@ -83,3 +91,9 @@ function logoutUser() {
     localStorage.removeItem('authToken');
     location.reload();
 }
+document.addEventListener('click', e => {
+    if (e.target.closest('#myTransactionsOpenBtn')) {
+        e.preventDefault();
+        if (typeof window.openMyTransactionsModal === 'function') window.openMyTransactionsModal();
+    }
+});

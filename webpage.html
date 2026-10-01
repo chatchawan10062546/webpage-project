@@ -22,13 +22,37 @@
     <!-- Leaflet Map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        @media (min-width: 1400px) {
+            .custom-nav-container {
+                max-width: 100% !important;
+                padding-left: calc((100vw - 1320px) / 2 + 0.75rem) !important;
+                padding-right: 4rem !important;
+            }
+        }
+        @media (min-width: 1200px) and (max-width: 1399.98px) {
+            .custom-nav-container {
+                max-width: 100% !important;
+                padding-left: calc((100vw - 1140px) / 2 + 0.75rem) !important;
+                padding-right: 2rem !important;
+            }
+        }
+        @media (max-width: 1199.98px) {
+            .custom-nav-container {
+                max-width: 100% !important;
+                padding-left: 1rem !important;
+                padding-right: 1rem !important;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
     <!-- 1. แถบเมนูด้านบน (Navbar) -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-success sticky-top shadow-sm">
-        <div class="container">
+        <div class="container-fluid custom-nav-container">
             <!-- โลโก้และชื่อเว็บ -->
             <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="webpage.html">
                 <img src="/assets/pansuk_icon.jpg?v=3" alt="Logo" class="rounded-circle border border-2 border-white shadow-sm" style="height: 45px; width: 45px; object-fit: cover;">
@@ -38,7 +62,7 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto gap-2 align-items-center">
+                <ul class="navbar-nav ms-auto gap-4 align-items-center">
                     <li class="nav-item"><a class="nav-link active" href="webpage.html">หน้าแรก</a></li>
                     <!-- ✅ แก้ไขจุดที่ 1: เพิ่ม data-bs-toggle และ data-bs-target เปิด Modal โพสต์ของ -->
                     <li class="nav-item">
@@ -61,7 +85,7 @@
                             </div>
                         </ul>
                     </li>
-                    <li class="nav-item d-none" id="myRequestsNavContainer"><a class="nav-link" href="#" id="myRequestsOpenBtn">คำขอของฉัน</a></li>
+                    <li class="nav-item d-none" id="myRequestsNavContainer"><a class="nav-link" href="#" id="myRequestsOpenBtn">รายการนัดรับ / ขอของฟรี</a></li>
                     <li class="nav-item">
                         <div id="authNavContainer">
                             <button class="btn btn-light text-success fw-bold px-4 rounded-pill shadow-sm"
@@ -352,18 +376,18 @@
     <script src="js/authClient.js?v=3"></script>
     <script src="js/modals.js?v=1790196219121"></script>
     <script src="js/location.js?v=1790195051566"></script> <!-- 👈 เพิ่มบรรทัดนี้ -->
-    <script src="js/item.js?v=1790196219121"></script>
-    <script src="js/itemManagement.js?v=1790201209604"></script>
-    <script src="js/itemRequests.js?v=4"></script>
+    <script src="js/item.js?v=1790880947869"></script>
+    <script src="js/itemManagement.js?v=1790870163078"></script>
+    <script src="js/itemRequests.js?v=1790875493472"></script>
     <script src="js/chat.js?v=3"></script>
     <script src="js/chatInbox.js?v=3"></script>
-    <script src="js/main.js?v=3"></script>
+    <script src="js/main.js?v=1790875802971"></script>
     <script src="js/auth.js?v=3"></script>
     <script src="js/reports.js?v=3"></script>
     <script src="js/reviews.js?v=3"></script>
-    <script src="js/userProfile.js?v=5"></script>
-    <script src="js/profile.js?v=8"></script>
-    <script src="js/transactions.js?v=3"></script>
+    <script src="js/userProfile.js?v=1790875493472"></script>
+    <script src="js/profile.js?v=1790880340348"></script>
+    <script src="js/transactions.js?v=1790881767435"></script>
     <script src="js/mySales.js?v=3"></script>
     <script src="js/reports.js?v=3"></script>
 

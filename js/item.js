@@ -173,6 +173,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const itemType = document.querySelector('input[name="itemType"]:checked')?.value || 'free';
+            
+            // 📌 [Phase 2] ป้องกันการโพสต์ขาย/เช่า หากยังไม่ได้ตั้งค่าพร้อมเพย์
+            // 📌 ดึงข้อมูลจากเซิร์ฟเวอร์โดยตรงเพื่อความชัวร์ (แก้ปัญหา LocalStorage ไม่ยอมอัปเดต)
+            if (itemType === 'sell' || itemType === 'rent') {
+                try {
+                    const profileRes = await fetch(`/api/profile?user_id=${userId}`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+                    const profileData = await profileRes.json();
+                    if (profileData.success && !profileData.profile.promptpay_number) {
+                        alert('⚠️ ไม่สามารถลงประกาศได้! กรุณาตั้งค่า "เบอร์พร้อมเพย์" ในหน้า "โปรไฟล์ของฉัน" ก่อนทำการลงประกาศขายหรือให้เช่า เพื่อใช้สำหรับรับเงินครับ');
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Failed to verify promptpay', err);
+                }
+            }
             const price = document.getElementById('postPrice')?.value || '0';
             const quantity = document.getElementById('postQuantity')?.value || '1';
             const title = document.getElementById('postTitle')?.value || 'รายการใหม่';

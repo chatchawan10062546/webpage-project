@@ -266,7 +266,7 @@ window.openMyRequestsModal = async () => {
                 <div class="modal-dialog modal-dialog-centered modal-lg">
                     <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                         <div class="modal-header bg-success text-white p-3">
-                            <h5 class="modal-title fw-bold"><i class="bi bi-send-check me-2"></i>คำขอของฉัน (My Requests)</h5>
+                            <h5 class="modal-title fw-bold"><i class="bi bi-send-check me-2"></i>รายการนัดรับ / ขอของฟรี</h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body p-4 bg-light" style="max-height: 75vh; overflow-y: auto;">

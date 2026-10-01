@@ -129,7 +129,7 @@ router.post('/transactions/:transactionId/confirm', requireAuth, (req, res) => {
       `UPDATE transactions
        SET status = 'released', payment_status = 'released', shipping_status = 'delivered',
            received_at = CURRENT_TIMESTAMP, released_at = CURRENT_TIMESTAMP
-       WHERE trans_id = ? AND receiver_id = ? AND status = 'shipped' AND payment_status = 'held'`,
+       WHERE trans_id = ? AND receiver_id = ? AND status IN ('paid', 'shipped') AND payment_status = 'held'`,
       [transactionId, req.authUser.userId],
       (err, result) => {
          if (err) return res.status(500).json({ success: false, message: 'ยืนยันรับสินค้าไม่สำเร็จ' });
@@ -159,5 +159,30 @@ function releaseExpiredTransactions() {
    );
 }
 setInterval(releaseExpiredTransactions, 60 * 60 * 1000);
+
+
+// 📌 [Phase 6] ดึงรายการประวัติการซื้อขายของฉัน
+router.get('/transactions/me/all', requireAuth, (req, res) => {
+    const userId = req.authUser.userId;
+    db.query(
+        `SELECT t.trans_id, t.item_id, i.title, i.image_url, t.amount, t.status, t.payment_status, t.shipping_status,
+                t.giver_id, t.receiver_id, g.name AS seller_name, r.name AS buyer_name, t.created_at
+         FROM transactions t
+         JOIN items i ON i.item_id = t.item_id
+         JOIN users g ON g.user_id = t.giver_id
+         JOIN users r ON r.user_id = t.receiver_id
+         WHERE t.giver_id = ? OR t.receiver_id = ?
+         ORDER BY t.created_at DESC`,
+        [userId, userId],
+        (err, results) => {
+            if (err) return res.status(500).json({ success: false, message: 'ดึงข้อมูลไม่สำเร็จ' });
+            
+            // แปลง images จาก string JSON ให้เป็น array ส่งกลับไป
+            const transactions = results;
+            
+            res.json({ success: true, transactions });
+        }
+    );
+});
 
 module.exports = router;

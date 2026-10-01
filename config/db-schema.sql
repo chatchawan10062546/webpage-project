@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
     otp_code VARCHAR(10),
     otp_expires_at DATETIME,
     auth_provider ENUM('local', 'google') DEFAULT 'local',
+    promptpay_number VARCHAR(20) NULL,
+    promptpay_name VARCHAR(100) NULL,
     google_id VARCHAR(255),
     is_banned BOOLEAN DEFAULT FALSE,
     xp INT DEFAULT 0,

@@ -159,6 +159,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('submit', async (event) => {
         if (event.target.id !== 'editItemForm') return;
         event.preventDefault();
+        
+        // 📌 [Phase 2] ป้องกันการแก้ไขเป็นขาย/เช่า หากยังไม่ได้ตั้งค่าพร้อมเพย์
+        const user = getCurrentUser();
+        const itemType = document.getElementById('editType').value;
+        if ((itemType === 'sell' || itemType === 'rent') && (!user || !user.promptpay_number)) {
+            alert('⚠️ ไม่สามารถบันทึกการแก้ไขได้! กรุณาตั้งค่า "เบอร์พร้อมเพย์" ในหน้า "โปรไฟล์ของฉัน" ก่อนทำการเปลี่ยนเป็นขายหรือให้เช่า เพื่อใช้สำหรับรับเงินครับ');
+            return;
+        }
 
         const formData = new FormData();
         formData.append('user_id', getUserId());
