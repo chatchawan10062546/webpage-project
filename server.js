@@ -46,6 +46,11 @@ app.use('/uploads', express.static(uploadDir));
 // 4. เปิดให้เบราว์เซอร์เข้าถึงไฟล์หน้าเว็บ (HTML/CSS/JS) ทั้งหมดผ่าน localhost ได้
 app.use(express.static(__dirname));
 
+// ส่งคืนไฟล์ webpage.html เมื่อเข้าใช้งานหน้าหลัก (/)
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'webpage.html'));
+});
+
 // ----------------------------------------------------
 // 📌 API Routes
 // ----------------------------------------------------

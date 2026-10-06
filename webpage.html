@@ -147,21 +147,7 @@
                             <i class="bi bi-search"></i>
                         </span>
                     </div>
-                    <div class="vr my-2 text-muted opacity-25"></div>
-                    <div class="dropdown">
-                        <button
-                            class="btn btn-link text-decoration-none text-secondary px-3 py-2 d-flex align-items-center gap-2 shadow-none border-0"
-                            type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.95rem;">
-                            <span id="selectedCategoryText">หมวดหมู่</span>
-                            <i class="bi bi-grid-fill text-muted"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end rounded-3 border-0 shadow mt-2">
-                            <li><a class="dropdown-item filter-btn active" href="#" data-filter="all">ทั้งหมด</a></li>
-                            <li><a class="dropdown-item filter-btn" href="#" data-filter="อาหาร">🥗 อาหาร</a></li>
-                            <li><a class="dropdown-item filter-btn" href="#" data-filter="ของใช้">📦 ของใช้</a></li>
-                            <li><a class="dropdown-item filter-btn" href="#" data-filter="อื่นๆ">✨ อื่นๆ</a></li>
-                        </ul>
-                    </div>
+                    
 
                     <div class="vr my-2 text-muted opacity-25"></div>
                     <div class="dropdown">
@@ -189,6 +175,53 @@
             <h3 class="fw-bold text-success mb-0">✨ รายการของแจก ล่าสุดใกล้ตัวคุณ</h3>
             <a href="#" class="text-decoration-none text-success fw-bold">ดูทั้งหมด →</a>
         </div>
+
+        
+        <form id="filterForm" class="mb-4 d-flex flex-wrap gap-3 align-items-center bg-white p-3 rounded-pill shadow-sm border" style="border-color: #e2e8f0 !important;">
+            <div class="fw-bold text-success ms-2 d-none d-md-block">
+                <i class="bi bi-funnel-fill"></i> ตัวกรอง:
+            </div>
+            
+            <div style="width: 150px; flex-grow: 1;">
+                <select class="form-select border-0 bg-light rounded-pill px-3" id="categoryFilter">
+                    <option value="">📂 ทุกหมวดหมู่</option>
+                    <option value="อาหาร">🥗 อาหาร</option>
+                    <option value="เสื้อผ้า">👕 เสื้อผ้า</option>
+                    <option value="ของใช้">📦 ของใช้</option>
+                    <option value="อื่นๆ">✨ อื่นๆ</option>
+                </select>
+            </div>
+            
+            <div style="width: 150px; flex-grow: 1;">
+                <select class="form-select border-0 bg-light rounded-pill px-3" id="typeFilter">
+                    <option value="">📦 ทุกประเภท</option>
+                    <option value="free">🎁 แจกฟรี</option>
+                    <option value="sell">💰 ขาย</option>
+                    <option value="rent">🤝 ให้เช่า</option>
+                </select>
+            </div>
+            
+            <div class="input-group bg-light rounded-pill overflow-hidden" style="width: 280px; flex-grow: 1;">
+                <span class="input-group-text border-0 bg-transparent text-muted ps-3"><i class="bi bi-tag-fill"></i></span>
+                <input type="number" class="form-control border-0 bg-transparent px-1" id="minPriceFilter" placeholder="ราคาต่ำสุด">
+                <span class="input-group-text border-0 bg-transparent text-muted px-1">-</span>
+                <input type="number" class="form-control border-0 bg-transparent px-1" id="maxPriceFilter" placeholder="ราคาสูงสุด">
+            </div>
+            
+            <div style="width: 180px; flex-grow: 1;">
+                <select class="form-select border-0 bg-light rounded-pill px-3" id="sortFilter">
+                    <option value="newest">🕒 ล่าสุด</option>
+                    <option value="oldest">🕰️ เก่าสุด</option>
+                    <option value="price_asc">📈 ราคาต่ำ - สูง</option>
+                    <option value="price_desc">📉 ราคาสูง - ต่ำ</option>
+                </select>
+            </div>
+            
+            <div class="ms-auto d-flex gap-2">
+                <button type="submit" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold"><i class="bi bi-search"></i> นำไปใช้</button>
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-3 border-0 bg-light" id="resetFilterBtn"><i class="bi bi-arrow-counterclockwise"></i> รีเซ็ต</button>
+            </div>
+        </form>
 
         <div class="row g-4" id="itemGrid">
             <!-- การ์ดรายการของแจก -->
@@ -296,12 +329,77 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="d-flex justify-content-end mb-3">
+                            <button type="button" class="btn btn-link text-decoration-none text-muted p-0 small" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal">ลืมรหัสผ่านใช่ไหม?</button>
+                        </div>
                         <button type="submit" class="btn btn-success w-100 py-3 rounded-pill fw-bold">เข้าสู่ระบบ</button>
                     </form>
                     <div class="text-center mt-3">
                         <span class="text-muted">ยังไม่เป็นสมาชิก?</span>
                         <button type="button" class="btn btn-link text-success fw-bold p-0" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#registerModal">สมัครสมาชิกเลย</button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- Modal ลืมรหัสผ่าน -->
+    <div class="modal fade" id="forgotPasswordModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold">🔑 ลืมรหัสผ่าน</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-muted text-center mb-4">กรอกอีเมลของคุณเพื่อรับลิงก์รีเซ็ตรหัสผ่านชั่วคราว</p>
+                    <form id="forgotPasswordForm">
+                        <div class="mb-3">
+                            <label for="forgotEmail" class="form-label fw-bold">อีเมล</label>
+                            <input type="email" class="form-control" id="forgotEmail" placeholder="name@example.com" required>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 py-3 rounded-pill fw-bold text-dark">ส่งลิงก์รีเซ็ตรหัสผ่าน</button>
+                    </form>
+                    <div class="text-center mt-3">
+                        <button type="button" class="btn btn-link text-secondary fw-bold p-0" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#loginModal">กลับไปหน้าเข้าสู่ระบบ</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ตั้งรหัสผ่านใหม่ -->
+    <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold">🔑 ตั้งรหัสผ่านใหม่</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="resetPasswordForm">
+                        <input type="hidden" id="resetTokenHidden">
+                        <div class="mb-3">
+                            <label for="resetNewPassword" class="form-label fw-bold">รหัสผ่านใหม่</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="resetNewPassword" placeholder="รหัสผ่านใหม่" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('resetNewPassword', 'toggleResetIcon1')">
+                                    <i class="bi bi-eye-slash" id="toggleResetIcon1"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="resetConfirmPassword" class="form-label fw-bold">ยืนยันรหัสผ่านใหม่</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="resetConfirmPassword" placeholder="ยืนยันรหัสผ่านใหม่" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('resetConfirmPassword', 'toggleResetIcon2')">
+                                    <i class="bi bi-eye-slash" id="toggleResetIcon2"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 py-3 rounded-pill fw-bold text-dark">บันทึกรหัสผ่านใหม่</button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -379,7 +477,7 @@
     <script src="js/item.js?v=1790880947869"></script>
     <script src="js/itemManagement.js?v=1790870163078"></script>
     <script src="js/itemRequests.js?v=1790875493472"></script>
-    <script src="js/chat.js?v=3"></script>
+    <script src="js/chat.js?v=1791296061333"></script>
     <script src="js/chatInbox.js?v=3"></script>
     <script src="js/main.js?v=1790875802971"></script>
     <script src="js/auth.js?v=3"></script>

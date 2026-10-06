@@ -19,27 +19,83 @@ const { addXP } = require('../utils/xpHelper');
 
 // 📌 1. API ดึงรายการสิ่งของทั้งหมดจาก DB (เฉพาะที่อนุมัติแล้ว)
 router.get('/items', (req, res) => {
-   const sql = `
-       SELECT i.*, 
-              u.name AS owner_name, 
-              u.level AS owner_level, 
-              u.xp AS owner_xp,
-              COALESCE(AVG(r.rating), 0) AS owner_rating,
-              COUNT(r.review_id) AS owner_review_count,
-              (SELECT COUNT(*) FROM item_requests req WHERE req.item_id = i.item_id AND req.status = "pending") AS pending_requests
-       FROM items i
-       JOIN users u ON u.user_id = i.user_id
-       LEFT JOIN reviews r ON r.reviewee_id = i.user_id
-       WHERE i.is_approved = TRUE AND i.status != 'completed'
-       GROUP BY i.item_id
-       ORDER BY i.item_id DESC
-   `;
-    db.query(sql, (err, results) => {
+    const { category, type, min_price, max_price, sort, search, lat, lng, max_distance } = req.query;
+    let conditions = ['i.is_approved = TRUE', 'i.status != \'completed\''];
+    let params = [];
+
+    // Filter by distance if provided
+    if (lat && lng && max_distance && max_distance !== 'all') {
+        const d = Number(max_distance);
+        if (d <= 50) {
+            conditions.push(`(6371 * acos(cos(radians(?)) * cos(radians(i.latitude)) * cos(radians(i.longitude) - radians(?)) + sin(radians(?)) * sin(radians(i.latitude)))) <= ?`);
+            params.push(Number(lat), Number(lng), Number(lat), d);
+        }
+    }
+
+    if (search) {
+        conditions.push('(i.title LIKE ? OR i.description LIKE ?)');
+        params.push('%' + search + '%', '%' + search + '%');
+    }
+    if (category) {
+        conditions.push('i.category = ?');
+        params.push(category);
+    }
+    if (type) {
+        conditions.push('i.item_type = ?');
+        params.push(type);
+    }
+    if (min_price) {
+        conditions.push('i.price >= ?');
+        params.push(Number(min_price));
+    }
+    if (max_price) {
+        conditions.push('i.price <= ?');
+        params.push(Number(max_price));
+    }
+    let orderClause = 'ORDER BY i.item_id DESC';
+    if (sort === 'price_asc') orderClause = 'ORDER BY i.price ASC';
+    else if (sort === 'price_desc') orderClause = 'ORDER BY i.price DESC';
+    else if (sort === 'oldest') orderClause = 'ORDER BY i.item_id ASC';
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const offset = (page - 1) * limit;
+
+    const countSql = `SELECT COUNT(DISTINCT i.item_id) AS total FROM items i WHERE ${conditions.join(' AND ')}`;
+    
+    db.query(countSql, params, (countErr, countResult) => {
+        if (countErr) {
+            console.error('Count Items Error:', countErr);
+            return res.status(500).json({ success: false, message: 'ดึงข้อมูลไม่สำเร็จ' });
+        }
+        const totalItems = countResult[0].total;
+        const totalPages = Math.ceil(totalItems / limit);
+
+        const sql = `
+           SELECT i.*, 
+                  u.name AS owner_name, 
+                  u.level AS owner_level, 
+                  u.xp AS owner_xp,
+                  COALESCE(AVG(r.rating), 0) AS owner_rating,
+                  COUNT(r.review_id) AS owner_review_count,
+                  (SELECT COUNT(*) FROM item_requests req WHERE req.item_id = i.item_id AND req.status = 'pending') AS pending_requests
+           FROM items i
+           JOIN users u ON u.user_id = i.user_id
+           LEFT JOIN reviews r ON r.reviewee_id = i.user_id
+           WHERE ${conditions.join(' AND ')}
+           GROUP BY i.item_id
+           ${orderClause}
+           LIMIT ? OFFSET ?
+        `;
+
+        const queryParams = [...params, limit, offset];
+        db.query(sql, queryParams, (err, results) => {
         if (err) {
             console.error('Fetch Items Error:', err);
             return res.status(500).json({ success: false, message: 'ดึงข้อมูลไม่สำเร็จ' });
         }
-        res.json({ success: true, items: results });
+        res.json({ success: true, items: results, totalPages, currentPage: page });
+        });
     });
 });
 

@@ -20,6 +20,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "mysql2": "^3.23.2",
-    "nodemailer": "^10.0.9"
+    "nodemailer": "^10.0.15",
+    "puppeteer": "^25.12.0"
   }
 }

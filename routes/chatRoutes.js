@@ -2,6 +2,10 @@
 // 💬 chatRoutes.js : API ห้องแชตและข้อความ
 // ====================================================
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const storage = multer.diskStorage({ destination: (req, file, cb) => cb(null, 'uploads/'), filename: (req, file, cb) => cb(null, Date.now() + '-chat-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname)) });
+const upload = multer({ storage: storage });
 const router = express.Router();
 const db = require('../config/db');
 const { requireAuth } = require('../middleware/authMiddleware');
@@ -99,11 +103,16 @@ router.get('/chat/rooms/:roomId/messages', requireAuth, (req, res) => {
 });
 
 // ส่งข้อความในห้องที่ผู้ใช้เป็นสมาชิก
-router.post('/chat/rooms/:roomId/messages', requireAuth, (req, res) => {
+router.post('/chat/rooms/:roomId/messages', requireAuth, upload.single('image'), (req, res) => {
    const { roomId } = req.params;
-   const { message } = req.body;
+   let { message } = req.body;
    const user_id = req.authUser.userId;
    const user_name = req.authUser.name;
+
+   if (req.file) {
+      message = '[IMAGE]/uploads/' + req.file.filename;
+   }
+
    if (!user_id || !user_name || !message?.trim()) {
       return res.status(400).json({ success: false, message: 'ข้อความไม่ถูกต้อง' });
    }
@@ -116,12 +125,11 @@ router.post('/chat/rooms/:roomId/messages', requireAuth, (req, res) => {
          [roomId, user_id, user_name, message.trim()],
          (err, result) => {
             if (err) return res.status(500).json({ success: false, message: 'ส่งข้อความไม่สำเร็จ' });
-            res.json({ success: true, message_id: result.insertId });
+            res.json({ success: true, message_id: result.insertId, message: message.trim() });
          }
       );
    });
 });
-
 // อ่านข้อความทั้งหมดของสินค้าที่ผู้ใช้เป็นเจ้าของ
 router.get('/chat/items/:itemId/messages', requireAuth, (req, res) => {
    const { itemId } = req.params;

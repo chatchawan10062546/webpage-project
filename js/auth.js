@@ -295,3 +295,97 @@ window.handlePostItemClick = function(event) {
         postModal.show();
     }
 };
+
+    // ----------------------------------------------------
+    // 🔥 ระบบลืมรหัสผ่าน
+    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+    if (forgotPasswordForm) {
+        forgotPasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('forgotEmail').value.trim();
+            const submitBtn = forgotPasswordForm.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerText;
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'กำลังส่ง...';
+
+            try {
+                const response = await fetch('/api/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('ลิงก์รีเซ็ตรหัสผ่านถูกส่งไปยังอีเมลของคุณแล้ว');
+                    forgotPasswordForm.reset();
+                    bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal')).hide();
+                } else {
+                    alert(data.message || 'ไม่พบอีเมลนี้ในระบบ');
+                }
+            } catch (error) {
+                console.error(error);
+                alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = originalBtnText;
+            }
+        });
+    }
+
+    // ----------------------------------------------------
+    // 🔥 ตรวจสอบ URL เพื่อเปิด Modal ตั้งรหัสผ่านใหม่
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetToken = urlParams.get('reset_token');
+    
+    if (resetToken) {
+        // รอให้ Modal โหลดเสร็จแล้วค่อยเปิด
+        setTimeout(() => {
+            const resetModal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+            document.getElementById('resetTokenHidden').value = resetToken;
+            resetModal.show();
+            
+            // ลบ query string ออกจาก URL เพื่อความสวยงาม
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }, 500);
+    }
+
+    // 🔥 ระบบตั้งรหัสผ่านใหม่
+    const resetPasswordForm = document.getElementById('resetPasswordForm');
+    if (resetPasswordForm) {
+        resetPasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = document.getElementById('resetTokenHidden').value;
+            const newPassword = document.getElementById('resetNewPassword').value;
+            const confirmPassword = document.getElementById('resetConfirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                return alert('รหัสผ่านและการยืนยันไม่ตรงกัน');
+            }
+
+            try {
+                const response = await fetch('/api/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, newPassword })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message || 'เปลี่ยนรหัสผ่านสำเร็จ');
+                    bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+                    
+                    // เปิดหน้าต่าง Login
+                    setTimeout(() => {
+                        new bootstrap.Modal(document.getElementById('loginModal')).show();
+                    }, 500);
+                } else {
+                    alert(data.message || 'เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน');
+                }
+            } catch (error) {
+                console.error(error);
+                alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+            }
+        });
+    }
+window.togglePasswordVisibility = function(inputId, iconId) { const input = document.getElementById(inputId); const icon = document.getElementById(iconId); if (input && icon) { const type = input.getAttribute('type') === 'password' ? 'text' : 'password'; input.setAttribute('type', type); icon.className = type === 'text' ? 'bi bi-eye' : 'bi bi-eye-slash'; } };

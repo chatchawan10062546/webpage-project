@@ -18,7 +18,9 @@
         container.innerHTML = messages.map(message => `
             <div class="mb-2 ${String(message.user_id) === String(getUser()?.id || getUser()?.user_id) ? 'text-end' : ''}">
                 <div class="small text-muted">${message.user_name} ${message.message_type === 'request' ? '(คำขอรับของ)' : ''}</div>
-                <div class="d-inline-block bg-light border rounded px-3 py-2">${message.message}</div>
+                <div class="d-inline-block bg-light border rounded px-3 py-2">
+                    ${message.message.startsWith("[IMAGE]") ? "<img src=\"" + message.message.replace("[IMAGE]", "") + "\" class=\"img-fluid rounded\" style=\"max-height: 200px; cursor: pointer;\" onclick=\"window.open(this.src, '_blank')\">" : message.message}
+                </div>
                 ${replyEnabled && String(message.user_id) !== String(getUser()?.id || getUser()?.user_id) ? `
                     <button type="button" class="btn btn-sm btn-outline-success ms-2 message-reply-btn" data-user-id="${message.user_id}">ตอบกลับ</button>
                 ` : ''}
@@ -37,7 +39,7 @@
             document.getElementById('itemMessagesModal')?.remove();
             document.body.insertAdjacentHTML('beforeend', `
                 <div class="modal fade" id="itemMessagesModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title">ข้อความของ: ${itemTitle}</h5>
@@ -92,11 +94,16 @@
                                 </div>
                             </div>
                             <div class="modal-body">
-                                <div id="chatMessages" class="border rounded p-3 mb-3" style="height: 280px; overflow-y: auto;"></div>
-                                <form id="chatMessageForm" class="d-flex gap-2">
-                                    <input id="chatMessageInput" class="form-control" placeholder="พิมพ์ข้อความ..." required>
+                                <div id="chatMessages" class="border rounded p-3 mb-3 bg-white" style="height: 450px; overflow-y: auto; scroll-behavior: smooth;"></div>
+                                <form id="chatMessageForm" class="d-flex gap-2 align-items-center">
+                                    <input type="file" id="chatImageUpload" accept="image/jpeg, image/png" class="d-none">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('chatImageUpload').click()"><i class="bi bi-image"></i></button>
+                                    <input id="chatMessageInput" class="form-control" placeholder="พิมพ์ข้อความ... (หรือแนบสลิป/รูปภาพ)">
                                     <button class="btn btn-success" type="submit">ส่ง</button>
                                 </form>
+                                <div id="chatImagePreview" class="d-none mt-2">
+                                    <span class="badge bg-info text-dark">📷 เลือกรูปภาพแล้ว (กดส่งเพื่ออัปโหลด)</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -117,16 +124,54 @@
                 clearInterval(refreshTimer);
                 modalElement.remove();
             }, { once: true });
-            document.getElementById('chatMessageForm').addEventListener('submit', event => {
+            
+            // Show preview indicator when file is selected
+            document.body.addEventListener('change', function(e) {
+                if(e.target && e.target.id === 'chatImageUpload') {
+                    const preview = document.getElementById('chatImagePreview');
+                    if (e.target.files.length > 0) preview.classList.remove('d-none');
+                    else preview.classList.add('d-none');
+                }
+            });
+
+            document.getElementById('chatMessageForm').addEventListener('submit', async event => {
                 event.preventDefault();
                 const input = document.getElementById('chatMessageInput');
-                requestJson(`/api/chat/rooms/${room.room_id}/messages`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, user_name: user.name, message: input.value })
-                }).then(() => { input.value = ''; loadMessages(); })
-                    .catch(error => alert('ส่งข้อความไม่สำเร็จ: ' + error.message));
+                const fileInput = document.getElementById('chatImageUpload');
+                
+                if (!input.value.trim() && (!fileInput || fileInput.files.length === 0)) {
+                    return alert('กรุณาพิมพ์ข้อความ หรือแนบรูปภาพ');
+                }
+                
+                const formData = new FormData();
+                formData.append('user_id', userId);
+                formData.append('user_name', user.name);
+                formData.append('message', input.value.trim() || ' ');
+                if (fileInput && fileInput.files.length > 0) {
+                    formData.append('image', fileInput.files[0]);
+                }
+
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch(`/api/chat/rooms/${room.room_id}/messages`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (!data.success) throw new Error(data.message);
+                    
+                    input.value = '';
+                    if (fileInput) {
+                        fileInput.value = '';
+                        document.getElementById('chatImagePreview').classList.add('d-none');
+                    }
+                    loadMessages();
+                } catch (error) {
+                    alert('ส่งข้อความไม่สำเร็จ: ' + error.message);
+                }
             });
+
         } catch (error) {
             alert('เปิดแชตไม่สำเร็จ: ' + error.message);
         }

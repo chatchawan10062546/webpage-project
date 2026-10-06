@@ -9,6 +9,7 @@ const db = require('../config/db'); // ดึงไฟล์เชื่อม�
 const { jwtSecret } = require('../middleware/authMiddleware');
 const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
+const crypto = require('crypto');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -219,6 +220,73 @@ router.post('/auth/google', async (req, res) => {
         console.error('Google Auth Error:', error);
         res.status(401).json({ success: false, message: 'การยืนยันตัวตนกับ Google ล้มเหลว' });
     }
+});
+
+
+// ลืมรหัสผ่าน (ของจริง)
+router.post('/forgot-password', (req, res) => {
+    const { email } = req.body;
+    db.query('SELECT user_id, name FROM users WHERE email = ? AND auth_provider = "local"', [email], (err, rows) => {
+        if (err) return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบอีเมลนี้ในระบบ (หรือเป็นบัญชี Google)' });
+        
+        const user = rows[0];
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetExpires = new Date(Date.now() + 3600000); // 1 ชั่วโมง
+
+        db.query('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE user_id = ?', [resetToken, resetExpires, user.user_id], async (updateErr) => {
+            if (updateErr) return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' });
+
+            const resetLink = `http://localhost:3000/?reset_token=${resetToken}`;
+            
+            try {
+                if (process.env.SMTP_USER && process.env.SMTP_USER !== 'your_email@gmail.com') {
+                    await transporter.sendMail({
+                        from: `"ปันสุข (PanSuk)" <${process.env.SMTP_USER}>`,
+                        to: email,
+                        subject: 'รีเซ็ตรหัสผ่านของคุณ',
+                        text: `สวัสดีคุณ ${user.name},\n\nคลิกที่ลิงก์ด้านล่างเพื่อตั้งรหัสผ่านใหม่ (ลิงก์มีอายุ 1 ชั่วโมง):\n${resetLink}\n\nหากคุณไม่ได้ขอกู้คืนรหัสผ่าน กรุณาละเว้นอีเมลฉบับนี้`,
+                        html: `<p>สวัสดีคุณ ${user.name},</p><p>คลิกที่ลิงก์ด้านล่างเพื่อตั้งรหัสผ่านใหม่ (ลิงก์มีอายุ 1 ชั่วโมง):</p><p><a href="${resetLink}">ตั้งรหัสผ่านใหม่</a></p><p>หากคุณไม่ได้ขอกู้คืนรหัสผ่าน กรุณาละเว้นอีเมลฉบับนี้</p>`
+                    });
+                } else {
+                    console.log(`\n=========================================`);
+                    console.log(`📧 จำลองการส่งลิงก์รีเซ็ตรหัสผ่านไปยัง: ${email}`);
+                    console.log(`🔗 ลิงก์: ${resetLink}`);
+                    console.log(`=========================================\n`);
+                }
+                res.json({ success: true, message: 'ระบบได้ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลของคุณแล้ว' });
+            } catch (mailErr) {
+                console.warn('⚠️ ส่งอีเมลไม่สำเร็จ:', mailErr.message);
+                res.status(500).json({ success: false, message: 'ไม่สามารถส่งอีเมลได้ในขณะนี้' });
+            }
+        });
+    });
+});
+
+// ตั้งรหัสผ่านใหม่
+router.post('/reset-password', async (req, res) => {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
+
+    db.query('SELECT user_id, reset_token_expires FROM users WHERE reset_token = ?', [token], async (err, rows) => {
+        if (err) return res.status(500).json({ success: false, message: 'ระบบขัดข้อง' });
+        if (rows.length === 0) return res.status(400).json({ success: false, message: 'ลิงก์รีเซ็ตรหัสผ่านไม่ถูกต้อง' });
+        
+        const user = rows[0];
+        if (new Date(user.reset_token_expires) < new Date()) {
+            return res.status(400).json({ success: false, message: 'ลิงก์รีเซ็ตรหัสผ่านหมดอายุแล้ว' });
+        }
+
+        try {
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            db.query('UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL WHERE user_id = ?', [hashedPassword, user.user_id], (updateErr) => {
+                if (updateErr) return res.status(500).json({ success: false, message: 'อัปเดตรหัสผ่านไม่สำเร็จ' });
+                res.json({ success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จ คุณสามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้ทันที' });
+            });
+        } catch (hashErr) {
+            res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการเข้ารหัสผ่าน' });
+        }
+    });
 });
 
 module.exports = router;

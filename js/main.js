@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             currentSearch = e.target.value.toLowerCase().trim();
-            applyFilters();
+            if (typeof window.loadItemsFromDB === 'function') window.loadItemsFromDB(); else applyFilters();
         });
     }
 
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectedCategoryText) {
                 selectedCategoryText.innerText = currentCategory === 'all' ? 'หมวดหมู่' : btn.innerText.trim();
             }
-            applyFilters();
+            if (typeof window.loadItemsFromDB === 'function') window.loadItemsFromDB(); else applyFilters();
         });
     });
 
@@ -58,22 +58,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (distanceSlider) {
         distanceSlider.addEventListener('input', (e) => {
             const value = parseInt(e.target.value);
+            if (value > 50) {
+                if (distanceSliderLabel) distanceSliderLabel.innerText = 'ทุกระยะ';
+            } else {
+                if (distanceSliderLabel) distanceSliderLabel.innerText = `ภายใน ${value} กม.`;
+            }
+        });
+
+        distanceSlider.addEventListener('change', (e) => {
+            const value = parseInt(e.target.value);
             
             // Check if user has location permission before allowing distance filter
             if (!window.currentUserCoordinates && value <= 50) {
                 alert('กรุณากดปุ่ม "📍 อัปเดตพิกัด" เพื่อดึงตำแหน่งของคุณก่อนครับ');
                 distanceSlider.value = 51;
+                if (distanceSliderLabel) distanceSliderLabel.innerText = 'ทุกระยะ';
                 return;
             }
 
             if (value > 50) {
                 currentDistance = 'all';
-                if (distanceSliderLabel) distanceSliderLabel.innerText = 'ทุกระยะ';
             } else {
                 currentDistance = value;
-                if (distanceSliderLabel) distanceSliderLabel.innerText = `ภายใน ${value} กม.`;
             }
-            applyFilters();
+            if (typeof window.loadItemsFromDB === 'function') window.loadItemsFromDB(); else applyFilters();
         });
     }
 
@@ -101,7 +109,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('pankanUserCoordinates', JSON.stringify(coordinates));
                 window.currentUserCoordinates = coordinates;
                 
-                if (typeof window.updateAllItemDistances === 'function') {
+                if (typeof window.loadItemsFromDB === 'function') {
+                    window.loadItemsFromDB();
+                } else if (typeof window.updateAllItemDistances === 'function') {
                     window.updateAllItemDistances(coordinates.latitude, coordinates.longitude);
                 }
                 
@@ -120,8 +130,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // เมื่อพิกัดคำนวณเสร็จ ให้กรองซ้ำอีกรอบ
+    // เมื่อพิกัดคำนวณเสร็จ ให้กรองซ้ำอีกรอบ (เฉพาะหน้าเว็บที่ไม่มี loadItemsFromDB)
     window.addEventListener('distancesUpdated', () => {
-        applyFilters();
+        if (typeof window.loadItemsFromDB !== 'function') {
+            applyFilters();
+        }
     });
 });

@@ -158,7 +158,7 @@
                 // ปุ่มยืนยันรับสินค้าจะโผล่ก็ต่อเมื่อ เป็นคนซื้อ และ สถานะแอดมินยืนยันสลิปแล้ว หรือ ส่งของแล้ว
                 let actionBtn = '';
                 if (isBuyer && (t.status === 'paid' || t.status === 'shipped')) {
-                    actionBtn = `<button class="btn btn-sm btn-outline-success mt-2 confirm-receive-btn" data-id="${t.trans_id}">✅ ยืนยันได้รับสินค้าแล้ว</button>`;
+                    actionBtn = `<button class="btn btn-sm btn-outline-success mt-2 confirm-receive-btn" data-id="${t.trans_id}" data-item-id="${t.item_id}" data-item-title="${escapeHtml(t.title)}" data-seller-id="${t.giver_id}" data-seller-name="${escapeHtml(t.seller_name)}">✅ ยืนยันได้รับสินค้าแล้ว</button>`;
                 } else if (!isBuyer && t.status === 'paid') {
                     actionBtn = `<button class="btn btn-sm btn-primary mt-2 ship-item-btn" data-id="${t.trans_id}">📦 แจ้งจัดส่งสินค้า</button>`;
                 }
@@ -211,7 +211,13 @@
             // Event Listener สำหรับปุ่ม ยืนยันรับสินค้า
             modalEl.querySelectorAll('.confirm-receive-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
-                    const tId = e.target.dataset.id;
+                    const target = e.target;
+                    const tId = target.dataset.id;
+                    const itemId = target.dataset.itemId;
+                    const sellerId = target.dataset.sellerId;
+                    const sellerName = target.dataset.sellerName;
+                    const itemTitle = target.dataset.itemTitle;
+
                     if(!confirm('ยืนยันว่าคุณได้รับสินค้าชิ้นนี้เรียบร้อยแล้วใช่หรือไม่? (เมื่อยืนยันแล้ว แอดมินจะทำการโอนเงินให้ผู้ขาย)')) return;
                     
                     try {
@@ -219,6 +225,10 @@
                         alert('✅ ยืนยันรับสินค้าสำเร็จ! ขอบคุณที่ใช้บริการ');
                         modal.hide();
                         window.openMyTransactionsModal(); // reload
+
+                        if (window.openReviewModal && sellerId) {
+                            window.openReviewModal(itemId, sellerId, sellerName, itemTitle);
+                        }
                     } catch(err) {
                         alert('ยืนยันไม่สำเร็จ: ' + err.message);
                     }

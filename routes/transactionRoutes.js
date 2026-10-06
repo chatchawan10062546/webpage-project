@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const { createNotification } = require('../utils/notificationHelper');
 const { requireAuth } = require('../middleware/authMiddleware');
 
 router.post('/transactions', requireAuth, (req, res) => {
@@ -83,70 +84,90 @@ router.get('/transactions/:transactionId', requireAuth, (req, res) => {
 router.post('/transactions/:transactionId/pay', requireAuth, (req, res) => {
    const { transactionId } = req.params;
    const buyerId = req.authUser.userId;
-   db.query(
-      `UPDATE transactions
-       SET status = 'paid', payment_status = 'held', paid_at = CURRENT_TIMESTAMP
-       WHERE trans_id = ? AND receiver_id = ? AND status = 'awaiting_payment'`,
-      [transactionId, buyerId],
-      (err, result) => {
-         if (err) return res.status(500).json({ success: false, message: 'ชำระเงินไม่สำเร็จ' });
-         if (result.affectedRows === 0) return res.status(400).json({ success: false, message: 'ธุรกรรมไม่พร้อมชำระเงิน' });
-         db.query(
-            `UPDATE items i JOIN transactions t ON t.item_id = i.item_id
-             SET i.status = 'reserved' WHERE t.trans_id = ?`,
-            [transactionId],
-            itemErr => {
-               if (itemErr) return res.status(500).json({ success: false, message: 'อัปเดตสถานะสินค้าไม่สำเร็จ' });
-               res.json({ success: true, message: 'ชำระเงินสำเร็จ เงินถูกพักไว้ในระบบกลาง' });
-            }
-         );
-      }
-   );
+   db.query('SELECT giver_id FROM transactions WHERE trans_id = ?', [transactionId], (err, rows) => {
+       if (err || rows.length === 0) return res.status(500).json({ success: false, message: 'ไม่พบธุรกรรม' });
+       const giverId = rows[0].giver_id;
+       db.query(
+          `UPDATE transactions
+           SET status = 'paid', payment_status = 'held', paid_at = CURRENT_TIMESTAMP
+           WHERE trans_id = ? AND receiver_id = ? AND status = 'awaiting_payment'`,
+          [transactionId, buyerId],
+          (err, result) => {
+             if (err) return res.status(500).json({ success: false, message: 'ชำระเงินไม่สำเร็จ' });
+             if (result.affectedRows === 0) return res.status(400).json({ success: false, message: 'ธุรกรรมไม่พร้อมชำระเงิน' });
+             db.query(
+                `UPDATE items i JOIN transactions t ON t.item_id = i.item_id
+                 SET i.status = 'reserved' WHERE t.trans_id = ?`,
+                [transactionId],
+                itemErr => {
+                   if (itemErr) return res.status(500).json({ success: false, message: 'อัปเดตสถานะสินค้าไม่สำเร็จ' });
+                   if (typeof createNotification === 'function') {
+                       createNotification(giverId, buyerId, 'transaction_update', transactionId, 'มีผู้ชำระเงินสำหรับสินค้าของคุณแล้ว กรุณาจัดส่งสินค้า').catch(console.error);
+                   }
+                   res.json({ success: true, message: 'ชำระเงินสำเร็จ เงินถูกพักไว้ในระบบกลาง' });
+                }
+             );
+          }
+       );
+   });
 });
 
 // คนขายแจ้งส่งสินค้า และเริ่มนับเวลาปล่อยเงินอัตโนมัติ 2 วัน
 router.patch('/transactions/:transactionId/ship', requireAuth, (req, res) => {
    const { transactionId } = req.params;
    const { tracking_number } = req.body;
-   db.query(
-      `UPDATE transactions
-       SET status = 'shipped', shipping_status = 'shipped', tracking_number = ?,
-           shipped_at = CURRENT_TIMESTAMP, release_at = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 2 DAY)
-       WHERE trans_id = ? AND giver_id = ? AND status = 'paid' AND payment_status = 'held'`,
-      [tracking_number || null, transactionId, req.authUser.userId],
-      (err, result) => {
-         if (err) return res.status(500).json({ success: false, message: 'แจ้งส่งสินค้าไม่สำเร็จ' });
-         if (result.affectedRows === 0) return res.status(400).json({ success: false, message: 'ธุรกรรมยังไม่พร้อมแจ้งส่งสินค้า' });
-         res.json({ success: true, message: 'แจ้งส่งสินค้าแล้ว ระบบจะปล่อยเงินอัตโนมัติใน 2 วัน' });
-      }
-   );
+   const sellerId = req.authUser.userId;
+   db.query('SELECT receiver_id FROM transactions WHERE trans_id = ?', [transactionId], (err, rows) => {
+       if (err || rows.length === 0) return res.status(500).json({ success: false, message: 'ไม่พบธุรกรรม' });
+       const receiverId = rows[0].receiver_id;
+       db.query(
+          `UPDATE transactions
+           SET status = 'shipped', shipping_status = 'shipped', tracking_number = ?,
+               shipped_at = CURRENT_TIMESTAMP, release_at = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 2 DAY)
+           WHERE trans_id = ? AND giver_id = ? AND status = 'paid' AND payment_status = 'held'`,
+          [tracking_number || null, transactionId, sellerId],
+          (err, result) => {
+             if (err) return res.status(500).json({ success: false, message: 'แจ้งส่งสินค้าไม่สำเร็จ' });
+             if (result.affectedRows === 0) return res.status(400).json({ success: false, message: 'ธุรกรรมไม่พร้อมจัดส่ง' });
+             if (typeof createNotification === 'function') {
+                 createNotification(receiverId, sellerId, 'transaction_update', transactionId, `ผู้ขายจัดส่งสินค้าแล้ว (พัสดุ: ${tracking_number || '-'}) ตรวจสอบและกดยืนยันเมื่อได้รับของ`).catch(console.error);
+             }
+             res.json({ success: true, message: 'แจ้งจัดส่งสินค้าสำเร็จ' });
+          }
+       );
+   });
 });
 
 // คนซื้อยืนยันรับสินค้า ระบบจำลองการปล่อยเงินให้คนขาย
 router.post('/transactions/:transactionId/confirm', requireAuth, (req, res) => {
    const { transactionId } = req.params;
-   db.query(
-      `UPDATE transactions
-       SET status = 'released', payment_status = 'released', shipping_status = 'delivered',
-           received_at = CURRENT_TIMESTAMP, released_at = CURRENT_TIMESTAMP
-       WHERE trans_id = ? AND receiver_id = ? AND status IN ('paid', 'shipped') AND payment_status = 'held'`,
-      [transactionId, req.authUser.userId],
-      (err, result) => {
-         if (err) return res.status(500).json({ success: false, message: 'ยืนยันรับสินค้าไม่สำเร็จ' });
-         if (result.affectedRows === 0) return res.status(400).json({ success: false, message: 'ธุรกรรมยังไม่พร้อมยืนยันรับสินค้า' });
-         db.query(
-            `UPDATE items i JOIN transactions t ON t.item_id = i.item_id
-             SET i.status = 'completed' WHERE t.trans_id = ?`,
-            [transactionId],
-            itemErr => {
-               if (itemErr) return res.status(500).json({ success: false, message: 'อัปเดตสถานะสินค้าไม่สำเร็จ' });
-               res.json({ success: true, message: 'ยืนยันรับสินค้าแล้ว ระบบปล่อยเงินให้คนขายแล้ว' });
-            }
-         );
-      }
-   );
+   const buyerId = req.authUser.userId;
+   db.query('SELECT giver_id FROM transactions WHERE trans_id = ?', [transactionId], (err, rows) => {
+       if (err || rows.length === 0) return res.status(500).json({ success: false, message: 'ไม่พบธุรกรรม' });
+       const giverId = rows[0].giver_id;
+       db.query(
+          `UPDATE transactions
+           SET status = 'released', payment_status = 'released', shipping_status = 'delivered', released_at = CURRENT_TIMESTAMP
+           WHERE trans_id = ? AND receiver_id = ? AND (status = 'shipped' OR status = 'paid') AND payment_status = 'held'`,
+          [transactionId, buyerId],
+          (err, result) => {
+             if (err) return res.status(500).json({ success: false, message: 'ยืนยันการรับสินค้าไม่สำเร็จ' });
+             if (result.affectedRows === 0) return res.status(400).json({ success: false, message: 'ธุรกรรมไม่พร้อมยืนยัน' });
+             if (typeof createNotification === 'function') {
+                 createNotification(giverId, buyerId, 'transaction_update', transactionId, 'ผู้ซื้อได้รับสินค้าเรียบร้อยแล้ว รอแอดมินโอนเงินให้คุณ').catch(console.error);
+             }
+             db.query(
+                "UPDATE items i JOIN transactions t ON t.item_id = i.item_id SET i.status = 'completed' WHERE t.trans_id = ?",
+                [transactionId],
+                itemErr => {
+                   if (itemErr) return res.status(500).json({ success: false, message: 'อัปเดตสถานะสินค้าไม่สำเร็จ' });
+                   res.json({ success: true, message: 'ยืนยันรับสินค้าแล้ว ระบบปล่อยเงินให้คนขายแล้ว' });
+                }
+             );
+          }
+       );
+   });
 });
-
 // ตรวจปล่อยเงินอัตโนมัติสำหรับรายการที่ครบกำหนด 2 วัน
 function releaseExpiredTransactions() {
    db.query(

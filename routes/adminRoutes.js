@@ -9,6 +9,7 @@ const upload = multer({ storage: storage });
 const router = express.Router();
 const db = require('../config/db');
 const { requireAdmin } = require('../middleware/authMiddleware');
+const { createNotification } = require('../utils/notificationHelper');
 
 router.get('/admin/summary', requireAdmin, (req, res) => {
     const queries = {
@@ -204,6 +205,16 @@ router.patch('/admin/transactions/:id/complete', requireAdmin, upload.single('sl
         
         db.query(sql, params, (err, result) => {
             if (err) return res.status(500).json({ success: false, message: 'อัปเดตไม่สำเร็จ' });
+            
+            if (result.affectedRows > 0) {
+                // แจ้งเตือนผู้ขายว่าแอดมินโอนเงินให้แล้ว
+                db.query("SELECT giver_id FROM transactions WHERE trans_id = ?", [id], (err2, rows) => {
+                    if (!err2 && rows.length > 0) {
+                        createNotification(rows[0].giver_id, req.authUser.userId, 'transaction_update', id, "แอดมินได้ทำการโอนเงินค่าสินค้าให้คุณแล้ว");
+                    }
+                });
+            }
+
             res.json({ success: true, message: 'โอนเงินให้ผู้ขายและอัปโหลดสลิปสำเร็จ', slipPath });
         });
     }

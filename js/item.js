@@ -12,13 +12,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------
     // 1. ดึงข้อมูลรายการสิ่งของทั้งหมดจากฐานข้อมูล (Backend Database)
     // ----------------------------------------------------
-    async function loadItemsFromDB() {
+    
+    let currentPage = 1;
+    window.loadItemsFromDB = async function loadItemsFromDB(append = false) {
+        if (!append) currentPage = 1;
+
         try {
-            const response = await fetch('/api/items');
+            const search = document.getElementById('searchInput')?.value || '';
+            const category = document.getElementById('categoryFilter')?.value || '';
+            const type = document.getElementById('typeFilter')?.value || '';
+            const min_price = document.getElementById('minPriceFilter')?.value || '';
+            const max_price = document.getElementById('maxPriceFilter')?.value || '';
+            const sort = document.getElementById('sortFilter')?.value || 'newest';
+            
+            // อ่านค่าจาก distance slider ใน main.js (ถ้ามี)
+            const distanceSlider = document.getElementById('distanceSlider');
+            const max_distance = distanceSlider ? distanceSlider.value : 'all';
+
+            const queryParams = new URLSearchParams();
+            if (search) queryParams.append('search', search);
+            if (category) queryParams.append('category', category);
+            if (type) queryParams.append('type', type);
+            if (min_price) queryParams.append('min_price', min_price);
+            if (max_price) queryParams.append('max_price', max_price);
+            if (sort) queryParams.append('sort', sort);
+            
+            // ถ้าเลือกกรองระยะทาง ให้ส่งพิกัดผู้ใช้ไปด้วย
+            if (max_distance !== 'all' && Number(max_distance) <= 50 && window.currentUserCoordinates) {
+                queryParams.append('max_distance', max_distance);
+                queryParams.append('lat', window.currentUserCoordinates.latitude);
+                queryParams.append('lng', window.currentUserCoordinates.longitude);
+            }
+
+            queryParams.append('page', currentPage);
+            queryParams.append('limit', 12);
+
+            const response = await fetch(`/api/items?${queryParams.toString()}`);
             const data = await response.json();
 
             if (data.success && itemGrid) {
-                itemGrid.innerHTML = ''; // ล้างข้อมูลเก่าออกก่อนแสดงผลใหม่
+                if (!append) itemGrid.innerHTML = '';
 
                 if (data.items.length === 0) {
                     itemGrid.innerHTML = `
@@ -44,6 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. ฟังก์ชันแสดงผลการ์ดสิ่งของ (Item Card)
     // ----------------------------------------------------
     function renderItemCard(item, prepend = true) {
+        const safeTitle = (item.title || '').replace(/"/g, '&quot;');
+        const safeDescription = (item.description || '').replace(/"/g, '&quot;');
+        const safeLocation = (item.location || '').replace(/"/g, '&quot;');
+        const safeOwnerName = (item.owner_name || '').replace(/"/g, '&quot;');
         if (!itemGrid) return;
 
         const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
@@ -103,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ` : '';
 
         const newCardHTML = `
-            <div class="col-md-4 col-sm-6 item-element" data-item-id="${itemId}" data-category="${item.category}" data-title="${item.title}" data-latitude="${hasCoordinates ? (item.latitude || item.lat) : ''}" data-longitude="${hasCoordinates ? (item.longitude || item.lng) : ''}">
+            <div class="col-md-4 col-sm-6 item-element" data-item-id="${itemId}" data-category="${item.category}" data-title="${safeTitle}" data-latitude="${hasCoordinates ? (item.latitude || item.lat) : ''}" data-longitude="${hasCoordinates ? (item.longitude || item.lng) : ''}">
                 <div class="card item-card h-100 position-relative shadow-sm border-0 rounded-4 overflow-hidden">
                     <div class="position-absolute top-0 start-0 p-2 z-2">
                         ${typeBadge}
@@ -125,11 +162,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
                             <span class="small text-muted">โพสต์เมื่อ ${new Date(item.created_at || Date.now()).toLocaleDateString('th-TH')}</span>
                             <button class="btn btn-outline-success btn-sm px-3 rounded-pill fw-bold request-btn"
-                                data-title="${item.title}"
+                                data-title="${safeTitle}"
                                 data-category="${item.category}"
                                 data-type="${itemType}"
                                 data-owner-id="${itemOwnerId}"
-                                data-owner-name="${item.owner_name || ''}"
+                                data-owner-name="${safeOwnerName}"
                                 data-owner-level="${item.owner_level || 1}"
                                 data-owner-rating="${Number(item.owner_rating || 0).toFixed(1)}"
                                 data-latitude="${hasCoordinates ? item.latitude : ''}"
@@ -137,8 +174,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 data-price="${price}"
                                 data-quantity="${item.quantity ?? 1}"
                                 data-status="${item.status || 'available'}"
-                                data-location="${item.location || ''}"
-                                data-description="${item.description || ''}"
+                                data-location="${safeLocation}"
+                                data-description="${safeDescription}"
                                 data-images="${imagesJson}">
                                 ดูรายละเอียด
                             </button>
@@ -154,6 +191,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // เรียกดึงข้อมูลจาก Database เมื่อโหลดหน้าเว็บ
+    
+    
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', () => {
+            currentPage++;
+            window.loadItemsFromDB(true);
+        });
+    }
+
+    const filterForm = document.getElementById('filterForm');
+    if (filterForm) {
+        filterForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            loadItemsFromDB();
+        });
+    }
+    const resetFilterBtn = document.getElementById('resetFilterBtn');
+    if (resetFilterBtn) {
+        resetFilterBtn.addEventListener('click', () => {
+            filterForm.reset();
+            loadItemsFromDB();
+        });
+    }
+
     loadItemsFromDB();
 
     // ----------------------------------------------------
@@ -269,8 +331,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. ดักจับการกดปุ่ม "ดูรายละเอียด"
     // ----------------------------------------------------
     document.addEventListener('click', (e) => {
-        if (e.target && e.target.classList.contains('request-btn')) {
-            const btn = e.target;
+        const btn = e.target.closest('.request-btn');
+        if (btn) {
             if (btn.closest('.hero-section') || btn.closest('.navbar')) return;
 
             const card = btn.closest('.card');
@@ -309,8 +371,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const ownerRating = btn.dataset.ownerRating || '0.0';
             const quantity = Number(btn.dataset.quantity ?? 1);
             const status = btn.dataset.status || 'available';
-            const lat = btn.closest('.item-element').dataset.latitude;
-            const lng = btn.closest('.item-element').dataset.longitude;
+            
+            // FIX: use dataset from button if itemCard is null
+            const lat = btn.dataset.latitude || (itemCard ? itemCard.dataset.latitude : '');
+            const lng = btn.dataset.longitude || (itemCard ? itemCard.dataset.longitude : '');
 
             showItemDetailModal({ itemId, ownerId, ownerName, ownerLevel, ownerRating, title, category, itemType, price, quantity, status, location, description, images, distance, lat, lng });
         }
@@ -601,6 +665,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 addMap.invalidateSize();
             }
         });
+        
+        
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        if (loadMoreBtn) {
+            if (currentPage >= data.totalPages) {
+                loadMoreBtn.style.display = 'none';
+            } else {
+                loadMoreBtn.style.display = 'inline-block';
+            }
+        }
         
         // Reset form handling
         addItemModalEl.addEventListener('hidden.bs.modal', () => {
