@@ -79,7 +79,7 @@ router.get('/admin/items', requireAdmin, (req, res) => {
 router.get('/admin/transactions', requireAdmin, (req, res) => {
     db.query(
         `SELECT t.trans_id, t.item_id, i.title AS item_title, t.amount, t.status,
-                t.payment_status, t.shipping_status, t.tracking_number,
+                t.payment_status, t.shipping_status, t.tracking_number, t.shipped_at, t.release_at, t.payment_reference,
                 g.name AS giver_name, r.name AS receiver_name, g.promptpay_number AS seller_promptpay, g.promptpay_name AS seller_promptpay_name, t.created_at
          FROM transactions t
          JOIN items i ON i.item_id = t.item_id
@@ -191,7 +191,7 @@ router.patch('/admin/transactions/:id/complete', requireAdmin, upload.single('sl
     });
     
     function updateTransaction() {
-        let sql = "UPDATE transactions SET status = 'completed'";
+        let sql = "UPDATE transactions SET status = 'completed', payment_status = 'released', shipping_status = 'delivered'";
         let params = [];
         
         if (slipPath) {
@@ -200,7 +200,7 @@ router.patch('/admin/transactions/:id/complete', requireAdmin, upload.single('sl
             params.push(slipPath, slipPath);
         }
         
-        sql += " WHERE trans_id = ? AND status = 'released'";
+        sql += " WHERE trans_id = ?";
         params.push(id);
         
         db.query(sql, params, (err, result) => {

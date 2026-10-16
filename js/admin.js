@@ -45,14 +45,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const cards = [
             { label: 'ผู้ใช้ทั้งหมด', value: summary.users, icon: 'bi-people', view: 'users' },
             { label: 'รายการสินค้า', value: summary.items, icon: 'bi-box-seam', view: 'items' },
-            { label: 'รอตรวจสอบ', value: summary.pendingItems, icon: 'bi-clock-history', view: 'pendingItems' },
-            { label: 'แจ้งปัญหา', value: summary.pendingReports, icon: 'bi-exclamation-circle', view: 'reports' },
+            { label: 'รอตรวจสอบ', value: summary.pendingItems, icon: 'bi-clock-history', view: 'pendingItems', badge: summary.pendingItems > 0 ? summary.pendingItems : null },
+            { label: 'แจ้งปัญหา', value: summary.pendingReports, icon: 'bi-exclamation-circle', view: 'reports', badge: summary.pendingReports > 0 ? summary.pendingReports : null },
             { label: 'ธุรกรรมทั้งหมด', value: summary.transactions, icon: 'bi-credit-card', view: 'transactions' }
         ];
         
         summaryElement.innerHTML = cards.map(card => `
             <div class="col-sm-6 col-xl flex-fill">
-                <button class="admin-stat admin-summary-card w-100" data-admin-view="${card.view}" type="button">
+                <button class="admin-stat admin-summary-card w-100 position-relative" data-admin-view="${card.view}" type="button">
+                    ${card.badge ? `<span class="position-absolute top-0 end-0 m-2 badge rounded-pill bg-danger shadow-sm fs-6">${card.badge}</span>` : ''}
                     <i class="bi ${card.icon}"></i>
                     <div><div class="small text-muted">${card.label}</div><strong>${card.value}</strong></div>
                 </button>
@@ -66,16 +67,42 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         reportsElement.innerHTML = reports.map(report => {
-            const reportedTarget = report.reported_user_id 
-                ? `ผู้ถูกรายงาน: <span class="text-danger fw-bold">${escapeHtml(report.reported_name)} (${escapeHtml(report.reported_email)})</span>` 
-                : `สินค้า: <span class="fw-bold">${escapeHtml(report.item_title || 'ไม่ระบุ')}</span>`;
-            
+            const isGeneralProblem = !report.item_id && !report.reported_user_id;
+            let reportedTarget = '';
+            if (isGeneralProblem) {
+                reportedTarget = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>แจ้งปัญหาทั่วไป</span>';
+            } else if (report.item_id) {
+                reportedTarget = `สินค้า: <span class="fw-bold">${escapeHtml(report.item_title || 'ไม่ระบุ')}</span>`;
+            } else if (report.reported_user_id) {
+                reportedTarget = `ผู้ถูกรายงาน: <span class="text-danger fw-bold">${escapeHtml(report.reported_name)} (${escapeHtml(report.reported_email)})</span>`;
+            }
+
+            const isResolved = report.status === 'resolved';
+
+            let actionButtons = '';
+            if (isResolved) {
+                actionButtons = '<span class="badge bg-success-subtle text-success border border-success px-3 py-2 fw-bold"><i class="bi bi-check-circle-fill me-1"></i>ดำเนินการเรียบร้อยแล้ว</span>';
+            } else if (isGeneralProblem) {
+                // สำหรับส่วนที่เป็น "แจ้งปัญหาทั่วไป" มี 2 ปุ่ม: แก้ไข กับ เพิกเฉย
+                actionButtons = `
+                    <button class="btn btn-success btn-sm resolve-report-btn fw-bold" data-report-id="${report.report_id}" type="button"><i class="bi bi-check-circle me-1"></i>แก้ไข</button>
+                    <button class="btn btn-outline-secondary btn-sm resolve-report-btn fw-bold" data-report-id="${report.report_id}" type="button"><i class="bi bi-slash-circle me-1"></i>เพิกเฉย</button>
+                `;
+            } else {
+                // สำหรับรายงานที่อยู่ในสินค้า เอาแบบเดิม
+                actionButtons = `
+                    ${report.reported_user_id ? `<button class="btn btn-outline-danger btn-sm ban-user-btn fw-bold" data-user-id="${report.reported_user_id}" data-report-id="${report.report_id}" type="button">🚫 แบนผู้ใช้</button>` : ''}
+                    ${report.item_id ? `<button class="btn btn-outline-danger btn-sm reject-item-btn fw-bold" data-item-id="${report.item_id}" data-report-id="${report.report_id}" type="button">❌ ลบโพสต์</button>` : ''}
+                    <button class="btn btn-success btn-sm resolve-report-btn fw-bold" data-report-id="${report.report_id}" type="button">✅ เพิกเฉย/แก้ไขแล้ว</button>
+                `;
+            }
+
             return `
             <article class="admin-report-row">
                 <div class="admin-report-main">
                     <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
                         <div>${reportedTarget}</div>
-                        <span class="badge ${report.status === 'pending' ? 'text-bg-warning' : 'text-bg-success'}">${report.status === 'pending' ? 'รอตรวจสอบ' : 'แก้ไขแล้ว'}</span>
+                        <span class="badge ${isResolved ? 'text-bg-success' : 'text-bg-warning'}">${isResolved ? 'แก้ไขแล้ว' : 'รอตรวจสอบ'}</span>
                     </div>
                     <div class="small text-muted mb-2">ผู้แจ้ง: ${escapeHtml(report.reporter_name)} (${escapeHtml(report.reporter_email)})</div>
                     <p class="mb-0 border-start border-danger border-3 ps-2 text-dark">${escapeHtml(report.reason)}</p>
@@ -83,9 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="admin-report-actions d-flex flex-column align-items-end gap-2">
                     <small class="text-muted">${new Date(report.created_at).toLocaleDateString('th-TH')} ${new Date(report.created_at).toLocaleTimeString('th-TH')}</small>
                     <div class="d-flex gap-2">
-                        ${report.reported_user_id ? `<button class="btn btn-outline-danger btn-sm ban-user-btn fw-bold" data-user-id="${report.reported_user_id}" type="button">🚫 แบนผู้ใช้</button>` : ''}
-                        ${report.item_id ? `<button class="btn btn-outline-danger btn-sm reject-item-btn fw-bold" data-item-id="${report.item_id}" type="button">❌ ลบโพสต์</button>` : ''}
-                        ${report.status === 'pending' ? `<button class="btn btn-success btn-sm resolve-report-btn" data-report-id="${report.report_id}" type="button">✅ เพิกเฉย/แก้ไขแล้ว</button>` : ''}
+                        ${actionButtons}
                     </div>
                 </div>
             </article>
@@ -122,17 +147,69 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderTransactions(transactions) {
-        renderTable(document.getElementById('adminTransactionsList'), ['สินค้า', 'ผู้ขาย', 'พร้อมเพย์ผู้ขาย', 'ผู้ซื้อ', 'จำนวนเงิน', 'สถานะ', 'จัดการ'], transactions.map(t => 
-            `<tr>
+        renderTable(document.getElementById('adminTransactionsList'), ['สินค้า', 'ผู้ขาย', 'พร้อมเพย์ผู้ขาย', 'ผู้ซื้อ', 'จำนวนเงิน', 'สถานะ', 'จัดการ'], transactions.map(t => {
+            const isCompleted = t.status === 'completed' || Boolean(t.admin_slip);
+            const isReleased = t.status === 'released';
+            const isShipped = t.status === 'shipped';
+            
+            // ตรวจสอบว่าส่งของเกิน 2 วันหรือไม่
+            let isOver2Days = false;
+            if (t.shipped_at) {
+                const shippedDate = new Date(t.shipped_at);
+                const diffHours = (new Date() - shippedDate) / (1000 * 60 * 60);
+                if (diffHours >= 48) {
+                    isOver2Days = true;
+                }
+            } else if (t.release_at && new Date(t.release_at) <= new Date()) {
+                isOver2Days = true;
+            }
+
+            let statusBadge = '';
+            if (isCompleted) {
+                statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>โอนสำเร็จแล้ว</span>';
+            } else if (isReleased) {
+                statusBadge = '<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>รอแอดมินโอนเงิน</span>';
+            } else if (isShipped) {
+                statusBadge = '<span class="badge bg-primary"><i class="bi bi-truck me-1"></i>จัดส่งแล้ว</span>';
+            } else if (t.status === 'paid') {
+                statusBadge = '<span class="badge bg-info text-dark">รอจัดส่ง</span>';
+            } else if (t.status === 'cancelled') {
+                statusBadge = '<span class="badge bg-danger">ยกเลิก</span>';
+            } else {
+                statusBadge = `<span class="badge bg-secondary">${escapeHtml(t.status)}</span>`;
+            }
+
+            let over2DaysWarning = '';
+            if ((isReleased || isShipped) && isOver2Days && !isCompleted) {
+                over2DaysWarning = `
+                    <div class="badge bg-danger-subtle text-danger border border-danger mt-1 text-wrap text-start d-block" style="font-size: 0.72rem;">
+                        <i class="bi bi-clock-history me-1"></i>ส่งของเกิน 2 วันแล้ว (ครบกำหนดปล่อยเงินให้อัตโนมัติ)
+                    </div>
+                `;
+            }
+
+            let actionHtml = '';
+            if (isReleased || (isShipped && isOver2Days && !isCompleted)) {
+                actionHtml = `<button class="btn btn-sm btn-success complete-tx-btn fw-bold" data-id="${t.trans_id}">💸 โอนเงินแล้ว</button>`;
+            } else if (isCompleted) {
+                const slipUrl = t.payment_reference || t.admin_slip;
+                if (slipUrl) {
+                    actionHtml = `<a href="${slipUrl}" target="_blank" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size: 0.8rem;"><i class="bi bi-receipt me-1"></i>ดูสลิปโอนเงิน</a><span class="badge bg-success-subtle text-success border border-success ms-1"><i class="bi bi-check2-all me-1"></i>โอนสำเร็จแล้ว</span>`;
+                } else {
+                    actionHtml = `<span class="badge bg-success-subtle text-success border border-success"><i class="bi bi-check2-all me-1"></i>โอนสำเร็จแล้ว</span>`;
+                }
+            }
+
+            return `<tr>
                 <td>${escapeHtml(t.item_title)}</td>
                 <td>${escapeHtml(t.giver_name)}</td>
                 <td>${t.seller_promptpay ? `<span class="fw-bold text-success">${escapeHtml(t.seller_promptpay)}</span><br><small class="text-muted">${escapeHtml(t.seller_promptpay_name || '')}</small>` : '<span class="text-muted">-</span>'}</td>
                 <td>${escapeHtml(t.receiver_name)}</td>
                 <td>฿${Number(t.amount).toLocaleString()}</td>
-                <td><span class="badge bg-${t.status === 'released' ? 'warning text-dark' : t.status === 'completed' ? 'success' : t.status === 'paid' ? 'info text-dark' : t.status === 'shipped' ? 'primary' : t.status === 'cancelled' ? 'danger' : 'secondary'}">${t.status === 'pending' ? 'รอชำระเงิน' : t.status === 'paid' ? 'รอจัดส่ง' : t.status === 'shipped' ? 'จัดส่งแล้ว' : t.status === 'released' ? 'รอแอดมินโอนเงิน' : t.status === 'completed' ? 'เสร็จสมบูรณ์' : t.status === 'cancelled' ? 'ยกเลิก' : t.status}</span></td>
-                <td>${t.status === 'released' ? `<button class="btn btn-sm btn-success complete-tx-btn" data-id="${t.trans_id}">💸 โอนเงินแล้ว</button>` : ''}</td>
-            </tr>`
-        ));
+                <td>${statusBadge}${over2DaysWarning}</td>
+                <td>${actionHtml}</td>
+            </tr>`;
+        }));
     }
 
     async function loadDashboard() {
@@ -209,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('slip', fileInput.files[0]);
 
             try {
-                const token = localStorage.getItem('token');
+                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
                 const response = await fetch(`/api/admin/transactions/${txId}/complete`, {
                     method: 'PATCH',
                     headers: { 'Authorization': `Bearer ${token}` },
@@ -291,7 +368,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' }
                 });
-                alert('แบนบัญชีผู้ใช้สำเร็จ');
+                if (banBtn.dataset.reportId) {
+                    await requestJson(`/api/admin/reports/${banBtn.dataset.reportId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'resolved' })
+                    });
+                }
+                alert('แบนบัญชีผู้ใช้และบันทึกรายงานสำเร็จ');
                 loadDashboard();
             } catch (error) {
                 banBtn.disabled = false;
@@ -308,7 +392,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ reason: reason })
                 });
-                alert('ไม่อนุมัติโพสต์สำเร็จ');
+                if (rejectBtn.dataset.reportId) {
+                    await requestJson(`/api/admin/reports/${rejectBtn.dataset.reportId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'resolved' })
+                    });
+                }
+                alert('ไม่อนุมัติโพสต์และบันทึกรายงานสำเร็จ');
                 loadDashboard();
             } catch (error) {
                 rejectBtn.disabled = false;

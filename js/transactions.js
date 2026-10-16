@@ -173,7 +173,24 @@
                             <div>
                                 <div class="small text-muted mb-1">คู่กรณี: ${escapeHtml(isBuyer ? t.seller_name : t.buyer_name)}</div>
                                 <div class="fw-bold text-success mb-1">฿${Number(t.amount).toLocaleString()}</div>
-                                <div><span class="badge bg-secondary">${t.status}</span></div>
+                                <div>${(() => {
+                                    if (t.status === 'completed' || Boolean(t.admin_slip)) {
+                                        const slip = t.payment_reference || t.admin_slip;
+                                        return '<span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>โอนสำเร็จแล้ว (ทำธุรกรรมสำเร็จ)</span>' + (slip ? `<br><a href="${slip}" target="_blank" class="btn btn-sm btn-outline-success mt-1 py-0 px-2" style="font-size: 0.75rem;"><i class="bi bi-receipt me-1"></i>ดูสลิปโอนเงิน</a>` : '');
+                                    } else if (t.status === 'released') {
+                                        return '<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>รอแอดมินโอนเงิน</span>';
+                                    } else if (t.status === 'shipped') {
+                                        return '<span class="badge bg-primary"><i class="bi bi-truck me-1"></i>จัดส่งแล้ว</span>';
+                                    } else if (t.status === 'paid') {
+                                        return '<span class="badge bg-info text-dark">ชำระเงินแล้ว (รอจัดส่ง)</span>';
+                                    } else if (t.status === 'awaiting_payment') {
+                                        return '<span class="badge bg-secondary">รอชำระเงิน</span>';
+                                    } else if (t.status === 'cancelled') {
+                                        return '<span class="badge bg-danger">ยกเลิกแล้ว</span>';
+                                    } else {
+                                        return `<span class="badge bg-secondary">${escapeHtml(t.status)}</span>`;
+                                    }
+                                })()}</div>
                                 ${actionBtn}
                             </div>
                         </div>

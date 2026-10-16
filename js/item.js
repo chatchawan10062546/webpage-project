@@ -89,12 +89,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const itemOwnerId = item.user_id || item.userId;
         const isOwner = currentUserId && String(currentUserId) === String(itemOwnerId);
 
-        // จัดการเรื่องภาพ (แปลง URL หรือใช้ภาพตั้งต้น)
+        // จัดการเรื่องภาพ (เช็ก item.images ที่มีหลายรูปก่อน แล้วค่อย fallback ไปที่ item.image_url)
         let imagesArray = [];
-        if (item.image_url) {
-            imagesArray = [item.image_url];
-        } else if (Array.isArray(item.images) && item.images.length > 0) {
+        if (Array.isArray(item.images) && item.images.length > 0) {
             imagesArray = item.images;
+        } else if (item.image_url) {
+            imagesArray = [item.image_url];
         } else {
             imagesArray = ['https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=800&auto=format&fit=crop&q=80'];
         }
@@ -146,6 +146,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${typeBadge}
                         <span class="badge bg-dark bg-opacity-75">${item.category}</span>
                     </div>
+                    ${imagesArray.length > 1 ? `
+                        <div class="position-absolute top-0 end-0 p-2 z-2">
+                            <span class="badge bg-dark bg-opacity-75 rounded-pill shadow-sm"><i class="bi bi-images me-1"></i>${imagesArray.length} รูป</span>
+                        </div>
+                    ` : ''}
                     <img src="${imagesArray[0]}" class="card-img-top" alt="${item.title}" style="height: 220px; object-fit: cover;">
                     <div class="card-body d-flex flex-column">
                         ${ownerBadgeHTML}
@@ -293,8 +298,16 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('latitude', coordinates.latitude);
             formData.append('longitude', coordinates.longitude);
 
-            if (imageInput && imageInput.files && imageInput.files.length > 0) {
-                formData.append('image', imageInput.files[0]);
+            if (selectedPostFiles && selectedPostFiles.length > 0) {
+                const maxFiles = Math.min(selectedPostFiles.length, 5);
+                for (let i = 0; i < maxFiles; i++) {
+                    formData.append('images', selectedPostFiles[i]);
+                }
+            } else if (imageInput && imageInput.files && imageInput.files.length > 0) {
+                const maxFiles = Math.min(imageInput.files.length, 5);
+                for (let i = 0; i < maxFiles; i++) {
+                    formData.append('images', imageInput.files[i]);
+                }
             }
 
             try {
@@ -309,6 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('🎉 ลงประกาศและบันทึกข้อมูลสำเร็จเรียบร้อยแล้ว!');
                     
                     e.target.reset();
+                    selectedPostFiles = [];
+                    renderPostImagePreviews();
 
                     const postModalEl = document.getElementById('postItemModal');
                     if (postModalEl) {
@@ -326,6 +341,88 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // ----------------------------------------------------
+    // 📸 จัดการการเลือกรูปภาพหลายรูป (สูงสุด 5 รูป) สำหรับฟอร์มลงประกาศ
+    // ----------------------------------------------------
+    let selectedPostFiles = [];
+
+    function renderPostImagePreviews() {
+        const container = document.getElementById('postImagePreviewContainer');
+        const badge = document.getElementById('postImageCountBadge');
+        const promptBox = document.getElementById('postImagePromptBox');
+        if (!container) return;
+
+        container.innerHTML = '';
+        selectedPostFiles.forEach((file, index) => {
+            const objectUrl = URL.createObjectURL(file);
+            const thumbDiv = document.createElement('div');
+            thumbDiv.className = 'position-relative border rounded-3 overflow-hidden shadow-sm';
+            thumbDiv.style.width = '85px';
+            thumbDiv.style.height = '85px';
+            thumbDiv.innerHTML = `
+                <img src="${objectUrl}" class="w-100 h-100 object-fit-cover" alt="รูปที่ ${index + 1}">
+                ${index === 0 ? '<span class="position-absolute bottom-0 start-0 w-100 bg-success text-white text-center py-0" style="font-size: 0.65rem;">รูปหน้าปก</span>' : ''}
+                <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 d-flex align-items-center justify-content-center remove-post-img-btn" data-index="${index}" style="width: 22px; height: 22px; font-size: 0.75rem; border-radius: 0 0 0 6px;">✕</button>
+            `;
+            container.appendChild(thumbDiv);
+        });
+
+        if (badge) {
+            badge.textContent = `${selectedPostFiles.length}/5 รูป`;
+            badge.className = selectedPostFiles.length === 5 ? 'badge bg-success rounded-pill' : 'badge bg-secondary rounded-pill';
+        }
+
+        if (promptBox) {
+            if (selectedPostFiles.length >= 5) {
+                promptBox.classList.add('d-none');
+            } else {
+                promptBox.classList.remove('d-none');
+            }
+        }
+    }
+
+    document.addEventListener('click', (e) => {
+        // ปุ่มกดเลือกรูป
+        if (e.target && (e.target.id === 'triggerImageUploadBtn' || e.target.closest('#triggerImageUploadBtn'))) {
+            e.preventDefault();
+            const fileInput = document.getElementById('postImageFile');
+            if (fileInput) {
+                fileInput.value = '';
+                fileInput.click();
+            }
+        }
+
+        // ปุ่มลบรูป
+        const removeBtn = e.target.closest('.remove-post-img-btn');
+        if (removeBtn) {
+            e.preventDefault();
+            const idx = parseInt(removeBtn.dataset.index, 10);
+            if (!isNaN(idx) && idx >= 0 && idx < selectedPostFiles.length) {
+                selectedPostFiles.splice(idx, 1);
+                renderPostImagePreviews();
+            }
+        }
+    });
+
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.id === 'postImageFile') {
+            const files = Array.from(e.target.files || []);
+            for (const file of files) {
+                if (selectedPostFiles.length >= 5) {
+                    alert('คุณสามารถเลือกรูปภาพได้สูงสุดไม่เกิน 5 รูปครับ');
+                    break;
+                }
+                if (!file.type.startsWith('image/')) {
+                    alert('กรุณาเลือกเฉพาะไฟล์รูปภาพ (JPG, PNG, WEBP)');
+                    continue;
+                }
+                selectedPostFiles.push(file);
+            }
+            renderPostImagePreviews();
+        }
+    });
+
 
     // ----------------------------------------------------
     // 4. ดักจับการกดปุ่ม "ดูรายละเอียด"
@@ -468,12 +565,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         <div class="modal-body p-2 p-md-3">
                             
-                            <!-- 🖼️ 1. รูปภาพสินค้าอยู่บนสุด -->
-                            <div class="text-center mb-4 position-relative">
-                                <img id="mainDetailImage" src="${item.images[0]}" 
-                                     class="img-fluid rounded-4 shadow-sm w-100" 
-                                     style="max-height: 420px; object-fit: contain; background-color: #f8f9fa;" alt="${item.title}">
-                                ${thumbnailsHTML}
+                            <!-- 🖼️ 1. สไลด์รูปภาพสินค้าทั้งหมด (Carousel) -->
+                            <div class="mb-4 position-relative">
+                                <div id="itemImagesCarousel" class="carousel slide rounded-4 overflow-hidden shadow-sm" data-bs-ride="false" style="background-color: #f8f9fa;">
+                                    ${item.images.length > 1 ? `
+                                        <!-- ป้ายแสดงลำดับรูป (เช่น 1/5) -->
+                                        <div class="position-absolute top-0 end-0 m-3 z-3">
+                                            <span class="badge bg-dark bg-opacity-75 rounded-pill px-3 py-2 fs-6 shadow-sm" id="carouselSlideCounter">
+                                                📸 1/${item.images.length}
+                                            </span>
+                                        </div>
+                                    ` : ''}
+
+                                    <div class="carousel-inner" style="min-height: 280px; max-height: 440px;">
+                                        ${item.images.map((imgSrc, idx) => `
+                                            <div class="carousel-item ${idx === 0 ? 'active' : ''}">
+                                                <img src="${imgSrc}" class="d-block w-100" style="max-height: 440px; min-height: 280px; object-fit: contain; background-color: #f8f9fa;" alt="${item.title} รูปที่ ${idx + 1}">
+                                            </div>
+                                        `).join('')}
+                                    </div>
+
+                                    ${item.images.length > 1 ? `
+                                        <!-- ปุ่มเลื่อนซ้าย / ขวา -->
+                                        <button class="carousel-control-prev" type="button" data-bs-target="#itemImagesCarousel" data-bs-slide="prev" style="width: 15%;">
+                                            <span class="carousel-control-prev-icon bg-dark bg-opacity-50 rounded-circle p-3 shadow-sm" aria-hidden="true"></span>
+                                            <span class="visually-hidden">รูปก่อนหน้า</span>
+                                        </button>
+                                        <button class="carousel-control-next" type="button" data-bs-target="#itemImagesCarousel" data-bs-slide="next" style="width: 15%;">
+                                            <span class="carousel-control-next-icon bg-dark bg-opacity-50 rounded-circle p-3 shadow-sm" aria-hidden="true"></span>
+                                            <span class="visually-hidden">รูปถัดไป</span>
+                                        </button>
+                                    ` : ''}
+                                </div>
+
+                                <!-- แถบรูปย่อ (Thumbnails) ให้กดเลือกรูปได้โดยตรง -->
+                                ${item.images.length > 1 ? `
+                                    <div class="d-flex gap-2 overflow-auto py-2 mt-2 justify-content-center" id="carouselThumbnailsBar">
+                                        ${item.images.map((imgSrc, idx) => `
+                                            <img src="${imgSrc}" class="img-thumbnail detail-thumb-btn ${idx === 0 ? 'border-success border-2 shadow-sm' : 'opacity-75'}" 
+                                                 style="width: 72px; height: 72px; object-fit: cover; cursor: pointer; border-radius: 12px; transition: all 0.2s;" 
+                                                 data-slide-index="${idx}" alt="รูปที่ ${idx + 1}">
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
                             </div>
 
                             <!-- 📝 2. รายละเอียดสินค้าอยู่ตรงกลาง -->
@@ -558,16 +692,38 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // คลิกเปลี่ยนรูปใน Gallery
-        document.querySelectorAll('.thumbnail-btn').forEach(thumb => {
-            thumb.addEventListener('click', (e) => {
-                const newSrc = e.currentTarget.dataset.targetSrc;
-                document.getElementById('mainDetailImage').src = newSrc;
-                
-                document.querySelectorAll('.thumbnail-btn').forEach(t => t.classList.remove('border-success', 'border-2'));
-                e.currentTarget.classList.add('border-success', 'border-2');
+        // ควบคุมการเลื่อนรูปภาพ (Carousel) และอัปเดตตัวนับ / รูปย่อ
+        const carouselEl = document.getElementById('itemImagesCarousel');
+        if (carouselEl && typeof bootstrap !== 'undefined') {
+            const carouselInstance = bootstrap.Carousel.getOrCreateInstance(carouselEl, { interval: false, wrap: true });
+            
+            // เมื่อเลื่อนเปลี่ยนรูป ให้อัปเดตตัวเลข 📸 X/Y และไฮไลต์รูปย่อ
+            carouselEl.addEventListener('slid.bs.carousel', (e) => {
+                const activeIndex = e.to;
+                const counter = document.getElementById('carouselSlideCounter');
+                if (counter) counter.textContent = `📸 ${activeIndex + 1}/${item.images.length}`;
+
+                document.querySelectorAll('#carouselThumbnailsBar .detail-thumb-btn').forEach((thumb, idx) => {
+                    if (idx === activeIndex) {
+                        thumb.classList.add('border-success', 'border-2', 'shadow-sm');
+                        thumb.classList.remove('opacity-75');
+                    } else {
+                        thumb.classList.remove('border-success', 'border-2', 'shadow-sm');
+                        thumb.classList.add('opacity-75');
+                    }
+                });
             });
-        });
+
+            // เมื่อคลิกที่รูปย่อ ให้เลื่อนไปยังรูปนั้นทันที
+            document.querySelectorAll('#carouselThumbnailsBar .detail-thumb-btn').forEach(thumb => {
+                thumb.addEventListener('click', (e) => {
+                    const slideIdx = parseInt(e.currentTarget.dataset.slideIndex, 10);
+                    if (!isNaN(slideIdx)) {
+                        carouselInstance.to(slideIdx);
+                    }
+                });
+            });
+        }
 
         // ดักจับปุ่มกดเลือกการทำรายการ
         document.querySelectorAll('.btn-select-option').forEach(button => {

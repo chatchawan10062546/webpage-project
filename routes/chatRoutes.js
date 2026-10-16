@@ -18,6 +18,21 @@ function hasRoomAccess(roomId, userId, callback) {
    );
 }
 
+// 📌 ดึงจำนวนข้อความที่ยังไม่ได้อ่านทั้งหมดของผู้ใช้
+router.get('/chat/unread-count', requireAuth, (req, res) => {
+   const user_id = req.authUser.userId;
+   const sql = `
+      SELECT COUNT(m.id) AS unread_total
+      FROM chat_messages m
+      JOIN chat_room_members crm ON crm.room_id = m.room_id AND crm.user_id = ?
+      WHERE m.user_id != ? AND (m.is_read = FALSE OR m.is_read IS NULL)
+   `;
+   db.query(sql, [user_id, user_id], (err, rows) => {
+      if (err) return res.status(500).json({ success: false, unread_total: 0 });
+      res.json({ success: true, unread_total: rows[0].unread_total || 0 });
+   });
+});
+
 // ดึงห้องแชตทั้งหมดของผู้ใช้ พร้อมชื่อสินค้าและข้อความล่าสุด
 router.get('/chat/rooms', requireAuth, (req, res) => {
    const user_id = req.authUser.userId;
@@ -27,6 +42,7 @@ router.get('/chat/rooms', requireAuth, (req, res) => {
             SELECT r.id AS room_id, r.item_id, COALESCE(i.title, r.name) AS item_title,
                i.image_url AS item_image,
              other.user_id AS other_user_id, COALESCE(other_user.name, 'ผู้ใช้') AS other_user_name,
+             (SELECT COUNT(m.id) FROM chat_messages m WHERE m.room_id = r.id AND m.user_id != ? AND (m.is_read = FALSE OR m.is_read IS NULL)) AS unread_count,
              latest.message AS latest_message, latest.created_at AS latest_created_at
       FROM chat_rooms r
       JOIN chat_room_members mine ON mine.room_id = r.id AND mine.user_id = ?
@@ -38,7 +54,7 @@ router.get('/chat/rooms', requireAuth, (req, res) => {
       )
       ORDER BY latest.created_at DESC, r.id DESC
    `;
-   db.query(sql, [user_id, user_id], (err, rooms) => {
+   db.query(sql, [user_id, user_id, user_id], (err, rooms) => {
       if (err) {
          console.error('Fetch Chat Rooms Error:', err);
          return res.status(500).json({ success: false, message: 'ดึงห้องแชตไม่สำเร็จ' });
@@ -51,30 +67,47 @@ router.get('/chat/rooms', requireAuth, (req, res) => {
 router.post('/chat/rooms', requireAuth, (req, res) => {
    const { other_user_id, item_id, name } = req.body;
    const user_id = req.authUser.userId;
-   if (!user_id || !other_user_id || !item_id || String(user_id) === String(other_user_id)) {
+   if (!user_id || !other_user_id || String(user_id) === String(other_user_id)) {
       return res.status(400).json({ success: false, message: 'ผู้ใช้ห้องแชตไม่ถูกต้อง' });
    }
 
    const roomName = name || `ห้องสนทนา ${user_id}-${other_user_id}`;
-   const findSql = `
+   const findSql = item_id ? `
       SELECT r.id FROM chat_rooms r
       JOIN chat_room_members m1 ON m1.room_id = r.id AND m1.user_id = ?
       JOIN chat_room_members m2 ON m2.room_id = r.id AND m2.user_id = ?
       WHERE r.item_id = ?
       LIMIT 1
+   ` : `
+      SELECT r.id FROM chat_rooms r
+      JOIN chat_room_members m1 ON m1.room_id = r.id AND m1.user_id = ?
+      JOIN chat_room_members m2 ON m2.room_id = r.id AND m2.user_id = ?
+      WHERE (r.item_id IS NULL OR r.item_id = 0)
+      LIMIT 1
    `;
-   db.query(findSql, [user_id, other_user_id, item_id], (findErr, rooms) => {
-      if (findErr) return res.status(500).json({ success: false, message: 'ค้นหาห้องแชตไม่สำเร็จ' });
-      if (rooms.length > 0) return res.json({ success: true, room_id: rooms[0].id });
+   const findParams = item_id ? [user_id, other_user_id, item_id] : [user_id, other_user_id];
 
-      db.query('INSERT INTO chat_rooms (name, item_id) VALUES (?, ?)', [roomName, item_id], (roomErr, result) => {
-         if (roomErr) return res.status(500).json({ success: false, message: 'สร้างห้องแชตไม่สำเร็จ' });
+   db.query(findSql, findParams, (findErr, rooms) => {
+      if (findErr) {
+         console.error('Find Chat Room Error:', findErr);
+         return res.status(500).json({ success: false, message: 'ค้นหาห้องแชตไม่สำเร็จ' });
+      }
+      if (rooms && rooms.length > 0) return res.json({ success: true, room_id: rooms[0].id });
+
+      db.query('INSERT INTO chat_rooms (name, item_id) VALUES (?, ?)', [roomName, item_id || null], (roomErr, result) => {
+         if (roomErr) {
+            console.error('Create Chat Room Error:', roomErr);
+            return res.status(500).json({ success: false, message: 'สร้างห้องแชตไม่สำเร็จ' });
+         }
          const roomId = result.insertId;
          db.query(
             'INSERT INTO chat_room_members (room_id, user_id) VALUES (?, ?), (?, ?)',
             [roomId, user_id, roomId, other_user_id],
             memberErr => {
-               if (memberErr) return res.status(500).json({ success: false, message: 'เพิ่มสมาชิกห้องไม่สำเร็จ' });
+               if (memberErr) {
+                  console.error('Add Chat Members Error:', memberErr);
+                  return res.status(500).json({ success: false, message: 'เพิ่มสมาชิกห้องไม่สำเร็จ' });
+               }
                res.json({ success: true, room_id: roomId });
             }
          );
@@ -91,6 +124,14 @@ router.get('/chat/rooms/:roomId/messages', requireAuth, (req, res) => {
    hasRoomAccess(roomId, user_id, (accessErr, allowed) => {
       if (accessErr) return res.status(500).json({ success: false, message: 'ตรวจสอบสิทธิ์ไม่สำเร็จ' });
       if (!allowed) return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์เข้าห้องนี้' });
+
+      // ทำเครื่องหมายว่าข้อความถูกอ่านแล้ว
+      db.query(
+         'UPDATE chat_messages SET is_read = TRUE WHERE room_id = ? AND user_id != ?',
+         [roomId, user_id],
+         () => {}
+      );
+
       db.query(
          'SELECT id, room_id, user_id, user_name, message, created_at FROM chat_messages WHERE room_id = ? ORDER BY id ASC',
          [roomId],

@@ -7,8 +7,13 @@
         return JSON.parse(localStorage.getItem('user') || 'null');
     }
 
-    async function requestJson(url, options) {
-        const response = await fetch(url, options);
+        async function requestJson(url, options = {}) {
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+        const headers = new Headers(options.headers || {});
+        if (token && !headers.has('Authorization')) {
+            headers.set('Authorization', `Bearer ${token}`);
+        }
+        const response = await fetch(url, { ...options, headers });
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.message || 'ดำเนินการไม่สำเร็จ');
         return data;
@@ -68,18 +73,22 @@
         }
     };
 
-    window.openChat = async (otherUserId, itemTitle, itemId) => {
+    window.openChat = async (otherUserId, itemTitle, itemId, existingRoomId) => {
         const user = getUser();
         const userId = user?.id || user?.user_id || user?.userId;
         if (!userId) return alert('กรุณาเข้าสู่ระบบก่อนเปิดแชต');
         if (!otherUserId || String(userId) === String(otherUserId)) return alert('ไม่สามารถเปิดแชตกับตัวเองได้');
 
         try {
-            const room = await requestJson('/api/chat/rooms', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, other_user_id: otherUserId, item_id: itemId, name: `รายการ: ${itemTitle}` })
-            });
+            let roomId = existingRoomId;
+            if (!roomId) {
+                const room = await requestJson('/api/chat/rooms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, other_user_id: otherUserId, item_id: itemId || null, name: itemTitle ? `รายการ: ${itemTitle}` : 'แชตสนทนา' })
+                });
+                roomId = room.room_id;
+            }
 
             document.getElementById('chatModal')?.remove();
             document.body.insertAdjacentHTML('beforeend', `
@@ -113,7 +122,7 @@
             const modalElement = document.getElementById('chatModal');
             const modal = new bootstrap.Modal(modalElement);
             const messagesElement = document.getElementById('chatMessages');
-            const loadMessages = () => requestJson(`/api/chat/rooms/${room.room_id}/messages?user_id=${userId}`)
+            const loadMessages = () => requestJson(`/api/chat/rooms/${roomId}/messages?user_id=${userId}`)
                 .then(data => renderMessages(messagesElement, data.messages))
                 .catch(error => { messagesElement.innerHTML = `<p class="text-danger">${error.message}</p>`; });
 
@@ -123,6 +132,7 @@
             modalElement.addEventListener('hidden.bs.modal', () => {
                 clearInterval(refreshTimer);
                 modalElement.remove();
+                if (typeof window.updateChatUnreadBadge === "function") window.updateChatUnreadBadge();
             }, { once: true });
             
             // Show preview indicator when file is selected
@@ -152,10 +162,10 @@
                 }
 
                 try {
-                    const token = localStorage.getItem('token');
-                    const response = await fetch(`/api/chat/rooms/${room.room_id}/messages`, {
+                    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                    const response = await fetch(`/api/chat/rooms/${roomId}/messages`, {
                         method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
                         body: formData
                     });
                     const data = await response.json();

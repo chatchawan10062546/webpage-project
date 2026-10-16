@@ -104,13 +104,11 @@ window.openReportModal = function(itemId = null, reportedUserId = null, contextT
     });
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    // สำหรับปุ่มแจ้งปัญหาเดิมที่ไม่มี context
-    const reportButton = document.getElementById('reportProblemBtn');
+// รองรับการคลิกปุ่มแจ้งปัญหาทั้งปุ่มใน Navbar และทุกจุดบนหน้าเว็บ
+document.addEventListener('click', event => {
+    const reportButton = event.target.closest('#reportProblemBtn');
     if (reportButton) {
-        reportButton.addEventListener('click', event => {
-            event.preventDefault();
-            window.openReportModal(null, null, 'รายงานทั่วไป');
-        });
+        event.preventDefault();
+        window.openReportModal(null, null, 'รายงานทั่วไป');
     }
 });

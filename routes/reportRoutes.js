@@ -10,8 +10,8 @@ router.post('/reports', requireAuth, (req, res) => {
     const { item_id, reported_user_id, reason } = req.body;
     const reporterId = req.authUser.userId;
 
-    if ((!item_id && !reported_user_id) || !reason?.trim()) {
-        return res.status(400).json({ success: false, message: 'กรุณาระบุสิ่งที่ต้องการรายงานและรายละเอียดปัญหา' });
+    if (!reason?.trim()) {
+        return res.status(400).json({ success: false, message: 'กรุณากรอกรายละเอียดปัญหาที่ต้องการรายงาน' });
     }
 
     db.query(

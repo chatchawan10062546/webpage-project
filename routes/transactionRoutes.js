@@ -187,7 +187,7 @@ router.get('/transactions/me/all', requireAuth, (req, res) => {
     const userId = req.authUser.userId;
     db.query(
         `SELECT t.trans_id, t.item_id, i.title, i.image_url, t.amount, t.status, t.payment_status, t.shipping_status,
-                t.giver_id, t.receiver_id, g.name AS seller_name, r.name AS buyer_name, t.created_at
+                t.giver_id, t.receiver_id, g.name AS seller_name, r.name AS buyer_name, t.created_at, t.payment_reference, t.admin_slip
          FROM transactions t
          JOIN items i ON i.item_id = t.item_id
          JOIN users g ON g.user_id = t.giver_id

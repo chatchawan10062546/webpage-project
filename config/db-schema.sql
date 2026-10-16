@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     giver_id INT NOT NULL,
     receiver_id INT NOT NULL,
     amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-    status ENUM('awaiting_payment', 'paid', 'awaiting_shipment', 'shipped', 'received', 'released', 'cancelled', 'refunded', 'disputed') NOT NULL DEFAULT 'awaiting_payment',
+    status ENUM('awaiting_payment', 'paid', 'awaiting_shipment', 'shipped', 'received', 'released', 'completed', 'cancelled', 'refunded', 'disputed') NOT NULL DEFAULT 'awaiting_payment',
     payment_status ENUM('pending', 'held', 'released', 'refunded', 'failed') NOT NULL DEFAULT 'pending',
     shipping_status ENUM('pending', 'shipped', 'delivered') NOT NULL DEFAULT 'pending',
     payment_reference VARCHAR(255),

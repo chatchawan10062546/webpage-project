@@ -95,9 +95,22 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             
                             <div class="mb-3">
-                                <label for="postImageFile" class="form-label fw-bold">รูปภาพสิ่งของ (เลือกได้หลายรูป)</label>
-                                <input class="form-control" type="file" id="postImageFile" accept="image/*" multiple>
-                                <div class="form-text">สามารถกด Ctrl หรือ Shift เพื่อเลือกหลายรูปพร้อมกันได้ครับ</div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-bold mb-0">📸 รูปภาพสิ่งของ (สูงสุด 5 รูป)</label>
+                                    <span class="badge bg-secondary rounded-pill" id="postImageCountBadge">0/5 รูป</span>
+                                </div>
+                                <div class="border rounded-4 p-3 bg-light text-center" id="postImageArea">
+                                    <div id="postImagePreviewContainer" class="d-flex flex-wrap gap-2 mb-2 justify-content-start"></div>
+                                    <div id="postImagePromptBox" class="py-2">
+                                        <input class="d-none" type="file" id="postImageFile" accept="image/jpeg, image/png, image/webp" multiple>
+                                        <button type="button" class="btn btn-outline-success rounded-pill px-4 py-2 fw-bold" id="triggerImageUploadBtn">
+                                            <i class="bi bi-images me-2"></i>เลือกรูปภาพ (เลือกได้ทีละรูปหรือพร้อมกัน)
+                                        </button>
+                                        <div class="form-text text-muted mt-2" style="font-size: 0.8rem;">
+                                            รองรับ JPG, PNG, WEBP สูงสุดไม่เกิน 5 รูป (รูปแรกเป็นรูปหน้าปก)
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <button type="submit" class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-sm fs-5 mt-3">

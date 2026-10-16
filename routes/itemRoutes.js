@@ -78,7 +78,8 @@ router.get('/items', (req, res) => {
                   u.xp AS owner_xp,
                   COALESCE(AVG(r.rating), 0) AS owner_rating,
                   COUNT(r.review_id) AS owner_review_count,
-                  (SELECT COUNT(*) FROM item_requests req WHERE req.item_id = i.item_id AND req.status = 'pending') AS pending_requests
+                  (SELECT COUNT(*) FROM item_requests req WHERE req.item_id = i.item_id AND req.status = 'pending') AS pending_requests,
+                  (SELECT GROUP_CONCAT(img.image_url ORDER BY img.sort_order ASC) FROM item_images img WHERE img.item_id = i.item_id) AS gallery_images
            FROM items i
            JOIN users u ON u.user_id = i.user_id
            LEFT JOIN reviews r ON r.reviewee_id = i.user_id
@@ -94,13 +95,22 @@ router.get('/items', (req, res) => {
             console.error('Fetch Items Error:', err);
             return res.status(500).json({ success: false, message: 'ดึงข้อมูลไม่สำเร็จ' });
         }
-        res.json({ success: true, items: results, totalPages, currentPage: page });
+        const items = results.map(row => {
+            let images = [];
+            if (row.gallery_images) {
+                images = row.gallery_images.split(',').filter(Boolean);
+            } else if (row.image_url) {
+                images = [row.image_url];
+            }
+            return { ...row, images };
+        });
+        res.json({ success: true, items, totalPages, currentPage: page });
         });
     });
 });
 
 // 📌 2. API บันทึกรายการใหม่ลง DB
-router.post('/items', requireAuth, upload.single('image'), (req, res) => {
+router.post('/items', requireAuth, upload.any(), (req, res) => {
    const { title, category, description, location, item_type, price, quantity } = req.body;
    const latitude = (req.body.latitude && req.body.latitude !== 'null') ? req.body.latitude : null;
    const longitude = (req.body.longitude && req.body.longitude !== 'null') ? req.body.longitude : null;
@@ -110,10 +120,21 @@ router.post('/items', requireAuth, upload.single('image'), (req, res) => {
       return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
    }
 
-   let image_url = '';
-   if (req.file) {
-      image_url = `/uploads/${req.file.filename}`;
+   // รองรับทั้งรูปเดียวและหลายรูป (สูงสุด 5 รูป)
+   let uploadedFiles = [];
+   if (req.files && req.files.length > 0) {
+       const imagesFiles = req.files.filter(f => f.fieldname === 'images');
+       if (imagesFiles.length > 0) {
+           uploadedFiles = imagesFiles.slice(0, 5);
+       } else {
+           uploadedFiles = req.files.filter(f => f.fieldname === 'image').slice(0, 1);
+       }
+   } else if (req.file) {
+       uploadedFiles = [req.file];
    }
+   const uniqueFiles = uploadedFiles;
+
+   let image_url = uniqueFiles.length > 0 ? `/uploads/${uniqueFiles[0].filename}` : '';
 
    const sql = `
       INSERT INTO items (title, category, description, image_url, location, latitude, longitude, status, user_id, item_type, price, quantity) 
@@ -125,7 +146,17 @@ router.post('/items', requireAuth, upload.single('image'), (req, res) => {
          console.error('Post Item Error:', err);
          return res.status(500).json({ success: false, message: 'ไม่สามารถบันทึกลงฐานข้อมูลได้' });
       }
-      res.json({ success: true, message: 'ลงประกาศสำเร็จ! กรุณารอแอดมินตรวจสอบก่อนแสดงผลบนหน้าเว็บ', item_id: result.insertId });
+      const newItemId = result.insertId;
+
+      if (uniqueFiles.length > 0) {
+          const imgValues = uniqueFiles.map((f, idx) => [newItemId, `/uploads/${f.filename}`, idx]);
+          db.query('INSERT INTO item_images (item_id, image_url, sort_order) VALUES ?', [imgValues], (imgErr) => {
+              if (imgErr) console.error('Insert item_images Error:', imgErr);
+              res.json({ success: true, message: 'ลงประกาศสำเร็จ! กรุณารอแอดมินตรวจสอบก่อนแสดงผลบนหน้าเว็บ', item_id: newItemId });
+          });
+      } else {
+          res.json({ success: true, message: 'ลงประกาศสำเร็จ! กรุณารอแอดมินตรวจสอบก่อนแสดงผลบนหน้าเว็บ', item_id: newItemId });
+      }
    });
 });
 
