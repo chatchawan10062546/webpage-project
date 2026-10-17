@@ -1,4 +1,5 @@
-﻿const db = require('../config/db');
+const db = require('../config/db');
+const { emitToUser } = require('./socketHelper');
 
 function createNotification(user_id, sender_id, type, reference_id, message) {
     return new Promise((resolve, reject) => {
@@ -8,7 +9,24 @@ function createNotification(user_id, sender_id, type, reference_id, message) {
                 console.error('Create Notification Error:', err);
                 return reject(err);
             }
-            resolve(result.insertId);
+            const notifId = result.insertId;
+            
+            // ⚡ ยิงแจ้งเตือน Real-Time ทันทีไปยังผู้ใช้ปลายทาง
+            try {
+                emitToUser(user_id, 'new_notification', {
+                    notif_id: notifId,
+                    user_id,
+                    sender_id,
+                    type,
+                    reference_id,
+                    message,
+                    created_at: new Date()
+                });
+            } catch (e) {
+                console.error('Real-Time Notification Emit Error:', e);
+            }
+
+            resolve(notifId);
         });
     });
 }

@@ -21,7 +21,7 @@
 
     function renderMessages(container, messages, replyEnabled = false) {
         container.innerHTML = messages.map(message => `
-            <div class="mb-2 ${String(message.user_id) === String(getUser()?.id || getUser()?.user_id) ? 'text-end' : ''}">
+            <div class="mb-2 ${String(message.user_id) === String(getUser()?.id || getUser()?.user_id) ? 'text-end' : ''}" data-msg-id="${message.id || ''}">
                 <div class="small text-muted">${message.user_name} ${message.message_type === 'request' ? '(คำขอรับของ)' : ''}</div>
                 <div class="d-inline-block bg-light border rounded px-3 py-2">
                     ${message.message.startsWith("[IMAGE]") ? "<img src=\"" + message.message.replace("[IMAGE]", "") + "\" class=\"img-fluid rounded\" style=\"max-height: 200px; cursor: pointer;\" onclick=\"window.open(this.src, '_blank')\">" : message.message}
@@ -132,7 +132,49 @@
                 const msgInput = document.getElementById("chatMessageInput");
                 if (msgInput) { msgInput.value = initialMessage; msgInput.focus(); }
             }
-            const refreshTimer = setInterval(loadMessages, 2000);
+
+            // ⚡ เข้าร่วมห้อง WebSocket สำหรับรับข้อความสดทันที
+            window.activeChatRoomId = roomId;
+            if (window.appSocket) {
+                window.appSocket.emit('join_room', roomId);
+
+                const handleLiveMessage = (newMsg) => {
+                    if (String(newMsg.room_id) === String(roomId)) {
+                        if (newMsg.id && messagesElement.querySelector(`[data-msg-id="${newMsg.id}"]`)) {
+                            return;
+                        }
+                        const isMe = String(newMsg.user_id) === String(userId);
+                        const msgHtml = `
+                            <div class="mb-2 ${isMe ? 'text-end' : ''}" data-msg-id="${newMsg.id || ''}">
+                                <div class="small text-muted">${newMsg.user_name}</div>
+                                <div class="d-inline-block bg-light border rounded px-3 py-2">
+                                    ${newMsg.message.startsWith("[IMAGE]") ? `<img src="${newMsg.message.replace("[IMAGE]", "")}" class="img-fluid rounded" style="max-height: 200px; cursor: pointer;" onclick="window.open(this.src, '_blank')">` : newMsg.message}
+                                </div>
+                            </div>
+                        `;
+                        if (messagesElement.innerHTML.includes('ยังไม่มีข้อความ')) {
+                            messagesElement.innerHTML = '';
+                        }
+                        messagesElement.insertAdjacentHTML('beforeend', msgHtml);
+                        messagesElement.scrollTop = messagesElement.scrollHeight;
+
+                        if (!isMe && typeof window.playRealtimeChime === 'function') {
+                            window.playRealtimeChime('chat');
+                        }
+                    }
+                };
+
+                window.appSocket.on('new_chat_message', handleLiveMessage);
+
+                modalElement.addEventListener('hidden.bs.modal', () => {
+                    window.appSocket.off('new_chat_message', handleLiveMessage);
+                    window.appSocket.emit('leave_room', roomId);
+                    window.activeChatRoomId = null;
+                }, { once: true });
+            }
+
+            // สำรอง Polling ไว้ทุก 10 วิ
+            const refreshTimer = setInterval(loadMessages, 10000);
             modalElement.addEventListener('hidden.bs.modal', () => {
                 clearInterval(refreshTimer);
                 modalElement.remove();

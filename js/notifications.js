@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return localStorage.getItem('authToken');
     }
 
+    window.fetchNotifications = fetchNotifications;
     async function fetchNotifications() {
         const token = getToken();
         if (!token) return;

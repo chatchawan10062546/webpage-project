@@ -9,6 +9,7 @@ const upload = multer({ storage: storage });
 const router = express.Router();
 const db = require('../config/db');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { emitToRoom, emitToUser } = require('../utils/socketHelper');
 
 function hasRoomAccess(roomId, userId, callback) {
    db.query(
@@ -166,6 +167,33 @@ router.post('/chat/rooms/:roomId/messages', requireAuth, upload.single('image'),
          [roomId, user_id, user_name, message.trim()],
          (err, result) => {
             if (err) return res.status(500).json({ success: false, message: 'ส่งข้อความไม่สำเร็จ' });
+            
+            const msgObj = {
+               id: result.insertId,
+               room_id: Number(roomId),
+               user_id: user_id,
+               user_name: user_name,
+               message: message.trim(),
+               created_at: new Date()
+            };
+
+            try {
+               emitToRoom(roomId, 'new_chat_message', msgObj);
+               db.query(
+                  'SELECT user_id FROM chat_room_members WHERE room_id = ? AND user_id != ?',
+                  [roomId, user_id],
+                  (memErr, members) => {
+                     if (!memErr && members) {
+                        members.forEach(m => {
+                           emitToUser(m.user_id, 'chat_notification', msgObj);
+                        });
+                     }
+                  }
+               );
+            } catch (sockErr) {
+               console.error('Socket emit error in chat:', sockErr);
+            }
+
             res.json({ success: true, message_id: result.insertId, message: message.trim() });
          }
       );

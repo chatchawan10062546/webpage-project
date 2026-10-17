@@ -5,7 +5,12 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
+
+// ดึงตัวจัดการ Socket.io
+const { setIO, emitToUser, emitToRoom } = require('./utils/socketHelper');
 
 // ดึงไฟล์ Routes ที่เราแยกไว้มาใช้งาน
 const authRoutes = require('./routes/authRoutes');
@@ -19,6 +24,41 @@ const adminRoutes = require('./routes/adminRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+    }
+});
+
+// บันทึก io instance สำหรับให้โมดูลอื่นเรียกใช้งาน
+setIO(io);
+
+// ⚡ จัดการการเชื่อมต่อ WebSocket ของผู้ใช้
+io.on('connection', (socket) => {
+    // ผู้ใช้เข้าห้องส่วนตัวสำหรับรับการแจ้งเตือน
+    socket.on('join_user', (userId) => {
+        if (userId) {
+            socket.join(`user_${userId}`);
+        }
+    });
+
+    // ผู้ใช้เข้าห้องแชตเพื่อรับข้อความสด
+    socket.on('join_room', (roomId) => {
+        if (roomId) {
+            socket.join(`room_${roomId}`);
+        }
+    });
+
+    // ผู้ใช้ออกจากห้องแชต
+    socket.on('leave_room', (roomId) => {
+        if (roomId) {
+            socket.leave(`room_${roomId}`);
+        }
+    });
+});
+
 const PORT = process.env.PORT || 3000;
 
 // ----------------------------------------------------
@@ -63,6 +103,32 @@ app.use('/api', reportRoutes);
 app.use('/api', notificationRoutes); // เรียกใช้งานระบบแจ้งปัญหา
 app.use('/api', adminRoutes); // เรียกใช้งานระบบหลังบ้านแอดมิน
 app.use('/api', reviewRoutes); // เรียกใช้งานระบบรีวิวและเลเวล
+ 
+// ⚡ Endpoint ทดสอบ Real-Time Event สำหรับ Developer
+app.post('/api/test-realtime-trigger', (req, res) => {
+    const { userId, roomId, type, message } = req.body;
+    if (type === 'notification' && userId) {
+        emitToUser(userId, 'new_notification', {
+            notif_id: Date.now(),
+            user_id: userId,
+            message: message || 'ทดสอบการแจ้งเตือน Real-Time สำเร็จ!',
+            created_at: new Date()
+        });
+        return res.json({ success: true, message: 'Notification emitted' });
+    }
+    if (type === 'chat' && roomId) {
+        emitToRoom(roomId, 'new_chat_message', {
+            id: Date.now(),
+            room_id: Number(roomId),
+            user_id: userId || 999,
+            user_name: 'ผู้ทดสอบ',
+            message: message || 'ทดสอบแชต Real-Time สำเร็จ!',
+            created_at: new Date()
+        });
+        return res.json({ success: true, message: 'Chat message emitted' });
+    }
+    res.status(400).json({ success: false, message: 'Invalid test payload' });
+});
 
 // ----------------------------------------------------
 // ❓ Handle 404 Not Found (กรณีเรียก Route ที่ไม่มีอยู่จริง)
@@ -86,10 +152,10 @@ app.use((err, req, res, next) => {
 });
 
 // ----------------------------------------------------
-// 🚀 สั่งรัน Server
+// 🚀 สั่งรัน Server (ใช้ server.listen เพื่อรองรับ WebSocket)
 // ----------------------------------------------------
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`=================================`);
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Server running with Socket.io on http://localhost:${PORT}`);
     console.log(`=================================`);
 });
