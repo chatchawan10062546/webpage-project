@@ -73,7 +73,7 @@
         }
     };
 
-    window.openChat = async (otherUserId, itemTitle, itemId, existingRoomId) => {
+    window.openChat = async (otherUserId, itemTitle, itemId, existingRoomId, initialMessage = "") => {
         const user = getUser();
         const userId = user?.id || user?.user_id || user?.userId;
         if (!userId) return alert('กรุณาเข้าสู่ระบบก่อนเปิดแชต');
@@ -128,6 +128,10 @@
 
             modal.show();
             loadMessages();
+            if (initialMessage) {
+                const msgInput = document.getElementById("chatMessageInput");
+                if (msgInput) { msgInput.value = initialMessage; msgInput.focus(); }
+            }
             const refreshTimer = setInterval(loadMessages, 2000);
             modalElement.addEventListener('hidden.bs.modal', () => {
                 clearInterval(refreshTimer);

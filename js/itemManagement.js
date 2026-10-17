@@ -198,7 +198,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const itemId = document.getElementById('editItemId').value;
         sendRequest(`/api/items/${itemId}`, { method: 'PUT', body: formData })
-            .then(() => location.reload())
+            .then(() => {
+                alert('🎉 บันทึกการแก้ไขเรียบร้อยแล้ว!\nรายการของคุณจะถูกส่งให้แอดมินตรวจสอบความถูกต้องอีกครั้งก่อนแสดงผลบนหน้าเว็บครับ');
+                location.reload();
+            })
             .catch(error => alert('ไม่สามารถแก้ไขรายการได้: ' + error.message));
     });
 });

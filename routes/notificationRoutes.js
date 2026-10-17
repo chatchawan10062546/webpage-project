@@ -1,4 +1,4 @@
-﻿// ====================================================
+// ====================================================
 // 🔔 routes/notificationRoutes.js : API สำหรับระบบแจ้งเตือน
 // ====================================================
 const express = require('express');
@@ -52,6 +52,19 @@ router.put('/notifications/read-all', requireAuth, (req, res) => {
     db.query('UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE', [userId], (err) => {
         if (err) {
             console.error('Mark All Notifications Read Error:', err);
+            return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
+        }
+        res.json({ success: true });
+    });
+});
+
+// 📌 4. กดอ่านการแจ้งเตือนที่เกี่ยวกับธุรกรรมคนกลางทั้งหมด
+router.put('/notifications/mark-transactions-read', requireAuth, (req, res) => {
+    const userId = req.authUser.userId;
+
+    db.query("UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND type IN ('transaction_update', 'damage_claimed') AND is_read = FALSE", [userId], (err) => {
+        if (err) {
+            console.error('Mark Transaction Notifications Read Error:', err);
             return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
         }
         res.json({ success: true });

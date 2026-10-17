@@ -111,7 +111,7 @@ router.get('/items', (req, res) => {
 
 // 📌 2. API บันทึกรายการใหม่ลง DB
 router.post('/items', requireAuth, upload.any(), (req, res) => {
-   const { title, category, description, location, item_type, price, quantity } = req.body;
+   const { title, category, description, location, item_type, price, quantity, deposit } = req.body;
    const latitude = (req.body.latitude && req.body.latitude !== 'null') ? req.body.latitude : null;
    const longitude = (req.body.longitude && req.body.longitude !== 'null') ? req.body.longitude : null;
    const user_id = req.authUser.userId;
@@ -137,16 +137,29 @@ router.post('/items', requireAuth, upload.any(), (req, res) => {
    let image_url = uniqueFiles.length > 0 ? `/uploads/${uniqueFiles[0].filename}` : '';
 
    const sql = `
-      INSERT INTO items (title, category, description, image_url, location, latitude, longitude, status, user_id, item_type, price, quantity) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'available', ?, ?, ?, ?)
+      INSERT INTO items (title, category, description, image_url, location, latitude, longitude, status, user_id, item_type, price, deposit, quantity, is_approved) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'available', ?, ?, ?, ?, ?, 0)
     `;
 
-   db.query(sql, [title, category, description || '', image_url, location || '', latitude, longitude, user_id, item_type || 'free', price || 0, quantity || 1], (err, result) => {
+   db.query(sql, [title, category, description || '', image_url, location || '', latitude, longitude, user_id, item_type || 'free', price || 0, deposit || 0, quantity || 1], (err, result) => {
       if (err) {
          console.error('Post Item Error:', err);
          return res.status(500).json({ success: false, message: 'ไม่สามารถบันทึกลงฐานข้อมูลได้' });
       }
       const newItemId = result.insertId;
+
+      // 🔔 ส่งการแจ้งเตือนไปยังผู้ดูแลระบบ (Admin) ทุกคนว่ามีรายการใหม่รอตรวจสอบ
+      db.query("SELECT user_id FROM users WHERE role = 'admin'", (admErr, adminRows) => {
+          if (!admErr && adminRows && adminRows.length > 0) {
+              const typeText = (item_type === 'rent') ? 'ปล่อยเช่า' : (item_type === 'sell') ? 'ขาย' : 'ส่งต่อฟรี';
+              const notifMsg = `มีรายการ${typeText}ใหม่ "${title}" รอการตรวจสอบความปลอดภัยและความถูกต้องจากแอดมิน`;
+              adminRows.forEach(adm => {
+                  db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, ?, ?, ?, ?)',
+                      [adm.user_id, user_id, 'item_pending', newItemId, notifMsg]
+                  );
+              });
+          }
+      });
 
       if (uniqueFiles.length > 0) {
           const imgValues = uniqueFiles.map((f, idx) => [newItemId, `/uploads/${f.filename}`, idx]);
@@ -162,7 +175,7 @@ router.post('/items', requireAuth, upload.any(), (req, res) => {
 
 // 📌 3. API แก้ไขรายการของตัวเอง
 router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => {
-   const { title, category, description, location, latitude, longitude, item_type, price, quantity } = req.body;
+   const { title, category, description, location, latitude, longitude, item_type, price, quantity, deposit } = req.body;
    const user_id = req.authUser.userId;
    const { itemId } = req.params;
 
@@ -170,10 +183,10 @@ router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => 
       return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
    }
 
-   const values = [title, category, description || '', location || '', latitude, longitude, item_type || 'free', price || 0, quantity || 1];
+   const values = [title, category, description || '', location || '', latitude, longitude, item_type || 'free', price || 0, deposit || 0, quantity || 1];
    let sql = `
       UPDATE items
-      SET title = ?, category = ?, description = ?, location = ?, latitude = ?, longitude = ?, item_type = ?, price = ?, quantity = ?, is_approved = 0, is_edited = 1
+      SET title = ?, category = ?, description = ?, location = ?, latitude = ?, longitude = ?, item_type = ?, price = ?, deposit = ?, quantity = ?, is_approved = 0, is_edited = 1
    `;
 
    if (req.file) {

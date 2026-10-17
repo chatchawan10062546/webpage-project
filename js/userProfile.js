@@ -27,10 +27,13 @@ function updateProfileUI() {
             reportNavContainer.innerHTML = '<a class="nav-link" href="#" id="reportProblemBtn">แจ้งปัญหา</a>';
         }
 
-        if (!userId) {
-                    const myReqNav = document.getElementById('myRequestsNavContainer');
+        const myReqNav = document.getElementById('myRequestsNavContainer');
         if (myReqNav) myReqNav.classList.remove('d-none');
-        authContainer.innerHTML = `
+        const myTxNav = document.getElementById('myTransactionsNavContainer');
+        if (myTxNav) myTxNav.classList.remove('d-none');
+
+        if (!userId) {
+            authContainer.innerHTML = `
                 <button class="btn btn-light text-success fw-bold px-4 rounded-pill shadow-sm"
                     data-bs-toggle="modal" data-bs-target="#loginModal">เข้าสู่ระบบ</button>
             `;
@@ -44,10 +47,11 @@ function updateProfileUI() {
 
         authContainer.innerHTML = `
             <div class="dropdown d-inline-block">
-                <button class="btn user-profile-btn dropdown-toggle d-flex align-items-center gap-2" 
+                <button class="btn user-profile-btn dropdown-toggle d-flex align-items-center gap-2 position-relative" 
                         type="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
                     ${avatarHtml}
                     <span class="user-profile-name">${user.name || 'ผู้ใช้งาน'}</span>
+                    <span class="badge bg-danger rounded-pill ms-1" id="userMenuTxBadge" style="display: none; font-size: 0.7rem;">0</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2" aria-labelledby="userMenu">
                     <li class="px-3 py-2 border-bottom">
@@ -61,7 +65,10 @@ function updateProfileUI() {
                         <a class="dropdown-item" href="#" id="myListingsOpenBtn"><i class="bi bi-box-seam me-2"></i>รายการที่ฉันประกาศ</a>
                     </li>
                     <li>
-                        <a class="dropdown-item" href="#" id="myTransactionsOpenBtn"><i class="bi bi-bag-check me-2"></i>ประวัติซื้อขาย (คนกลาง)</a>
+                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="#" id="myTransactionsOpenBtn">
+                            <span><i class="bi bi-shield-check me-2 text-primary"></i>ประวัติซื้อขาย (คนกลาง)</span>
+                            <span class="badge bg-danger rounded-pill ms-2" id="myTransactionsBadge" style="display: none; font-size: 0.72rem;">0</span>
+                        </a>
                     </li>
                     ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html"><i class="bi bi-speedometer2 me-2"></i>หลังบ้านแอดมิน</a></li>' : ''}
                     <li>
@@ -72,11 +79,16 @@ function updateProfileUI() {
                 </ul>
             </div>
         `;
+
+        if (typeof window.updateTransactionsBadge === 'function') {
+            window.updateTransactionsBadge();
+        }
     } else {
-                const myReqNav = document.getElementById('myRequestsNavContainer');
+        const myReqNav = document.getElementById('myRequestsNavContainer');
         if (myReqNav) myReqNav.classList.add('d-none');
+        const myTxNav = document.getElementById('myTransactionsNavContainer');
+        if (myTxNav) myTxNav.classList.add('d-none');
         if (reportNavContainer) reportNavContainer.innerHTML = '';
-        // ✅ แก้ไขตรงนี้: เปลี่ยนเป็นปุ่มสีขาว ขอบมน ตัวหนังสือสีเขียว (btn-light text-success fw-bold)
         authContainer.innerHTML = `
             <button class="btn btn-light text-success fw-bold px-4 rounded-pill shadow-sm" 
                     data-bs-toggle="modal" data-bs-target="#loginModal">
@@ -91,8 +103,9 @@ function logoutUser() {
     localStorage.removeItem('authToken');
     location.reload();
 }
+
 document.addEventListener('click', e => {
-    if (e.target.closest('#myTransactionsOpenBtn')) {
+    if (e.target.closest('#myTransactionsOpenBtn') || e.target.closest('#myTransactionsNavBtn')) {
         e.preventDefault();
         if (typeof window.openMyTransactionsModal === 'function') window.openMyTransactionsModal();
     }

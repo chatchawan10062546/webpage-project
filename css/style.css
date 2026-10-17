@@ -682,3 +682,96 @@ body {
 .navbar-dark .navbar-nav .nav-link:hover {
     color: #e0e0e0 !important;
 }
+
+/* ==========================================
+   🔑 Flatpickr Inline Calendar (Full Width & Responsive)
+   ========================================== */
+#rentalBookingModal {
+    width: 100% !important;
+}
+
+#rentalBookingModal .flatpickr-calendar {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+}
+
+#rentalBookingModal .flatpickr-innerContainer {
+    width: 100% !important;
+    display: block !important;
+}
+
+#rentalBookingModal .flatpickr-rContainer {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+#rentalBookingModal .flatpickr-days {
+    width: 100% !important;
+}
+
+#rentalBookingModal .dayContainer {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+}
+
+#rentalBookingModal .flatpickr-day {
+    max-width: 14.2857% !important;
+    flex-basis: 14.2857% !important;
+    height: 46px !important;
+    line-height: 46px !important;
+    border-radius: 10px !important;
+    font-size: 1.05rem !important;
+    font-weight: 500 !important;
+    margin: 2px 0 !important;
+}
+
+#rentalBookingModal .flatpickr-weekdays {
+    width: 100% !important;
+    height: 38px !important;
+}
+
+#rentalBookingModal .flatpickr-weekdaycontainer {
+    width: 100% !important;
+    display: flex !important;
+}
+
+#rentalBookingModal span.flatpickr-weekday {
+    flex: 1 !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    color: #495057 !important;
+}
+
+#rentalBookingModal .flatpickr-months {
+    padding: 6px 0 !important;
+    margin-bottom: 6px !important;
+}
+
+#rentalBookingModal .flatpickr-current-month {
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    padding-top: 4px !important;
+}
+
+#rentalBookingModal .flatpickr-day.selected, 
+#rentalBookingModal .flatpickr-day.startRange, 
+#rentalBookingModal .flatpickr-day.endRange {
+    background: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+#rentalBookingModal .flatpickr-day.inRange {
+    background: #e7f1ff !important;
+    box-shadow: -5px 0 0 #e7f1ff, 5px 0 0 #e7f1ff !important;
+    border-color: #e7f1ff !important;
+    color: #0d6efd !important;
+}

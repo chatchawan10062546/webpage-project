@@ -98,18 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof window.loadMyRequests === 'function') window.loadMyRequests();
                 myRequestsModal.show();
             }
-        } else if (type === 'transaction_update') {
-            const transId = notifItem.dataset.refId;
-            if (transId) {
-                // สมมติว่ามีฟังก์ชัน openTransactionModal(transId) หรือเราเปิด Modal ด้วยวิธีของระบบ
-                if (typeof window.openTransactionDetail === 'function') {
-                    window.openTransactionDetail(transId);
-                } else if (typeof window.showTransactionModal === 'function') {
-                    window.showTransactionModal(transId);
-                } else {
-                    const txModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('transactionModal'));
-                    if (txModal) txModal.show();
-                }
+        } else if (type === 'transaction_update' || type === 'damage_claimed') {
+            if (typeof window.openMyTransactionsModal === 'function') {
+                window.openMyTransactionsModal();
             }
         }
 

@@ -181,6 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 data-status="${item.status || 'available'}"
                                 data-location="${safeLocation}"
                                 data-description="${safeDescription}"
+                                data-deposit="${item.deposit || 0}"
                                 data-images="${imagesJson}">
                                 ดูรายละเอียด
                             </button>
@@ -211,6 +212,17 @@ document.addEventListener('DOMContentLoaded', () => {
         filterForm.addEventListener('submit', (e) => {
             e.preventDefault();
             loadItemsFromDB();
+
+    // Auto-reload items when filters change
+    ['typeFilter', 'categoryFilter', 'sortFilter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => {
+                loadItemsFromDB();
+            });
+        }
+    });
+
         });
     }
     const resetFilterBtn = document.getElementById('resetFilterBtn');
@@ -220,6 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
             loadItemsFromDB();
         });
     }
+
+    
+    
 
     loadItemsFromDB();
 
@@ -258,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             const price = document.getElementById('postPrice')?.value || '0';
+            const deposit = document.getElementById('postDeposit')?.value || '0';
             const quantity = document.getElementById('postQuantity')?.value || '1';
             const title = document.getElementById('postTitle')?.value || 'รายการใหม่';
             const category = document.getElementById('postCategory')?.value || 'อื่นๆ';
@@ -293,6 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('quantity', quantity);
             formData.append('item_type', itemType);
             formData.append('price', price);
+            formData.append('deposit', deposit);
             formData.append('location', location);
             formData.append('description', description);
             formData.append('latitude', coordinates.latitude);
@@ -319,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (data.success) {
-                    alert('🎉 ลงประกาศและบันทึกข้อมูลสำเร็จเรียบร้อยแล้ว!');
+                    alert('🎉 ส่งข้อมูลลงประกาศสำเร็จเรียบร้อยแล้ว!\n\nรายการของคุณถูกส่งไปยังผู้ดูแลระบบ (Admin) เพื่อตรวจสอบความถูกต้องและความปลอดภัยเรียบร้อยแล้ว\nเมื่อแอดมินทำการอนุมัติ รายการจะปรากฏบนหน้าเว็บทันทีครับ');
                     
                     e.target.reset();
                     selectedPostFiles = [];
@@ -441,6 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const location = btn.dataset.location || card?.querySelector('.text-muted')?.innerText || 'ใกล้ตัวคุณ';
             const description = btn.dataset.description || card?.querySelector('.text-secondary')?.innerText || 'ไม่มีรายละเอียด';
             const price = btn.dataset.price || '0';
+            const deposit = Number(btn.dataset.deposit || 0);
             const distance = btn.dataset.distance || '';
 
             let itemType = btn.dataset.type;
@@ -473,13 +491,331 @@ document.addEventListener('DOMContentLoaded', () => {
             const lat = btn.dataset.latitude || (itemCard ? itemCard.dataset.latitude : '');
             const lng = btn.dataset.longitude || (itemCard ? itemCard.dataset.longitude : '');
 
-            showItemDetailModal({ itemId, ownerId, ownerName, ownerLevel, ownerRating, title, category, itemType, price, quantity, status, location, description, images, distance, lat, lng });
+            showItemDetailModal({ itemId, ownerId, ownerName, ownerLevel, ownerRating, title, category, itemType, price, deposit, quantity, status, location, description, images, distance, lat, lng });
         }
     });
 
     // ----------------------------------------------------
     // 5. ฟังก์ชันสร้าง Modal ขนาดใหญ่ + Layout แนวตั้ง (รูปบน -> ข้อมูลกลาง -> ปุ่มล่าง)
     // ----------------------------------------------------
+    
+    // ----------------------------------------------------
+    // 🔑 ฟังก์ชันเปิด Modal ปฏิทินจองเช่าสินค้า + คำนวณราคา Real-time
+    // ----------------------------------------------------
+        function openRentalBookingModal(item) {
+        document.getElementById('rentalBookingModal')?.remove();
+
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const formatISODate = (d) => {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const minDateStr = formatISODate(today);
+        let defaultStartStr = minDateStr;
+        let defaultEndStr = formatISODate(tomorrow);
+
+        const dailyPrice = Number(item.price || 0);
+        const deposit = Number(item.deposit || 0);
+
+        const modalHTML = `
+            
+<style id="rentalCalendarFullWidthStyle">
+    #rentalBookingModal .flatpickr-calendar {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: transparent !important;
+        margin: 0 auto !important;
+    }
+    #rentalBookingModal .flatpickr-innerContainer {
+        width: 100% !important;
+        display: block !important;
+    }
+    #rentalBookingModal .flatpickr-rContainer {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    #rentalBookingModal .flatpickr-weekdays {
+        width: 100% !important;
+        height: 42px !important;
+    }
+    #rentalBookingModal .flatpickr-weekdaycontainer {
+        width: 100% !important;
+        display: flex !important;
+    }
+    #rentalBookingModal span.flatpickr-weekday {
+        flex: 1 !important;
+        max-width: 14.2857% !important;
+        font-size: 1.05rem !important;
+        font-weight: 700 !important;
+        color: #333333 !important;
+    }
+    #rentalBookingModal .flatpickr-days {
+        width: 100% !important;
+        display: block !important;
+    }
+    #rentalBookingModal .dayContainer {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+    }
+    #rentalBookingModal .flatpickr-day {
+        max-width: 14.2857% !important;
+        width: 14.2857% !important;
+        flex-basis: 14.2857% !important;
+        height: 52px !important;
+        line-height: 52px !important;
+        border-radius: 12px !important;
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        margin: 2px 0 !important;
+    }
+    #rentalBookingModal .flatpickr-months {
+        padding: 8px 0 !important;
+        margin-bottom: 8px !important;
+    }
+    #rentalBookingModal .flatpickr-current-month {
+        font-size: 1.35rem !important;
+        font-weight: 700 !important;
+        padding-top: 6px !important;
+    }
+    #rentalBookingModal .flatpickr-day.selected, 
+    #rentalBookingModal .flatpickr-day.startRange, 
+    #rentalBookingModal .flatpickr-day.endRange {
+        background: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+    #rentalBookingModal .flatpickr-day.inRange {
+        background: #e7f1ff !important;
+        box-shadow: -5px 0 0 #e7f1ff, 5px 0 0 #e7f1ff !important;
+        border-color: #e7f1ff !important;
+        color: #0d6efd !important;
+    }
+</style>
+
+            <div class="modal fade" id="rentalBookingModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width: 640px;">
+                    <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                        <div class="modal-header bg-warning bg-opacity-25 border-0 p-4 pb-2">
+                            <div>
+                                <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-bold mb-1">🔑 ปฏิทินจองเช่าสินค้า</span>
+                                <h4 class="modal-title fw-bold text-dark mb-0">เลือกวันที่ต้องการเช่า</h4>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+
+                        <div class="modal-body p-4 pt-2">
+                            <!-- รายละเอียดสินค้าสั้นๆ -->
+                            <div class="d-flex align-items-center gap-3 p-3 bg-light rounded-4 mb-3 border">
+                                <img src="${(item.images && item.images[0]) || item.image_url || 'https://via.placeholder.com/80'}" 
+                                     class="rounded-3 object-fit-cover shadow-sm" style="width: 70px; height: 70px;">
+                                <div class="flex-grow-1">
+                                    <h6 class="fw-bold mb-1 text-truncate" style="max-width: 320px;">${item.title}</h6>
+                                    <div class="small text-muted mb-1">ผู้ปล่อยเช่า: <strong>${item.ownerName || 'เจ้าของสินค้า'}</strong></div>
+                                    <div class="badge bg-warning text-dark">ค่าเช่า ฿${dailyPrice.toLocaleString()}/วัน</div>
+                                    ${deposit > 0 ? `<div class="badge bg-secondary ms-1">มัดจำ ฿${deposit.toLocaleString()}</div>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- ส่วนปฏิทินแบบ Interactive Grid -->
+                            <div class="bg-white p-3 rounded-4 border shadow-sm mb-3 text-center">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold text-dark mb-0"><i class="bi bi-calendar3 me-2 text-warning"></i>จิ้มเลือกวันบนปฏิทิน (วันเริ่ม ➡️ วันคืน):</h6>
+                                </div>
+                                
+                                <!-- Container ปฏิทินแบบแสดงผลทันที -->
+                                <div id="rentalInlineCalendar" class="w-100 my-2"></div>
+
+                                <!-- ช่องระบุวันที่ (ซิงค์กับปฏิทิน) -->
+                                <div class="row g-2 mt-2 pt-2 border-top text-start">
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-muted mb-1">📅 วันเริ่มเช่า</label>
+                                        <input type="date" id="rentalStartDateInput" class="form-control rounded-3 fw-bold border-2" 
+                                               min="${minDateStr}" value="${defaultStartStr}" onclick="if (this.showPicker) this.showPicker();">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-muted mb-1">🏁 วันส่งคืน</label>
+                                        <input type="date" id="rentalEndDateInput" class="form-control rounded-3 fw-bold border-2" 
+                                               min="${defaultStartStr}" value="${defaultEndStr}" onclick="if (this.showPicker) this.showPicker();">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- กล่องคำนวณราคาแบบ Real-time -->
+                            <div class="card border-0 bg-light rounded-4 p-3 mb-4 border">
+                                <h6 class="fw-bold text-dark mb-2">สรุปค่าใช้จ่าย:</h6>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">⏱️ ระยะเวลาเช่า:</span>
+                                    <span class="fw-bold text-dark"><span id="calcRentalDays">1</span> วัน</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">💵 ค่าเช่ารวม (฿${dailyPrice.toLocaleString()} × <span id="calcDaysMultiply">1</span> วัน):</span>
+                                    <span class="fw-bold text-dark">฿<span id="calcTotalRent">0</span></span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">🛡️ เงินมัดจำประกันสินค้า (คืนเมื่อส่งของครบ):</span>
+                                    <span class="fw-bold text-primary">฿<span id="calcDeposit">0</span></span>
+                                </div>
+                                <div class="alert alert-warning py-2 px-3 mt-2 mb-2 rounded-3 small border border-warning-subtle text-start" style="font-size: 0.8rem; line-height: 1.45;">
+                                    <i class="bi bi-shield-exclamation text-warning me-1"></i>
+                                    <strong>ข้อตกลงเงินมัดจำ:</strong> เงินมัดจำจะถูกดูแลโดยคนกลาง (แอดมิน) และจะได้รับคืนเต็มจำนวนเมื่อส่งคืนสินค้าในสภาพสมบูรณ์ ทั้งนี้ <em>หากเกิดกรณีที่สินค้าชำรุด/พังเสียหายจริงแล้วผู้เช่าไม่ยินยอมให้หัก หากแอดมินตรวจสอบพยานหลักฐานแล้วพบว่าชำรุดจริง แอดมินมีสิทธิ์ตัดสินใจโอนเงินมัดจำชดเชยค่าเสียหายให้เจ้าของสินค้าได้ทันที</em>
+                                </div>
+                                <hr class="my-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold fs-5 text-dark">💳 ยอดรวมทั้งสิ้น:</span>
+                                    <span class="display-6 fw-bold text-success mb-0" style="font-size: 1.75rem;">฿<span id="calcGrandTotal">0</span></span>
+                                </div>
+                            </div>
+
+                            <!-- 2 ทางเลือก: นัดรับคุยตรง หรือ ผ่านระบบคนกลาง -->
+                            <h6 class="fw-bold text-dark mb-2">เลือกรูปแบบการเช่า:</h6>
+                            <div class="d-flex flex-column gap-2">
+                                <button type="button" class="btn btn-primary p-3 rounded-4 shadow-sm fw-bold fs-6" id="rentalEscrowBtn">
+                                    🛡️ เช่าผ่านระบบคนกลาง (ปลอดภัย 100%)
+                                    <div class="small opacity-75 fw-normal">พักค่าเช่า + เงินมัดจำไว้ที่ระบบ ปล่อยเงินและคืนมัดจำเมื่อตรวจรับของ</div>
+                                </button>
+                                <button type="button" class="btn btn-outline-success p-3 rounded-4 shadow-sm fw-bold fs-6" id="rentalDirectBtn">
+                                    🤝 นัดรับ / คุยตรงกับผู้ปล่อยเช่า
+                                    <div class="small opacity-75 fw-normal">เปิดแชตพร้อมสรุปวันและยอดรวม เพื่อส่งมอบและจ่ายเงินกันโดยตรง</div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        const modalEl = document.getElementById('rentalBookingModal');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+
+        const startInput = document.getElementById('rentalStartDateInput');
+        const endInput = document.getElementById('rentalEndDateInput');
+        const calcDaysEl = document.getElementById('calcRentalDays');
+        const calcMultiplyEl = document.getElementById('calcDaysMultiply');
+        const calcRentEl = document.getElementById('calcTotalRent');
+        const calcDepositEl = document.getElementById('calcDeposit');
+        const calcGrandTotalEl = document.getElementById('calcGrandTotal');
+
+        function calculateRental() {
+            const startVal = startInput.value;
+            const endVal = endInput.value;
+            if (!startVal || !endVal) return null;
+
+            const startDate = new Date(startVal);
+            const endDate = new Date(endVal);
+
+            if (endDate < startDate) {
+                endInput.value = startVal;
+                return calculateRental();
+            }
+
+            const diffTime = endDate.getTime() - startDate.getTime();
+            const days = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)));
+            const totalRent = dailyPrice * days;
+            const grandTotal = totalRent + deposit;
+
+            calcDaysEl.textContent = days;
+            calcMultiplyEl.textContent = days;
+            calcRentEl.textContent = totalRent.toLocaleString();
+            calcDepositEl.textContent = deposit.toLocaleString();
+            calcGrandTotalEl.textContent = grandTotal.toLocaleString();
+
+            return { days, totalRent, deposit, grandTotal, startVal, endVal };
+        }
+
+        // Initialize Flatpickr if available
+        let fpInstance = null;
+        if (typeof flatpickr !== 'undefined') {
+            try {
+                fpInstance = flatpickr("#rentalInlineCalendar", {
+                    inline: true,
+                    mode: "range",
+                    minDate: "today",
+                    defaultDate: [defaultStartStr, defaultEndStr],
+                    locale: flatpickr.l10ns?.th || undefined,
+                    dateFormat: "Y-m-d",
+                    onChange: function(selectedDates) {
+                        if (selectedDates.length === 2) {
+                            startInput.value = formatISODate(selectedDates[0]);
+                            endInput.value = formatISODate(selectedDates[1]);
+                            calculateRental();
+                        } else if (selectedDates.length === 1) {
+                            startInput.value = formatISODate(selectedDates[0]);
+                            endInput.value = formatISODate(selectedDates[0]);
+                            calculateRental();
+                        }
+                    }
+                });
+            } catch (err) {
+                console.warn('Flatpickr init fallback to inputs', err);
+            }
+        }
+
+        startInput.addEventListener('change', () => {
+            endInput.min = startInput.value;
+            if (endInput.value < startInput.value) {
+                endInput.value = startInput.value;
+            }
+            if (fpInstance) {
+                fpInstance.setDate([startInput.value, endInput.value]);
+            }
+            calculateRental();
+        });
+
+        endInput.addEventListener('change', () => {
+            if (endInput.value < startInput.value) {
+                endInput.value = startInput.value;
+            }
+            if (fpInstance) {
+                fpInstance.setDate([startInput.value, endInput.value]);
+            }
+            calculateRental();
+        });
+
+        // คำนวณครั้งแรก
+        calculateRental();
+
+        // กดปุ่มเช่าผ่านระบบคนกลาง
+        document.getElementById('rentalEscrowBtn').addEventListener('click', () => {
+            const calc = calculateRental();
+            if (!calc) return;
+            modal.hide();
+            if (typeof window.startEscrowPurchase === 'function') {
+                window.startEscrowPurchase(item, {
+                    rental_start_date: calc.startVal,
+                    rental_end_date: calc.endVal,
+                    rental_days: calc.days,
+                    deposit_amount: calc.deposit
+                });
+            }
+        });
+
+        // กดปุ่มนัดรับ / คุยตรง
+        document.getElementById('rentalDirectBtn').addEventListener('click', () => {
+            const calc = calculateRental();
+            if (!calc) return;
+            modal.hide();
+            const initialMsg = `สวัสดีครับ สนใจขอเช่า "${item.title}" ตั้งแต่วันที่ ${calc.startVal} ถึง ${calc.endVal} (รวม ${calc.days} วัน)\n- ค่าเช่า: ฿${calc.totalRent.toLocaleString()}\n- เงินมัดจำ: ฿${calc.deposit.toLocaleString()}\n- ยอดรวม: ฿${calc.grandTotal.toLocaleString()}\nสะดวกนัดรับแถวไหนครับ?`;
+            if (typeof window.openChat === 'function') {
+                window.openChat(item.ownerId, item.title, item.itemId, null, initialMsg);
+            }
+        });
+    }
+
     function showItemDetailModal(item) {
         const oldModal = document.getElementById('itemDetailModal');
         if (oldModal) oldModal.remove();
@@ -507,13 +843,51 @@ document.addEventListener('DOMContentLoaded', () => {
         const isUnavailable = item.status === 'reserved' || item.status === 'completed' || (item.quantity !== undefined && Number(item.quantity) <= 0);
 
         if (isOwner) {
-            actionButtonsHTML = '';
+            actionButtonsHTML = `
+                <div class="alert alert-info rounded-4 p-3 mb-0 border-0 shadow-sm">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div>
+                            <span class="fw-bold"><i class="bi bi-person-badge me-1"></i> คุณคือเจ้าของรายการนี้</span>
+                            <div class="small opacity-75">ผู้ใช้อื่นจะเห็นปุ่มจองเช่าและติดต่อผู้โพสต์</div>
+                        </div>
+                        ${item.itemType === 'rent' ? `
+                            <button type="button" class="btn btn-warning rounded-pill fw-bold text-dark px-3 py-2 btn-select-option shadow-sm" data-action="rent-calendar">
+                                📅 ทดสอบเปิดปฏิทินจองเช่า
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
         } else if (isUnavailable) {
             actionButtonsHTML = `
                 <div class="alert alert-secondary text-center rounded-4 p-3 mb-0 fw-bold fs-5 border-0 shadow-sm" style="background-color: #e9ecef; color: #495057;">
                     🔒 รายการนี้ถูกจอง หรือมีผู้ได้รับไปเรียบร้อยแล้ว
                     <div class="fs-6 opacity-75 fw-normal mt-1">ขณะนี้สินค้าหมดชั่วคราว ไม่สามารถส่งคำขอหรือทำรายการได้</div>
                 </div>
+            `;
+        } else if (item.itemType === 'rent') {
+            const depositAmt = Number(item.deposit || 0);
+            actionButtonsHTML = `
+                <div class="card border-0 bg-warning bg-opacity-10 rounded-4 p-3 mb-3 border border-warning shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-dark fw-bold"><i class="bi bi-tag-fill text-warning me-1"></i> ค่าเช่า:</span>
+                        <span class="fs-5 fw-bold text-dark">฿${Number(item.price).toLocaleString()} / วัน</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small"><i class="bi bi-shield-lock-fill text-primary me-1"></i> เงินมัดจำ/ประกันสินค้า:</span>
+                        <span class="fw-bold text-secondary">฿${depositAmt.toLocaleString()} <span class="small text-success fw-normal">(ได้คืนเมื่อคืนของครบ)</span></span>
+                    </div>
+                </div>
+                <button class="btn btn-warning w-100 p-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold text-dark mb-3" 
+                        data-action="rent-calendar">
+                    📅 เลือกวันที่และจองเช่าสินค้า
+                    <div class="fs-6 opacity-75 fw-normal mt-1">คำนวณวันและยอดรวมผ่านปฏิทิน เลือกนัดรับหรือผ่านคนกลางได้</div>
+                </button>
+                <button class="btn btn-outline-primary w-100 p-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
+                        data-action="direct">
+                    💬 แชตพูดคุยกับผู้ปล่อยเช่า
+                    <div class="fs-6 opacity-75 fw-normal mt-1">สอบถามรายละเอียดเพิ่มเติม</div>
+                </button>
             `;
         } else {
             actionButtonsHTML = `
@@ -525,13 +899,10 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             if (item.itemType !== 'free') {
-                const typeLabel = item.itemType === 'sell'
-                    ? `ซื้อขาย (฿${Number(item.price).toLocaleString()})`
-                    : `ให้เช่า (฿${Number(item.price).toLocaleString()}/วัน)`;
                 actionButtonsHTML += `
                     <button class="btn btn-primary w-100 p-3 mt-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
                             style="background-color: #0d6efd;" data-action="escrow">
-                        🛡️ ดำเนินการ${typeLabel} ผ่านระบบคนกลาง
+                        🛡️ ดำเนินการซื้อขาย (฿${Number(item.price).toLocaleString()}) ผ่านระบบคนกลาง
                         <div class="fs-6 opacity-75 fw-normal mt-1">ชำระเงินปลอดภัย พักเงินไว้ที่ระบบจนกว่าจะได้รับของเรียบร้อย</div>
                     </button>
                 `;
@@ -756,6 +1127,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         btn.innerHTML = originalHTML;
                         showModalNotice('danger', 'ส่งคำขอไม่สำเร็จ', res?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
                     }
+                } else if (action === 'rent-calendar') {
+                    detailModal.hide();
+                    openRentalBookingModal(item);
                 } else if (action === 'escrow') {
                     detailModal.hide();
                     if (typeof window.startEscrowPurchase === 'function') {

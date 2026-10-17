@@ -42,6 +42,20 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
 
+                            <!-- ช่องใส่เงินมัดจำ/ประกัน (เปิดเมื่อเลือกให้เช่า) -->
+                            <div class="mb-3 d-none" id="depositInputContainer">
+                                <label for="postDeposit" class="form-label fw-bold text-dark">🛡️ เงินมัดจำ / ประกันสินค้าเสียหาย (บาท)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="postDeposit" placeholder="0" min="0">
+                                    <span class="input-group-text">บาท</span>
+                                </div>
+                                <div class="form-text text-muted">เงินส่วนนี้จะคืนให้ผู้เช่าเมื่อส่งของคืนสภาพสมบูรณ์ (หากไม่มีให้ใส่ 0)</div>
+                                <div class="alert alert-warning py-2 px-3 mt-2 mb-0 rounded-3 small border border-warning-subtle d-flex align-items-center gap-2">
+                                    <i class="bi bi-lightbulb-fill text-warning flex-shrink-0 fs-6"></i>
+                                    <div><strong>💡 คำแนะนำการตั้งมัดจำ:</strong> ควรตั้งค่ามัดจำประมาณ <strong>30% - 50% ของมูลค่าสินค้า</strong> เพื่อคุ้มครองกรณีเกิดการชำรุด เสียหาย หรืออุปกรณ์สูญหาย</div>
+                                </div>
+                            </div>
+
                             <div class="mb-3">
                                 <label for="postTitle" class="form-label fw-bold">ชื่อรายการสิ่งของ <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="postTitle" placeholder="เช่น สลัดผัก, หนังสือเรียน, หม้อทอด" required>
@@ -109,6 +123,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <div class="form-text text-muted mt-2" style="font-size: 0.8rem;">
                                             รองรับ JPG, PNG, WEBP สูงสุดไม่เกิน 5 รูป (รูปแรกเป็นรูปหน้าปก)
                                         </div>
+                                        <div class="alert alert-info py-2 px-3 mt-2 mb-0 rounded-3 small text-start border border-info-subtle d-flex align-items-center gap-2">
+                                            <i class="bi bi-camera-fill text-primary flex-shrink-0 fs-6"></i>
+                                            <div><strong>📸 ข้อแนะนำ:</strong> ควรถ่ายและแนบรูปภาพสภาพสินค้าจริงในปัจจุบัน เพื่อเก็บไว้ใช้เป็นหลักฐานเช็กสภาพก่อน-หลัง (Before/After) ในการตรวจสอบความเสียหายเมื่อได้รับของคืน</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -123,23 +141,27 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     `;
 
-    // ซ่อน/แสดง ช่องระบุราคา
+    // ซ่อน/แสดง ช่องระบุราคา และเงินมัดจำ
     document.addEventListener('change', (e) => {
         if (e.target && e.target.name === 'itemType') {
             const priceContainer = document.getElementById('priceInputContainer');
+            const depositContainer = document.getElementById('depositInputContainer');
             const priceLabel = document.getElementById('priceLabel');
             const priceUnitText = document.getElementById('priceUnitText');
 
             if (e.target.value === 'sell') {
-                priceContainer.classList.remove('d-none');
-                priceLabel.innerText = 'ราคาขาย (บาท)';
-                priceUnitText.innerText = 'บาท';
+                priceContainer?.classList.remove('d-none');
+                depositContainer?.classList.add('d-none');
+                if (priceLabel) priceLabel.innerText = 'ราคาขาย (บาท)';
+                if (priceUnitText) priceUnitText.innerText = 'บาท';
             } else if (e.target.value === 'rent') {
-                priceContainer.classList.remove('d-none');
-                priceLabel.innerText = 'ค่าเช่า (บาท/วัน)';
-                priceUnitText.innerText = 'บาท/วัน';
+                priceContainer?.classList.remove('d-none');
+                depositContainer?.classList.remove('d-none');
+                if (priceLabel) priceLabel.innerText = 'ค่าเช่า (บาท/วัน)';
+                if (priceUnitText) priceUnitText.innerText = 'บาท/วัน';
             } else {
-                priceContainer.classList.add('d-none');
+                priceContainer?.classList.add('d-none');
+                depositContainer?.classList.add('d-none');
             }
         }
     });
