@@ -89,6 +89,7 @@ router.get('/admin/transactions', requireAdmin, (req, res) => {
     db.query(
         `SELECT t.trans_id, t.item_id, i.title AS item_title, t.amount, t.status,
                 t.payment_status, t.shipping_status, t.tracking_number, t.shipped_at, t.release_at, t.payment_reference,
+                t.trans_ref, t.is_slip_verified, t.slip_verified_at,
                 g.name AS giver_name, r.name AS receiver_name, i.item_type, t.rental_start_date, t.rental_end_date, t.rental_days, t.deposit_amount, t.rental_status, t.return_tracking, t.returned_at,
                 t.claim_amount, t.claim_reason, t.claim_image, t.claim_status, t.claim_admin_decision,
                 g.promptpay_number AS seller_promptpay, g.promptpay_name AS seller_promptpay_name, r.promptpay_number AS buyer_promptpay, r.promptpay_name AS buyer_promptpay_name, t.admin_slip, t.deposit_refund_slip, t.created_at
@@ -233,6 +234,11 @@ router.patch('/admin/transactions/:id/complete', requireAdmin, upload.single('sl
             if (err) return res.status(500).json({ success: false, message: 'อัปเดตไม่สำเร็จ' });
             
             if (result.affectedRows > 0) {
+                // อัปเดตสถานะของสินค้าเป็น completed
+                db.query("UPDATE items i JOIN transactions t ON t.item_id = i.item_id SET i.status = 'completed' WHERE t.trans_id = ?", [id], (errItem) => {
+                    if (errItem) console.error('Error updating item status to completed:', errItem);
+                });
+
                 // แจ้งเตือนผู้ขายว่าแอดมินโอนเงินให้แล้ว
                 db.query("SELECT giver_id FROM transactions WHERE trans_id = ?", [id], (err2, rows) => {
                     if (!err2 && rows.length > 0) {
@@ -319,8 +325,8 @@ router.patch('/admin/transactions/:id/settle-claim', requireAdmin, settleUpload,
                     return res.status(500).json({ success: false, message: 'บันทึกการตัดสินไม่สำเร็จ' });
                 }
 
-                // ปรับสถานะสินค้ากลับเป็น available
-                db.query("UPDATE items SET status = 'available' WHERE item_id = ?", [tx.item_id]);
+                // ปรับสถานะสินค้าเป็น completed เมื่อเสร็จสิ้นธุรกรรม
+                db.query("UPDATE items SET status = 'completed' WHERE item_id = ?", [tx.item_id]);
 
                 // แจ้งเตือนผู้ให้เช่า
                 const ownerMsg = `แอดมินได้โอนค่าเช่าพร้อมค่าชดเชยความเสียหาย (รวม ฿${ownerPayout.toLocaleString()}) สำหรับ "${tx.item_title}" ให้คุณเรียบร้อยแล้ว`;

@@ -23,10 +23,6 @@ function updateProfileUI() {
         }
         const userId = user.id || user.user_id || user.userId || user._id;
 
-        if (reportNavContainer) {
-            reportNavContainer.innerHTML = '<a class="nav-link" href="#" id="reportProblemBtn">แจ้งปัญหา</a>';
-        }
-
         const myReqNav = document.getElementById('myRequestsNavContainer');
         if (myReqNav) myReqNav.classList.remove('d-none');
         const myTxNav = document.getElementById('myTransactionsNavContainer');
@@ -47,11 +43,10 @@ function updateProfileUI() {
 
         authContainer.innerHTML = `
             <div class="dropdown d-inline-block">
-                <button class="btn user-profile-btn dropdown-toggle d-flex align-items-center gap-2 position-relative" 
+                <button class="btn user-profile-btn dropdown-toggle d-flex align-items-center gap-2" 
                         type="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
                     ${avatarHtml}
                     <span class="user-profile-name">${user.name || 'ผู้ใช้งาน'}</span>
-                    <span class="badge bg-danger rounded-pill ms-1" id="userMenuTxBadge" style="display: none; font-size: 0.7rem;">0</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2" aria-labelledby="userMenu">
                     <li class="px-3 py-2 border-bottom">
@@ -64,13 +59,13 @@ function updateProfileUI() {
                     <li>
                         <a class="dropdown-item" href="#" id="myListingsOpenBtn"><i class="bi bi-box-seam me-2"></i>รายการที่ฉันประกาศ</a>
                     </li>
+                    ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html"><i class="bi bi-speedometer2 me-2"></i>หลังบ้านแอดมิน</a></li>' : ''}
+                    <li><hr class="dropdown-divider my-1"></li>
                     <li>
-                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="#" id="myTransactionsOpenBtn">
-                            <span><i class="bi bi-shield-check me-2 text-primary"></i>ประวัติซื้อขาย (คนกลาง)</span>
-                            <span class="badge bg-danger rounded-pill ms-2" id="myTransactionsBadge" style="display: none; font-size: 0.72rem;">0</span>
+                        <a class="dropdown-item text-secondary" href="#" id="reportProblemBtn">
+                            <i class="bi bi-exclamation-triangle me-2 text-warning"></i>แจ้งปัญหา / ช่วยเหลือ
                         </a>
                     </li>
-                    ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html"><i class="bi bi-speedometer2 me-2"></i>หลังบ้านแอดมิน</a></li>' : ''}
                     <li>
                         <button class="dropdown-item text-danger mt-1" onclick="logoutUser()">
                             <i class="bi bi-box-arrow-right me-2"></i>ออกจากระบบ
@@ -88,7 +83,6 @@ function updateProfileUI() {
         if (myReqNav) myReqNav.classList.add('d-none');
         const myTxNav = document.getElementById('myTransactionsNavContainer');
         if (myTxNav) myTxNav.classList.add('d-none');
-        if (reportNavContainer) reportNavContainer.innerHTML = '';
         authContainer.innerHTML = `
             <button class="btn btn-light text-success fw-bold px-4 rounded-pill shadow-sm" 
                     data-bs-toggle="modal" data-bs-target="#loginModal">

@@ -316,6 +316,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (t.payment_reference) {
                 buyerCol += `<a href="${escapeHtml(t.payment_reference)}" target="_blank" class="badge bg-light text-primary border border-primary text-decoration-none mt-1 d-inline-block"><i class="bi bi-receipt me-1"></i>ดูสลิปที่โอนเข้าคนกลาง</a>`;
             }
+            if (t.is_slip_verified) {
+                buyerCol += `<span class="badge bg-success-subtle text-success border border-success mt-1 ms-1 d-inline-block" title="รหัสอ้างอิง: ${escapeHtml(t.trans_ref || '')}"><i class="bi bi-patch-check-fill me-1"></i>SlipOK ผ่านแล้ว</span>`;
+            }
             if (isRental && t.buyer_promptpay) {
                 buyerCol += `<small class="text-primary d-block mt-1">พร้อมเพย์คืนมัดจำ: <strong>${escapeHtml(t.buyer_promptpay)}</strong>${t.buyer_promptpay_name ? ` (${escapeHtml(t.buyer_promptpay_name)})` : ''}</small>`;
             }

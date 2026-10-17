@@ -20,7 +20,7 @@ const { addXP } = require('../utils/xpHelper');
 // 📌 1. API ดึงรายการสิ่งของทั้งหมดจาก DB (เฉพาะที่อนุมัติแล้ว)
 router.get('/items', (req, res) => {
     const { category, type, min_price, max_price, sort, search, lat, lng, max_distance } = req.query;
-    let conditions = ['i.is_approved = TRUE', 'i.status != \'completed\''];
+    let conditions = ['i.is_approved = TRUE', "i.status = 'available'"];
     let params = [];
 
     // Filter by distance if provided

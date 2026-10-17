@@ -109,20 +109,57 @@
                                     </div>
                                 </div>
 
-                                <div class="text-center my-4 py-2 bg-light rounded-4 border border-dashed">
-                                    <div class="small text-muted mb-2"><i class="bi bi-qr-code me-1"></i>สแกน QR เพื่อชำระเงินเข้าสู่บัญชีระบบคนกลาง</div>
-                                    <img src="https://promptpay.io/0812345678/${amount}.png" alt="QR Code" class="img-fluid rounded-3 shadow-sm border p-2 bg-white" style="max-height: 200px;">
-                                    <div class="mt-2 text-muted fw-bold" style="font-size: 0.85rem;">ระบบคนกลาง PanSuk Escrow</div>
+                                <div class="my-3 p-4 rounded-4 shadow-sm text-center" style="background: linear-gradient(145deg, #ffffff, #f4fbf7); border: 1.5px solid #00a94f33;">
+                                    <!-- KBank Header with Official Logo -->
+                                    <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+                                        <img src="/assets/kbank_logo.svg" alt="KBank Logo" class="rounded-circle shadow-sm" style="height: 42px; width: 42px; object-fit: contain; background: white; padding: 2px; border: 1px solid #00a94f44;">
+                                        <div class="text-start">
+                                            <div class="fw-bold fs-5 text-dark" style="line-height: 1.2;">ธนาคารกสิกรไทย</div>
+                                            <small class="text-muted fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.5px;">KASIKORNBANK (KBANK)</small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Main Account Card -->
+                                    <div class="bg-white p-3 rounded-4 border shadow-sm my-2 position-relative overflow-hidden" style="border-color: #e2e8f0 !important;">
+                                        <div class="text-muted small mb-1 fw-semibold"><i class="bi bi-wallet2 me-1 text-success"></i>เลขที่บัญชีโอนเข้าคนกลาง</div>
+                                        
+                                        <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap my-2">
+                                            <span class="fs-3 fw-bold font-monospace" style="color: #008837; letter-spacing: 2px;">091-2-58117-9</span>
+                                            <button class="btn btn-sm rounded-pill px-3 py-1 fw-bold text-white shadow-sm d-flex align-items-center gap-1" 
+                                                    type="button" 
+                                                    title="คัดลอกเลขบัญชี" 
+                                                    style="background-color: #00a94f; border: none; font-size: 0.85rem;"
+                                                    onclick="navigator.clipboard.writeText('0912581179'); alert('คัดลอกเลขบัญชี 0912581179 แล้ว');">
+                                                <i class="bi bi-copy"></i>
+                                                <span>คัดลอก</span>
+                                            </button>
+                                        </div>
+
+                                        <div class="text-secondary small mt-2 pt-2 border-top">
+                                            ชื่อบัญชี: <strong class="text-dark fs-6">นาย ชัชวาล สิงห์เทศ</strong>
+                                        </div>
+                                    </div>
+
+                                    <!-- SlipOK Badge -->
+                                    <div class="d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill mt-2" style="background-color: #e6f7ee; color: #00a94f; font-size: 0.82rem; font-weight: 600; border: 1px solid #b7ebd0;">
+                                        <i class="bi bi-patch-check-fill"></i>
+                                        <span>ระบบตรวจสอบสลิปอัตโนมัติด้วย SlipOK</span>
+                                    </div>
                                 </div>
 
                                 <!-- อัปโหลดสลิป -->
                                 <div class="mb-3">
                                     <label class="form-label fw-bold text-dark"><i class="bi bi-receipt me-1"></i>อัปโหลดสลิปการโอนเงิน <span class="text-danger">*</span></label>
                                     <input type="file" id="slipFileInput" class="form-control rounded-3" accept="image/*">
+                                    <div class="form-text text-muted small"><i class="bi bi-info-circle me-1"></i>ระบบจะตรวจสอบ QR Code บนสลิปและยอดเงินกับธนาคารทันที</div>
                                 </div>
 
                                 <button class="btn btn-primary btn-lg w-100 rounded-pill shadow fw-bold py-3" id="confirmPaymentBtn">
-                                    <i class="bi bi-check-circle-fill me-2"></i>ยืนยันการชำระเงิน และอัปโหลดสลิป
+                                    <i class="bi bi-check-circle-fill me-2"></i>ยืนยันการชำระเงิน และตรวจสอบสลิปทันที
+                                </button>
+                                
+                                <button class="btn btn-outline-danger w-100 rounded-pill fw-bold py-2 mt-2" id="cancelPaymentBtn" type="button">
+                                    <i class="bi bi-x-circle me-1"></i>ยกเลิกรายการสั่งซื้อ / เช่านี้
                                 </button>
                                 
                                 <div class="text-center mt-3">
@@ -139,6 +176,7 @@
         const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
         modal.show();
 
+        // 1. กดยืนยันชำระเงินและตรวจสลิป
         document.getElementById('confirmPaymentBtn').addEventListener('click', async event => {
             const fileInput = document.getElementById('slipFileInput');
             if (!fileInput.files || fileInput.files.length === 0) {
@@ -148,7 +186,7 @@
             const btn = document.getElementById('confirmPaymentBtn');
             try {
                 btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังส่งข้อมูลสลิป...';
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังตรวจสอบสลิปกับระบบธนาคารอัตโนมัติ... ⏳';
 
                 const formData = new FormData();
                 formData.append('slip', fileInput.files[0]);
@@ -165,17 +203,42 @@
                 const data = await response.json();
                 if (!data.success) throw new Error(data.message || 'ชำระเงินไม่สำเร็จ');
 
-                alert('✅ แจ้งชำระเงินสำเร็จ! แนบสลิปเรียบร้อยแล้ว เงินจะถูกพักไว้ในระบบคนกลาง');
+                alert(data.message || '✅ ตรวจสอบสลิปถูกต้อง ชำระเงินสำเร็จทันที!');
                 setTimeout(() => {
                     modal.hide();
                     if (typeof openMyTransactionsModal === 'function') {
                         openMyTransactionsModal();
                     }
-                }, 1000);
+                }, 800);
             } catch (error) {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>ยืนยันการชำระเงิน และอัปโหลดสลิป';
-                alert('ชำระเงินไม่สำเร็จ: ' + error.message);
+                btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>ยืนยันการชำระเงิน และตรวจสอบสลิปทันที';
+                alert('❌ ' + error.message);
+            }
+        });
+
+        // 2. กดยกเลิกรายการ
+        document.getElementById('cancelPaymentBtn')?.addEventListener('click', async () => {
+            if (!confirm('ยืนยันยกเลิกรายการนี้หรือไม่?\n(เมื่อยกเลิกแล้ว สินค้าจะถูกคืนสถานะว่าง และปิดรายการนี้ทันที)')) return;
+            const cancelBtn = document.getElementById('cancelPaymentBtn');
+            try {
+                cancelBtn.disabled = true;
+                cancelBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังยกเลิกรายการ...';
+                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                const res = await fetch(`/api/transactions/${transactionId}/cancel`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message || 'ยกเลิกไม่สำเร็จ');
+                alert('✅ ' + (data.message || 'ยกเลิกรายการเรียบร้อยแล้ว'));
+                modal.hide();
+                if (typeof openMyTransactionsModal === 'function') openMyTransactionsModal();
+                if (typeof updateTransactionsBadge === 'function') updateTransactionsBadge();
+            } catch (err) {
+                cancelBtn.disabled = false;
+                cancelBtn.innerHTML = '<i class="bi bi-x-circle me-1"></i>ยกเลิกรายการสั่งซื้อ / เช่านี้';
+                alert('❌ ' + err.message);
             }
         });
     }
@@ -259,6 +322,17 @@
                 let actionBtn = '';
                 if (t.status === 'completed' || t.status === 'cancelled' || t.status === 'released') {
                     actionBtn = '';
+                } else if (isBuyer && t.status === 'awaiting_payment') {
+                    actionBtn = `
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                            <button class="btn btn-sm btn-primary fw-bold pay-pending-btn shadow-sm" data-tx-id="${t.trans_id}" data-item-id="${t.item_id}" data-item-title="${escapeHtml(t.title)}" data-item-type="${t.item_type}" data-item-image="${escapeHtml(t.image_url || '')}" data-amount="${t.amount}">
+                                <i class="bi bi-wallet2 me-1"></i>ชำระเงิน / แนบสลิป
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger fw-bold cancel-pending-tx-btn" data-tx-id="${t.trans_id}">
+                                <i class="bi bi-x-circle me-1"></i>ยกเลิกรายการ
+                            </button>
+                        </div>
+                    `;
                 } else if (isRental) {
                     const isShipped = t.shipping_status === 'shipped' || t.shipping_status === 'delivered';
                     const isRentingOrBeyond = ['renting', 'returning', 'returned', 'damage_claimed'].includes(t.rental_status);
@@ -372,12 +446,20 @@
                         <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
                             <div class="d-flex align-items-center gap-2">
                                 ${isRental ? '<span class="badge bg-warning text-dark">ให้เช่า</span>' : '<span class="badge bg-info text-dark">ซื้อขาย</span>'}
-                                <h6 class="mb-0 fw-bold">${escapeHtml(t.title)}</h6>
+                                <h6 class="mb-0 fw-bold ${isBuyer && t.status === 'awaiting_payment' ? 'text-primary pay-pending-link' : ''}" 
+                                    style="${isBuyer && t.status === 'awaiting_payment' ? 'cursor: pointer; text-decoration: underline;' : ''}"
+                                    ${isBuyer && t.status === 'awaiting_payment' ? `data-tx-id="${t.trans_id}" data-item-id="${t.item_id}" data-item-title="${escapeHtml(t.title)}" data-item-type="${t.item_type}" data-item-image="${escapeHtml(t.image_url || '')}" data-amount="${t.amount}" title="คลิกเพื่อไปหน้าชำระเงิน"` : ''}>
+                                    ${escapeHtml(t.title)}
+                                </h6>
                             </div>
                             ${roleText}
                         </div>
                         <div class="d-flex gap-3">
-                            <img src="${t.image_url || 'https://via.placeholder.com/80'}" class="rounded object-fit-cover" width="80" height="80">
+                            <img src="${t.image_url || 'https://via.placeholder.com/80'}" 
+                                 class="rounded object-fit-cover ${isBuyer && t.status === 'awaiting_payment' ? 'pay-pending-link shadow-sm' : ''}" 
+                                 width="80" height="80"
+                                 style="${isBuyer && t.status === 'awaiting_payment' ? 'cursor: pointer;' : ''}"
+                                 ${isBuyer && t.status === 'awaiting_payment' ? `data-tx-id="${t.trans_id}" data-item-id="${t.item_id}" data-item-title="${escapeHtml(t.title)}" data-item-type="${t.item_type}" data-item-image="${escapeHtml(t.image_url || '')}" data-amount="${t.amount}" title="คลิกเพื่อไปหน้าชำระเงิน"` : ''}>
                             <div class="flex-grow-1">
                                 <div class="small text-muted mb-1">คู่กรณี: ${escapeHtml(isBuyer ? t.seller_name : t.buyer_name)}</div>
                                 <div class="fw-bold text-success mb-1">ยอดรวม: ฿${Number(t.amount).toLocaleString()}</div>
@@ -497,6 +579,52 @@
                             card.style.display = group === 'completed' ? 'block' : 'none';
                         }
                     });
+                });
+            });
+
+            // 0. ปุ่ม/ลิงก์ชำระเงินสำหรับรายการที่ค้างชำระ (Awaiting Payment)
+            modalEl.querySelectorAll('.pay-pending-btn, .pay-pending-link').forEach(elem => {
+                elem.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const target = e.currentTarget;
+                    const txId = target.dataset.txId;
+                    const itemId = target.dataset.itemId;
+                    const itemTitle = target.dataset.itemTitle;
+                    const itemType = target.dataset.itemType;
+                    const itemImage = target.dataset.itemImage;
+                    const amount = target.dataset.amount;
+
+                    modal.hide();
+                    renderPaymentModal({
+                        itemId: itemId,
+                        title: itemTitle,
+                        item_type: itemType,
+                        image_url: itemImage
+                    }, txId, amount);
+                });
+            });
+
+            // 0.1 ปุ่มกดยกเลิกรายการที่ค้างชำระจากหน้ารายการ
+            modalEl.querySelectorAll('.cancel-pending-tx-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const txId = e.currentTarget.dataset.txId;
+                    if (!confirm('คุณต้องการยกเลิกรายการนี้ใช่หรือไม่?\n(สินค้าจะถูกคืนสถานะว่าง และปิดรายการนี้ทันที)')) return;
+                    try {
+                        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                        const res = await fetch(`/api/transactions/${txId}/cancel`, {
+                            method: 'PATCH',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || 'ยกเลิกไม่สำเร็จ');
+                        alert('✅ ' + (data.message || 'ยกเลิกรายการเรียบร้อยแล้ว'));
+                        modal.hide();
+                        openMyTransactionsModal();
+                        if (typeof updateTransactionsBadge === 'function') updateTransactionsBadge();
+                    } catch(err) {
+                        alert('❌ ยกเลิกไม่สำเร็จ: ' + err.message);
+                    }
                 });
             });
 

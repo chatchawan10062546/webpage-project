@@ -31,7 +31,7 @@ router.get('/reports/mine', requireAuth, (req, res) => {
     db.query(
         `SELECT r.report_id, r.item_id, i.title AS item_title, r.reason, r.status, r.created_at
          FROM reports r
-         JOIN items i ON i.item_id = r.item_id
+         LEFT JOIN items i ON i.item_id = r.item_id
          WHERE r.reporter_id = ?
          ORDER BY r.report_id DESC`,
         [req.authUser.userId],

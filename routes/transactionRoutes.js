@@ -5,9 +5,11 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const db = require('../config/db');
 const { createNotification } = require('../utils/notificationHelper');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { verifySlip } = require('../utils/slipVerifier');
 
 const storage = multer.diskStorage({
    destination: (req, file, cb) => cb(null, 'uploads/'),
@@ -129,11 +131,15 @@ router.get('/transactions/:transactionId', requireAuth, (req, res) => {
    });
 });
 
-// ชำระเงินและพักเงินไว้ในระบบคนกลาง (พร้อมแนบสลิป)
-router.post('/transactions/:transactionId/pay', requireAuth, upload.single('slip'), (req, res) => {
+// ชำระเงินและพักเงินไว้ในระบบคนกลาง (พร้อมแนบสลิปและตรวจ SlipOK อัตโนมัติ)
+router.post('/transactions/:transactionId/pay', requireAuth, upload.single('slip'), async (req, res) => {
    const { transactionId } = req.params;
    const buyerId = req.authUser.userId;
    const slipPath = req.file ? '/uploads/' + req.file.filename : null;
+
+   if (!req.file) {
+      return res.status(400).json({ success: false, message: 'กรุณาแนบรูปภาพสลิปการโอนเงิน' });
+   }
 
    db.query(
       `SELECT t.*, i.item_type, i.title AS item_title 
@@ -141,19 +147,58 @@ router.post('/transactions/:transactionId/pay', requireAuth, upload.single('slip
        JOIN items i ON i.item_id = t.item_id 
        WHERE t.trans_id = ?`,
       [transactionId],
-      (err, rows) => {
-         if (err || rows.length === 0) return res.status(500).json({ success: false, message: 'ไม่พบธุรกรรม' });
+      async (err, rows) => {
+         if (err || rows.length === 0) {
+            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (e) {} }
+            return res.status(500).json({ success: false, message: 'ไม่พบธุรกรรม' });
+         }
          const tx = rows[0];
          const giverId = tx.giver_id;
 
-         let sql = `UPDATE transactions
-                    SET status = 'paid', payment_status = 'held', paid_at = CURRENT_TIMESTAMP`;
-         let params = [];
-
-         if (slipPath) {
-            sql += `, payment_reference = ?`;
-            params.push(slipPath);
+         if (tx.receiver_id !== buyerId) {
+            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (e) {} }
+            return res.status(403).json({ success: false, message: 'คุณไม่ใช่ผู้ซื้อในธุรกรรมนี้' });
          }
+
+         if (tx.status !== 'awaiting_payment') {
+            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (e) {} }
+            return res.status(400).json({ success: false, message: 'ธุรกรรมนี้ไม่ได้อยู่ในสถานะรอชำระเงิน' });
+         }
+
+         // 🔍 ตรวจสอบสลิปผ่าน SlipOK API อัตโนมัติ
+         const fullSlipPath = path.resolve(req.file.path);
+         const expectedAmount = Number(tx.amount || 0);
+
+         const verifyResult = await verifySlip({
+            filePath: fullSlipPath,
+            expectedAmount,
+            db
+         });
+
+         if (!verifyResult.success) {
+            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (e) {} }
+            return res.status(400).json({
+               success: false,
+               message: verifyResult.message || 'สลิปโอนเงินไม่ถูกต้อง',
+               code: verifyResult.code
+            });
+         }
+
+         // ✅ สลิปถูกต้อง บันทึกข้อมูลลงฐานข้อมูล
+         let sql = `UPDATE transactions
+                    SET status = 'paid', payment_status = 'held', paid_at = CURRENT_TIMESTAMP,
+                        payment_reference = ?,
+                        trans_ref = ?,
+                        is_slip_verified = ?,
+                        slip_verified_at = CURRENT_TIMESTAMP,
+                        slip_raw_data = ?`;
+         let params = [
+            slipPath,
+            verifyResult.transRef || null,
+            verifyResult.isManual ? 0 : 1,
+            JSON.stringify(verifyResult.raw || {})
+         ];
+
          if (tx.item_type === 'rent') {
             sql += `, rental_status = 'paid'`;
          }
@@ -173,10 +218,65 @@ router.post('/transactions/:transactionId/pay', requireAuth, upload.single('slip
                   if (typeof createNotification === 'function') {
                      createNotification(giverId, buyerId, 'transaction_update', transactionId, `มีผู้ชำระเงินสำหรับ "${tx.item_title}" แล้ว กรุณาจัดส่งสินค้า`).catch(console.error);
                   }
-                  res.json({ success: true, message: 'ชำระเงินสำเร็จ แนบสลิปเรียบร้อย เงินถูกพักไว้ในระบบกลาง', slipPath });
+                  res.json({
+                     success: true,
+                     message: 'ตรวจสอบสลิปสำเร็จ! ชำระเงินเรียบร้อย เงินถูกพักไว้ในระบบกลางอย่างปลอดภัย',
+                     slipPath,
+                     transRef: verifyResult.transRef,
+                     verified: !verifyResult.isManual
+                  });
                }
             );
          });
+      }
+   );
+});
+
+
+// ผู้ซื้อ/ผู้เช่ายกเลิกรายการสั่งซื้อ/เช่า (ก่อนชำระเงิน)
+router.patch('/transactions/:transactionId/cancel', requireAuth, (req, res) => {
+   const { transactionId } = req.params;
+   const userId = req.authUser.userId;
+
+   db.query(
+      `SELECT t.*, i.title AS item_title 
+       FROM transactions t 
+       JOIN items i ON i.item_id = t.item_id 
+       WHERE t.trans_id = ?`,
+      [transactionId],
+      (err, rows) => {
+         if (err || rows.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบธุรกรรม' });
+         const tx = rows[0];
+
+         if (tx.receiver_id !== userId) {
+            return res.status(403).json({ success: false, message: 'คุณไม่มีสิทธิ์ยกเลิกรายการนี้' });
+         }
+
+         if (tx.status !== 'awaiting_payment') {
+            return res.status(400).json({ success: false, message: 'สามารถยกเลิกได้เฉพาะรายการที่ยังไม่ได้ชำระเงินเท่านั้น' });
+         }
+
+         db.query(
+            `UPDATE transactions SET status = 'cancelled' WHERE trans_id = ? AND status = 'awaiting_payment'`,
+            [transactionId],
+            (updateErr, result) => {
+               if (updateErr || result.affectedRows === 0) {
+                  return res.status(500).json({ success: false, message: 'ยกเลิกรายการไม่สำเร็จ' });
+               }
+
+               // คืนสถานะสินค้าให้กลับมาเป็นว่าง (available)
+               db.query(
+                  `UPDATE items SET status = 'available' WHERE item_id = ?`,
+                  [tx.item_id],
+                  () => {
+                     if (typeof createNotification === 'function') {
+                        createNotification(tx.giver_id, userId, 'transaction_cancelled', transactionId, `ผู้ซื้อได้ยกเลิกคำสั่งซื้อสำหรับ "${tx.item_title}" แล้ว`).catch(console.error);
+                     }
+                     res.json({ success: true, message: 'ยกเลิกรายการเรียบร้อยแล้ว สินค้าถูกคืนสถานะว่าง' });
+                  }
+               );
+            }
+         );
       }
    );
 });
@@ -312,8 +412,8 @@ router.post('/transactions/:transactionId/confirm-return', requireAuth, (req, re
              if (updateErr) return res.status(500).json({ success: false, message: 'ยืนยันรับสินค้าคืนไม่สำเร็จ' });
              if (result.affectedRows === 0) return res.status(400).json({ success: false, message: 'ธุรกรรมไม่อยู่ในสถานะที่ยืนยันการคืนได้' });
 
-             // ปรับสถานะสินค้ากลับเป็น available เพื่อให้สามารถปล่อยเช่าต่อได้
-             db.query("UPDATE items SET status = 'available' WHERE item_id = ?", [itemId], () => {});
+             // ปรับสถานะสินค้าเป็น completed เมื่อคืนของสำเร็จ
+             db.query("UPDATE items SET status = 'completed' WHERE item_id = ?", [itemId], () => {});
 
              if (typeof createNotification === 'function') {
                  createNotification(buyerId, sellerId, 'transaction_update', transactionId, 'ผู้ให้เช่าได้รับสินค้าคืนสมบูรณ์แล้ว แอดมินจะดำเนินการโอนเงินมัดจำคืนให้คุณ').catch(console.error);
@@ -437,7 +537,7 @@ function releaseExpiredTransactions() {
    db.query(
       `UPDATE transactions t
        JOIN items i ON i.item_id = t.item_id
-       SET t.status = 'released', t.payment_status = 'released', t.shipping_status = 'delivered', t.released_at = CURRENT_TIMESTAMP
+       SET t.status = 'released', t.payment_status = 'released', t.shipping_status = 'delivered', t.released_at = CURRENT_TIMESTAMP, i.status = 'completed'
        WHERE t.status = 'shipped' AND t.payment_status = 'held' AND t.release_at IS NOT NULL AND t.release_at <= CURRENT_TIMESTAMP
          AND i.item_type != 'rent'`,
       err => {
