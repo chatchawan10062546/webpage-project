@@ -101,11 +101,19 @@ document.addEventListener('DOMContentLoaded', () => {
                             
                             <!-- Map section for Lat/Lng -->
                             <div class="mb-3" id="mapSection">
-                                <label class="form-label fw-bold">จุดแจกของ / นัดรับ (คลิกบนแผนที่เพื่อปักหมุด)</label>
-                                <div id="addItemMap" style="height: 250px; width: 100%; border-radius: 8px; border: 1px solid #ced4da;"></div>
+                                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                                    <label class="form-label fw-bold mb-0">จุดแจกของ / นัดรับ (คลิกหรือลากหมุดบนแผนที่)</label>
+                                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill fw-bold shadow-sm" id="btnUseCurrentLocation">
+                                        <i class="bi bi-crosshair me-1"></i>🎯 ใช้ตำแหน่งปัจจุบันของฉัน
+                                    </button>
+                                </div>
+                                <div id="addItemMap" style="height: 270px; width: 100%; border-radius: 12px; border: 1px solid #ced4da; overflow: hidden;"></div>
                                 <input type="hidden" id="itemLat" name="lat">
                                 <input type="hidden" id="itemLng" name="lng">
-                                <small class="text-muted mt-1 d-block"><i class="bi bi-geo-alt-fill text-danger"></i> พิกัด: <span id="latLngDisplay">ยังไม่ได้เลือก</span></small>
+                                <div class="d-flex justify-content-between align-items-center mt-1 flex-wrap">
+                                    <small class="text-muted"><i class="bi bi-geo-alt-fill text-danger"></i> พิกัด: <span id="latLngDisplay" class="text-danger fw-bold">ยังไม่ได้เลือก</span></small>
+                                    <small class="text-muted" style="font-size: 0.75rem;"><i class="bi bi-arrows-move"></i> คลิกหรือลากหมุดเพื่อปรับตำแหน่ง</small>
+                                </div>
                             </div>
                             
                             <div class="mb-3">

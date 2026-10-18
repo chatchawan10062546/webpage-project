@@ -241,9 +241,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------
     // 3. ดักจับการลงประกาศใหม่ (บันทึกลง Database ผ่าน API)
     // ----------------------------------------------------
+    let isSubmittingPost = false;
     document.addEventListener('submit', async (e) => {
         if (e.target && e.target.id === 'postItemForm') {
             e.preventDefault();
+
+            // 🛑 ป้องกันการกดโพสต์ซ้ำ (Double-click lock)
+            if (isSubmittingPost) return;
 
             // 📌 [แก้ไข] ตรวจสอบผู้ใช้ผ่าน LocalStorage แบบยืดหยุ่น (รองรับ id / user_id / userId)
             const user = JSON.parse(localStorage.getItem('user'));
@@ -272,6 +276,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('Failed to verify promptpay', err);
                 }
             }
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+
             const price = document.getElementById('postPrice')?.value || '0';
             const deposit = document.getElementById('postDeposit')?.value || '0';
             const quantity = document.getElementById('postQuantity')?.value || '1';
@@ -299,6 +307,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                 }
+            }
+
+            // ล็อกสถานะและแสดงปุ่มโหลดทันทีเพื่อป้องกันการกดซ้ำ
+            isSubmittingPost = true;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>กำลังบันทึกและส่งข้อมูล...';
             }
 
             // จัดเตรียมข้อมูลส่งแบบ FormData เพื่อรองรับการอัปโหลดไฟล์
@@ -336,25 +351,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (data.success) {
+                    // ปิด Modal ทันที
+                    const postModalEl = document.getElementById('postItemModal');
+                    if (postModalEl) {
+                        const modalInstance = bootstrap.Modal.getInstance(postModalEl);
+                        if (modalInstance) modalInstance.hide();
+                    }
+
+                    // แจ้งเตือนผู้ใช้ชัดเจนเรื่องรอแอดมินอนุมัติ
                     alert('🎉 ส่งข้อมูลลงประกาศสำเร็จเรียบร้อยแล้ว!\n\nรายการของคุณถูกส่งไปยังผู้ดูแลระบบ (Admin) เพื่อตรวจสอบความถูกต้องและความปลอดภัยเรียบร้อยแล้ว\nเมื่อแอดมินทำการอนุมัติ รายการจะปรากฏบนหน้าเว็บทันทีครับ');
-                    
+
+                    // รีเซ็ตฟอร์ม รูปภาพ และพิกัด
                     e.target.reset();
                     selectedPostFiles = [];
                     renderPostImagePreviews();
 
-                    const postModalEl = document.getElementById('postItemModal');
-                    if (postModalEl) {
-                        (bootstrap.Modal.getInstance(postModalEl) || new bootstrap.Modal(postModalEl)).hide();
+                    const itemLat = document.getElementById('itemLat');
+                    const itemLng = document.getElementById('itemLng');
+                    const latLngDisplay = document.getElementById('latLngDisplay');
+                    if (itemLat) itemLat.value = '';
+                    if (itemLng) itemLng.value = '';
+                    if (latLngDisplay) {
+                        latLngDisplay.innerText = 'ยังไม่ได้เลือก';
+                        latLngDisplay.classList.add('text-danger');
+                        latLngDisplay.classList.remove('text-success');
                     }
+                    if (addMarker && addMap) {
+                        addMap.removeLayer(addMarker);
+                        addMarker = null;
+                    }
+
+                    // เลื่อนกลับไปด้านบนหน้าจออย่างนุ่มนวล
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
 
                     // โหลดรายการสิ่งของใหม่ทั้งหมดจาก Database
                     loadItemsFromDB();
                 } else {
-                    alert('❌ ไม่สามารถบันทึกข้อมูลได้: ' + data.message);
+                    alert('❌ ไม่สามารถบันทึกข้อมูลได้: ' + (data.message || 'เกิดข้อผิดพลาด'));
                 }
             } catch (err) {
                 console.error('Error submitting item:', err);
                 alert('⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+            } finally {
+                isSubmittingPost = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+                }
             }
         }
     });
@@ -1032,8 +1075,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.detailMap.remove(); // Destroy old map instance to detach from old DOM
                 window.detailMap = null;
             }
-            window.detailMap = L.map('itemDetailMap').setView([lat, lng], 15);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.detailMap);
+            const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '© Google Maps'
+            });
+            const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '© Google Maps'
+            });
+
+            window.detailMap = L.map('itemDetailMap', {
+                layers: [googleRoadmap]
+            }).setView([lat, lng], 15);
+
+            L.control.layers({
+                '🗺️ แผนที่': googleRoadmap,
+                '🛰️ ดาวเทียม': googleHybrid
+            }, null, { position: 'topright' }).addTo(window.detailMap);
+
             window.detailMarker = L.marker([lat, lng]).addTo(window.detailMap);
             setTimeout(() => { window.detailMap.invalidateSize(); }, 200);
         });
@@ -1170,32 +1231,122 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. แผนที่ตอนลงประกาศ
     const addItemModalEl = document.getElementById('postItemModal');
     if (addItemModalEl) {
+        function updatePostMarker(lat, lng) {
+            if (addMarker) {
+                addMarker.setLatLng([lat, lng]);
+            } else {
+                addMarker = L.marker([lat, lng], { draggable: true }).addTo(addMap);
+                addMarker.on('dragend', function () {
+                    const pos = addMarker.getLatLng();
+                    setPostCoordinates(pos.lat, pos.lng);
+                });
+            }
+            setPostCoordinates(lat, lng);
+        }
+
+        function setPostCoordinates(lat, lng) {
+            const itemLat = document.getElementById('itemLat');
+            const itemLng = document.getElementById('itemLng');
+            const display = document.getElementById('latLngDisplay');
+            if (itemLat) itemLat.value = lat;
+            if (itemLng) itemLng.value = lng;
+            if (display) {
+                display.innerText = `${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}`;
+                display.classList.remove('text-danger');
+                display.classList.add('text-success');
+            }
+        }
+
         addItemModalEl.addEventListener('shown.bs.modal', () => {
             if (!addMap) {
-                // Initialize map at a default center (เช่น มมส)
-                addMap = L.map('addItemMap').setView([16.245, 103.250], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap'
-                }).addTo(addMap);
-                
-                // Add marker on click
+                // Google Maps Layers (Roadmap + Hybrid Satellite)
+                const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                    maxZoom: 20,
+                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                    attribution: '© Google Maps'
+                });
+                const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    maxZoom: 20,
+                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                    attribution: '© Google Maps'
+                });
+
+                // ค่าเริ่มต้น: ถ้ามีพิกัด GPS แคชไว้ ให้เปิดมาที่พิกัดผู้ใช้เลย
+                let initialLat = 16.245;
+                let initialLng = 103.250;
+                let initialZoom = 13;
+                if (window.currentUserCoordinates && window.currentUserCoordinates.latitude) {
+                    initialLat = window.currentUserCoordinates.latitude;
+                    initialLng = window.currentUserCoordinates.longitude;
+                    initialZoom = 15;
+                }
+
+                addMap = L.map('addItemMap', {
+                    layers: [googleRoadmap]
+                }).setView([initialLat, initialLng], initialZoom);
+
+                // เพิ่มสวิตช์เลือกรูปแบบแผนที่ (แผนที่ถนน vs ภาพดาวเทียม)
+                L.control.layers({
+                    '🗺️ แผนที่ถนน': googleRoadmap,
+                    '🛰️ ภาพดาวเทียม': googleHybrid
+                }, null, { position: 'topright' }).addTo(addMap);
+
+                // ปักหมุดเมื่อคลิกบนแผนที่
                 addMap.on('click', (e) => {
-                    if (addMarker) {
-                        addMarker.setLatLng(e.latlng);
-                    } else {
-                        addMarker = L.marker(e.latlng).addTo(addMap);
-                    }
-                    document.getElementById('itemLat').value = e.latlng.lat;
-                    document.getElementById('itemLng').value = e.latlng.lng;
-                    document.getElementById('latLngDisplay').innerText = e.latlng.lat.toFixed(5) + ', ' + e.latlng.lng.toFixed(5);
-                    document.getElementById('latLngDisplay').classList.remove('text-danger');
-                    document.getElementById('latLngDisplay').classList.add('text-success');
+                    updatePostMarker(e.latlng.lat, e.latlng.lng);
                 });
             } else {
                 addMap.invalidateSize();
             }
         });
-        
+
+        // ปุ่ม "🎯 ใช้ตำแหน่งปัจจุบันของฉัน"
+        const btnUseLocation = document.getElementById('btnUseCurrentLocation');
+        if (btnUseLocation) {
+            btnUseLocation.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const origHtml = btnUseLocation.innerHTML;
+                btnUseLocation.disabled = true;
+                btnUseLocation.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>กำลังหาพิกัด...';
+
+                try {
+                    let coords = window.currentUserCoordinates;
+                    if (!coords && typeof window.getUserCoordinates === 'function') {
+                        coords = await window.getUserCoordinates();
+                    } else if (!coords && navigator.geolocation) {
+                        coords = await new Promise((resolve, reject) => {
+                            navigator.geolocation.getCurrentPosition(
+                                pos => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+                                reject,
+                                { enableHighAccuracy: true, timeout: 8000 }
+                            );
+                        });
+                    }
+
+                    if (coords && coords.latitude && coords.longitude) {
+                        const lat = coords.latitude;
+                        const lng = coords.longitude;
+                        if (addMap) {
+                            addMap.setView([lat, lng], 16);
+                            updatePostMarker(lat, lng);
+                        }
+                        btnUseLocation.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>ปักหมุดสำเร็จ';
+                        btnUseLocation.classList.replace('btn-outline-success', 'btn-success');
+                        setTimeout(() => {
+                            btnUseLocation.innerHTML = origHtml;
+                            btnUseLocation.classList.replace('btn-success', 'btn-outline-success');
+                            btnUseLocation.disabled = false;
+                        }, 2500);
+                    } else {
+                        throw new Error('ไม่พบพิกัด');
+                    }
+                } catch (err) {
+                    alert('⚠️ ไม่สามารถดึงตำแหน่งปัจจุบันได้ กรุณาเปิด GPS หรืออนุญาตการเข้าถึงตำแหน่งในเบราว์เซอร์');
+                    btnUseLocation.innerHTML = origHtml;
+                    btnUseLocation.disabled = false;
+                }
+            });
+        }
         
         const loadMoreBtn = document.getElementById('loadMoreBtn');
         if (loadMoreBtn) {
@@ -1208,12 +1359,17 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Reset form handling
         addItemModalEl.addEventListener('hidden.bs.modal', () => {
-            document.getElementById('itemLat').value = '';
-            document.getElementById('itemLng').value = '';
-            document.getElementById('latLngDisplay').innerText = 'ยังไม่ได้เลือก';
-            document.getElementById('latLngDisplay').classList.add('text-danger');
-            document.getElementById('latLngDisplay').classList.remove('text-success');
-            if (addMarker) {
+            const itemLat = document.getElementById('itemLat');
+            const itemLng = document.getElementById('itemLng');
+            const latLngDisplay = document.getElementById('latLngDisplay');
+            if (itemLat) itemLat.value = '';
+            if (itemLng) itemLng.value = '';
+            if (latLngDisplay) {
+                latLngDisplay.innerText = 'ยังไม่ได้เลือก';
+                latLngDisplay.classList.add('text-danger');
+                latLngDisplay.classList.remove('text-success');
+            }
+            if (addMarker && addMap) {
                 addMap.removeLayer(addMarker);
                 addMarker = null;
             }
