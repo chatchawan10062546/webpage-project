@@ -147,6 +147,63 @@ body {
         font-size: 0.75rem !important;
         padding: 0.2rem 0.35rem !important;
     }
+
+    /* 📱 ย่อขนาดหัวข้อรายการของแจกล่าสุดบนมือถือ */
+    .feed-title {
+        font-size: 1.15rem !important;
+        letter-spacing: -0.2px;
+    }
+    .feed-see-all {
+        font-size: 0.85rem !important;
+        white-space: nowrap;
+    }
+    .feed-header {
+        margin-bottom: 0.65rem !important;
+    }
+
+    /* 📱 ย่อขนาดกล่องตัวกรองข้อมูลบนมือถือ */
+    #filterForm {
+        padding: 0.6rem 0.75rem !important;
+        border-radius: 16px !important;
+        gap: 0.35rem !important;
+        margin-bottom: 0.85rem !important;
+    }
+    #filterForm .form-select,
+    #filterForm .form-control,
+    #filterForm .input-group-text,
+    #filterForm .btn {
+        font-size: 0.82rem !important;
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.3rem !important;
+        height: 36px !important;
+    }
+    #filterForm .form-select {
+        padding-left: 0.65rem !important;
+        padding-right: 1.5rem !important;
+        background-position: right 0.5rem center !important;
+    }
+    #filterForm .filter-col-half {
+        width: calc(50% - 0.2rem) !important;
+        flex: 1 1 calc(50% - 0.2rem) !important;
+        min-width: 0 !important;
+    }
+    #filterForm .filter-col-full {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+    #filterForm .filter-btn-group {
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-top: 0.2rem !important;
+        gap: 0.35rem !important;
+    }
+    #filterForm .filter-btn-group .btn {
+        flex: 1 !important;
+        padding: 0.35rem 0.5rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
 }
 
 /* ป้ายหมวดหมู่มุมบนขวาของการ์ด */
