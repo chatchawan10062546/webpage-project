@@ -92,6 +92,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (typeof window.loadItemsFromDB === 'function') window.loadItemsFromDB(); else applyFilters();
                         })
                         .catch(() => {
+                            if (window.approximateIpLocation && window.approximateIpLocation.latitude) {
+                                window.currentUserCoordinates = window.approximateIpLocation;
+                                if (typeof window.updateAllItemDistances === 'function') {
+                                    window.updateAllItemDistances(window.approximateIpLocation.latitude, window.approximateIpLocation.longitude);
+                                }
+                                currentDistance = value;
+                                if (typeof window.loadItemsFromDB === 'function') window.loadItemsFromDB(); else applyFilters();
+                                return;
+                            }
                             alert('กรุณาอนุญาตให้เบราว์เซอร์เข้าถึงตำแหน่ง (GPS) หรือปักหมุดบนแผนที่เพื่อกรองระยะทางครับ');
                             distanceSlider.value = 51;
                             if (distanceSliderLabel) distanceSliderLabel.innerText = 'ทุกระยะ';

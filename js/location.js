@@ -52,6 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (remembered) {
         window.currentUserCoordinates = remembered;
         updateAllItemDistances(remembered.latitude, remembered.longitude);
+    } else {
+        // หากยังไม่เคยมีพิกัด ให้ตรวจหาจังหวัด/อำเภอคร่าวๆ จาก IP เน็ต เพื่อเป็นพิกัดเริ่มต้นสำหรับคนต่างจังหวัด
+        getIpLocation().then(ipLoc => {
+            if (ipLoc && !window.currentUserCoordinates) {
+                window.approximateIpLocation = ipLoc;
+            }
+        }).catch(() => {});
     }
 
     // 3.2 ตรวจสอบว่าเบราว์เซอร์เคยอนุญาตพิกัดไว้แล้วหรือไม่
@@ -143,9 +150,37 @@ function updateAllItemDistances(userLat, userLng) {
     window.dispatchEvent(new Event('distancesUpdated'));
 }
 
+// 5. ดึงตำแหน่งเริ่มต้นโดยประมาณจาก IP Address ของเน็ตมือถือ (สำหรับผู้ใช้ใหม่/คนต่างจังหวัด)
+async function getIpLocation() {
+    try {
+        const cached = JSON.parse(localStorage.getItem('pankan_ip_location') || 'null');
+        if (cached && Number.isFinite(Number(cached.latitude)) && Number.isFinite(Number(cached.longitude))) {
+            return cached;
+        }
+
+        const res = await fetch('/api/ip-location');
+        const data = await res.json();
+        if (data && data.success && Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lon))) {
+            const loc = {
+                latitude: Number(data.lat),
+                longitude: Number(data.lon),
+                city: data.city || data.regionName,
+                regionName: data.regionName,
+                isIpLocation: true
+            };
+            localStorage.setItem('pankan_ip_location', JSON.stringify(loc));
+            return loc;
+        }
+    } catch (e) {
+        console.warn('IP location fetch error:', e);
+    }
+    return null;
+}
+
 window.calculateDistance = calculateDistance;
 window.updateAllItemDistances = updateAllItemDistances;
 window.getUserCoordinates = getUserCoordinates;
 window.getRememberedCoordinates = getRememberedCoordinates;
 window.saveRememberedCoordinates = saveRememberedCoordinates;
 window.requestUserLocation = requestUserLocation;
+window.getIpLocation = getIpLocation;

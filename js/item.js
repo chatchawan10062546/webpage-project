@@ -1326,7 +1326,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     attribution: '© Google Maps'
                 });
 
-                // ค่าเริ่มต้น: ถ้ามีพิกัดที่บันทึกไว้ในเครื่อง ให้เปิดมาที่พิกัดนั้นเลย
+                // ค่าเริ่มต้น: 
+                // 1. ถ้ามีพิกัดที่บันทึกไว้ในเครื่อง/เคยขอ GPS -> เปิดมาที่พิกัดนั้นทันที (Zoom 15)
+                // 2. ถ้าเป็นคนใหม่/คนต่างจังหวัด -> ตรวจจับอำเภอ/จังหวัดจาก IP เน็ตมือถือทันที (Zoom 13)
+                // 3. ถ้าไม่มีทั้งคู่ -> ใช้พิกัดสำรอง
                 let initialLat = 16.245;
                 let initialLng = 103.250;
                 let initialZoom = 13;
@@ -1335,6 +1338,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     initialLat = remembered.latitude;
                     initialLng = remembered.longitude;
                     initialZoom = 15;
+                } else {
+                    const ipLoc = window.approximateIpLocation || (typeof window.getIpLocation === 'function' ? await window.getIpLocation() : null);
+                    if (ipLoc && ipLoc.latitude && ipLoc.longitude) {
+                        initialLat = ipLoc.latitude;
+                        initialLng = ipLoc.longitude;
+                        initialZoom = 13;
+                    }
                 }
 
                 addMap = L.map('addItemMap', {

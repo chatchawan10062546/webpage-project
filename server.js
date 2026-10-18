@@ -73,8 +73,81 @@ if (!fs.existsSync(uploadDir)) {
 // ----------------------------------------------------
 // ⚙️ Middlewares
 // ----------------------------------------------------
+app.set('trust proxy', true);
+
 // 1. อนุญาตให้ Frontend เรียกใช้งาน API ได้
 app.use(cors());
+
+// 📍 API ค้นหาพิกัดเริ่มต้นจาก IP Address เน็ตมือถือ/บ้าน (เพื่อให้คนต่างจังหวัดเปิดแผนที่ตรงอำเภอ/จังหวัดตัวเองทันที)
+const ipLocationCache = new Map();
+
+app.get('/api/ip-location', async (req, res) => {
+    try {
+        let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+        if (clientIp.includes(',')) {
+            clientIp = clientIp.split(',')[0].trim();
+        }
+        if (clientIp.startsWith('::ffff:')) {
+            clientIp = clientIp.replace('::ffff:', '');
+        }
+
+        const isPrivate = !clientIp || clientIp === '127.0.0.1' || clientIp === '::1' || clientIp.startsWith('192.168.') || clientIp.startsWith('10.');
+        const targetIp = isPrivate ? '' : clientIp;
+
+        if (targetIp && ipLocationCache.has(targetIp)) {
+            return res.json(ipLocationCache.get(targetIp));
+        }
+
+        const url = targetIp 
+            ? `http://ip-api.com/json/${targetIp}?fields=status,message,country,regionName,city,lat,lon`
+            : `http://ip-api.com/json/?fields=status,message,country,regionName,city,lat,lon`;
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3500);
+
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+
+        const data = await response.json();
+        if (data && data.status === 'success' && Number.isFinite(data.lat) && Number.isFinite(data.lon)) {
+            const result = {
+                success: true,
+                city: data.city || data.regionName,
+                regionName: data.regionName,
+                country: data.country,
+                lat: data.lat,
+                lon: data.lon,
+                isDefault: false
+            };
+            if (targetIp) {
+                ipLocationCache.set(targetIp, result);
+                if (ipLocationCache.size > 1000) {
+                    const firstKey = ipLocationCache.keys().next().value;
+                    ipLocationCache.delete(firstKey);
+                }
+            }
+            return res.json(result);
+        }
+
+        return res.json({
+            success: true,
+            city: 'Bangkok',
+            regionName: 'Bangkok',
+            lat: 13.7563,
+            lon: 100.5018,
+            isDefault: true
+        });
+    } catch (err) {
+        return res.json({
+            success: true,
+            city: 'Bangkok',
+            regionName: 'Bangkok',
+            lat: 13.7563,
+            lon: 100.5018,
+            isDefault: true
+        });
+    }
+});
 
 // 2. แปลงข้อมูล Request body ที่ส่งเข้ามาเป็น JSON
 app.use(express.json());
