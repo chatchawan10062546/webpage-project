@@ -33,6 +33,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
 
+                            <div class="mb-3">
+                                <label for="postTitle" class="form-label fw-bold">ชื่อรายการสิ่งของ <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="postTitle" placeholder="เช่น สลัดผัก, หนังสือเรียน, หม้อทอด" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="postCategory" class="form-label fw-bold">หมวดหมู่ <span class="text-danger">*</span></label>
+                                <select class="form-select" id="postCategory" required>
+                                    <option value="" selected disabled>-- เลือกหมวดหมู่ --</option>
+                                    <option value="อาหาร">🥗 อาหาร</option>
+                                    <option value="ของใช้">📦 ของใช้</option>
+                                    <option value="อื่นๆ">✨ อื่นๆ</option>
+                                </select>
+                            </div>
+
                             <!-- ช่องใส่ราคา (เปิดเมื่อเลือกขาย/เช่า) -->
                             <div class="mb-3 d-none" id="priceInputContainer">
                                 <label for="postPrice" class="form-label fw-bold" id="priceLabel">ราคา (บาท)</label>
@@ -56,21 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
 
-                            <div class="mb-3">
-                                <label for="postTitle" class="form-label fw-bold">ชื่อรายการสิ่งของ <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="postTitle" placeholder="เช่น สลัดผัก, หนังสือเรียน, หม้อทอด" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="postCategory" class="form-label fw-bold">หมวดหมู่ <span class="text-danger">*</span></label>
-                                <select class="form-select" id="postCategory" required>
-                                    <option value="" selected disabled>-- เลือกหมวดหมู่ --</option>
-                                    <option value="อาหาร">🥗 อาหาร</option>
-                                    <option value="ของใช้">📦 ของใช้</option>
-                                    <option value="อื่นๆ">✨ อื่นๆ</option>
-                                </select>
-                            </div>
-
                             <!-- ช่องระบุจำนวนชิ้น -->
                             <div class="mb-3">
                                 <label for="postQuantity" class="form-label fw-bold">จำนวนชิ้น <span class="text-danger">*</span></label>
@@ -79,13 +79,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
 
                             <div class="mb-3">
-                                <label for="postLocation" class="form-label fw-bold">สถานที่ / ชุมชน</label>
-                                <input type="text" class="form-control" id="postLocation" placeholder="เช่น ชุมชน มมส., หน้าหอพัก A">
+                                <label for="postDescription" class="form-label fw-bold">รายละเอียดสิ่งของ</label>
+                                <textarea class="form-control" id="postDescription" rows="3" placeholder="ระบุสภาพของ วันหมดอายุ หรือเงื่อนไขเพิ่มเติม..."></textarea>
                             </div>
 
                             <div class="mb-3">
-                                <label for="postDescription" class="form-label fw-bold">รายละเอียดสิ่งของ</label>
-                                <textarea class="form-control" id="postDescription" rows="3" placeholder="ระบุสภาพของ วันหมดอายุ หรือเงื่อนไขเพิ่มเติม..."></textarea>
+                                <label for="postLocation" class="form-label fw-bold">สถานที่ / ชุมชน</label>
+                                <input type="text" class="form-control" id="postLocation" placeholder="เช่น ชุมชน มมส., หน้าหอพัก A">
                             </div>
 
                             <!-- อัปโหลดได้หลายรูปภาพ -->

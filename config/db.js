@@ -9,7 +9,7 @@ const db = mysql.createPool({
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'pankan_db',
-    port: process.env.DB_PORT || 3307,
+    port: Number(process.env.DB_PORT) || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -20,7 +20,7 @@ db.getConnection((err, connection) => {
     if (err) {
         console.error('❌ เชื่อมต่อ MySQL ไม่สำเร็จ:', err.message);
     } else {
-        console.log('✅ เชื่อมต่อ MySQL ฐานข้อมูล (share_db) ผ่าน Port 3307 สำเร็จ!');
+        console.log(`✅ เชื่อมต่อ MySQL ฐานข้อมูล (${process.env.DB_NAME || 'pankan_db'}) ผ่าน Port ${process.env.DB_PORT || 3306} สำเร็จ!`);
         connection.release();
     }
 });

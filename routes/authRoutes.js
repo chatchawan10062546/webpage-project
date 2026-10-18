@@ -14,15 +14,24 @@ const crypto = require('crypto');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // ตั้งค่า transporter สำหรับส่งอีเมล
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: process.env.SMTP_PORT || 587,
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
+const transporterConfig = (process.env.SMTP_HOST && process.env.SMTP_HOST.includes('gmail')) || !process.env.SMTP_HOST
+    ? {
+        service: 'gmail',
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: (process.env.SMTP_PASS || '').replace(/\s+/g, '')
+        }
     }
-});
+    : {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: Number(process.env.SMTP_PORT) === 465,
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS
+        }
+    };
+const transporter = nodemailer.createTransport(transporterConfig);
 
 // ฟังก์ชันสุ่ม OTP 6 หลัก
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -42,7 +51,7 @@ router.post('/register', async (req, res) => {
 
         const sql = 'INSERT INTO users (name, email, password, phone, otp_code, otp_expires_at, is_email_verified) VALUES (?, ?, ?, ?, ?, ?, ?)';
         
-        db.query(sql, [name, email, hashedPassword, phone || '', otpCode, otpExpiresAt, false], async (err, result) => {
+        db.query(sql, [name, email, hashedPassword, phone || '', otpCode, otpExpiresAt, false], (err, result) => {
             if (err) {
                 if (err.code === 'ER_DUP_ENTRY') {
                     return res.status(400).json({ success: false, message: 'อีเมลนี้ถูกใช้งานแล้ว' });
@@ -56,21 +65,30 @@ router.post('/register', async (req, res) => {
             console.log(`🔑 รหัส OTP ของคุณคือ: ${otpCode}`);
             console.log(`=========================================\n`);
 
-            // ลองส่งอีเมลจริง (ถ้าตั้งค่าไว้)
-            try {
-                if(process.env.SMTP_USER && process.env.SMTP_USER !== 'your_email@gmail.com') {
-                    await transporter.sendMail({
-                        from: `"ปันสุข (PanSuk)" <${process.env.SMTP_USER}>`,
-                        to: email,
-                        subject: 'รหัสยืนยันอีเมลของคุณ (OTP)',
-                        text: `สวัสดีคุณ ${name},\n\nรหัส OTP สำหรับยืนยันอีเมลของคุณคือ: ${otpCode}\nรหัสมีอายุการใช้งาน 10 นาที\n\nขอบคุณที่เข้าร่วมกับเรา`
-                    });
-                }
-            } catch (mailErr) {
-                console.warn('⚠️ ไม่สามารถส่งอีเมลได้ (ให้ดู OTP จาก Terminal แทน):', mailErr.message);
+            // ส่งอีเมลจริงแบบ Non-blocking (ไม่ต้องรอ await เพื่อให้หน้าเว็บสลับไปหน้า OTP ได้ทันที)
+            const isSmtpConfigured = !!(process.env.SMTP_USER && process.env.SMTP_USER !== 'your_email@gmail.com');
+            if (isSmtpConfigured) {
+                transporter.sendMail({
+                    from: `"ปันสุข (PanSuk)" <${process.env.SMTP_USER}>`,
+                    to: email,
+                    subject: 'รหัสยืนยันอีเมลของคุณ (OTP)',
+                    text: `สวัสดีคุณ ${name},\n\nรหัส OTP สำหรับยืนยันอีเมลของคุณคือ: ${otpCode}\nรหัสมีอายุการใช้งาน 10 นาที\n\nขอบคุณที่เข้าร่วมกับเรา`
+                }).then(() => {
+                    console.log(`✅ ส่งอีเมล OTP ไปยัง ${email} สำเร็จ!`);
+                }).catch((mailErr) => {
+                    console.warn('⚠️ ไม่สามารถส่งอีเมลได้ (ให้ดู OTP จาก Terminal แทน):', mailErr.message);
+                });
             }
 
-            res.json({ success: true, message: 'สมัครสมาชิกสำเร็จ! กรุณายืนยันรหัส OTP ที่ส่งไปยังอีเมลของคุณ', email: email });
+            res.json({
+                success: true,
+                message: isSmtpConfigured
+                    ? 'สมัครสมาชิกสำเร็จ! กรุณายืนยันรหัส OTP ที่ส่งไปยังอีเมลของคุณ'
+                    : 'สมัครสมาชิกสำเร็จ! กรุณายืนยันรหัส OTP',
+                email: email,
+                otp: isSmtpConfigured ? undefined : otpCode,
+                emailSent: isSmtpConfigured
+            });
         });
     } catch (error) {
         res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของเซิร์ฟเวอร์' });
@@ -117,6 +135,64 @@ router.post('/verify-otp', (req, res) => {
                 message: 'ยืนยันอีเมลและเข้าสู่ระบบสำเร็จ',
                 token,
                 user: { id: userId, user_id: userId, name: user.name, email: user.email, phone: user.phone, role: user.role }
+            });
+        });
+    });
+});
+
+// 1.8 API ส่งรหัส OTP ใหม่อีกครั้ง (/api/resend-otp)
+router.post('/resend-otp', (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ success: false, message: 'กรุณาระบุอีเมล' });
+    }
+
+    const sql = 'SELECT * FROM users WHERE email = ? AND auth_provider = "local"';
+    db.query(sql, [email], (err, results) => {
+        if (err || results.length === 0) {
+            return res.status(400).json({ success: false, message: 'ไม่พบบัญชีผู้ใช้นี้ในระบบ' });
+        }
+
+        const user = results[0];
+        if (user.is_email_verified) {
+            return res.status(400).json({ success: false, message: 'อีเมลนี้ได้รับการยืนยันแล้ว สามารถเข้าสู่ระบบได้ทันที' });
+        }
+
+        const otpCode = generateOTP();
+        const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+        db.query('UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE user_id = ?', [otpCode, otpExpiresAt, user.user_id], (updateErr) => {
+            if (updateErr) return res.status(500).json({ success: false, message: 'สร้างรหัส OTP ใหม่ไม่สำเร็จ' });
+
+            console.log(`\n=========================================`);
+            console.log(`📧 ส่ง OTP ใหม่สำหรับอีเมล: ${email}`);
+            console.log(`🔑 รหัส OTP ใหม่ของคุณคือ: ${otpCode}`);
+            console.log(`=========================================\n`);
+
+            // ส่งอีเมลจริงแบบ Non-blocking
+            const isSmtpConfigured = !!(process.env.SMTP_USER && process.env.SMTP_USER !== 'your_email@gmail.com');
+            if (isSmtpConfigured) {
+                transporter.sendMail({
+                    from: `"ปันสุข (PanSuk)" <${process.env.SMTP_USER}>`,
+                    to: email,
+                    subject: 'รหัสยืนยันอีเมลของคุณ (OTP ใหม่)',
+                    text: `สวัสดีคุณ ${user.name},\n\nรหัส OTP ใหม่สำหรับยืนยันอีเมลของคุณคือ: ${otpCode}\nรหัสมีอายุการใช้งาน 10 นาที\n\nขอบคุณที่เข้าร่วมกับเรา`
+                }).then(() => {
+                    console.log(`✅ ส่งอีเมล OTP ใหม่ไปยัง ${email} สำเร็จ!`);
+                }).catch((mailErr) => {
+                    console.warn('⚠️ ไม่สามารถส่งอีเมล OTP ใหม่ได้:', mailErr.message);
+                });
+            }
+
+            res.json({
+                success: true,
+                message: isSmtpConfigured
+                    ? 'ระบบได้ส่งรหัส OTP ใหม่ไปยังอีเมลของคุณเรียบร้อยแล้ว'
+                    : 'สร้างรหัส OTP ใหม่เรียบร้อยแล้ว',
+                email: email,
+                otp: isSmtpConfigured ? undefined : otpCode,
+                emailSent: isSmtpConfigured
             });
         });
     });

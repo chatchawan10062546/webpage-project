@@ -110,6 +110,45 @@ body {
     }
 }
 
+/* 📱 ปรับการ์ดสินค้าสำหรับหน้าจอมือถือ (2 คอลัมน์) */
+.item-card-img {
+    height: 140px;
+    object-fit: cover;
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .item-card-img {
+        height: 200px;
+    }
+}
+
+@media (max-width: 576px) {
+    .item-card .card-body {
+        padding: 0.65rem !important;
+    }
+    .item-card .badge {
+        font-size: 0.68rem !important;
+        padding: 0.2rem 0.45rem !important;
+    }
+    .item-card .card-title {
+        font-size: 0.95rem !important;
+    }
+    .item-card .request-btn {
+        font-size: 0.8rem !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+    .item-owner-controls {
+        margin-top: 0.5rem !important;
+        padding-top: 0.5rem !important;
+        gap: 0.25rem !important;
+    }
+    .item-owner-controls .btn {
+        font-size: 0.75rem !important;
+        padding: 0.2rem 0.35rem !important;
+    }
+}
+
 /* ป้ายหมวดหมู่มุมบนขวาของการ์ด */
 .item-badge {
     position: absolute;

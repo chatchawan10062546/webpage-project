@@ -73,3 +73,8 @@ function updateAllItemDistances(userLat, userLng) {
     });
     window.dispatchEvent(new Event('distancesUpdated'));
 }
+
+window.calculateDistance = calculateDistance;
+window.updateAllItemDistances = updateAllItemDistances;
+window.getUserCoordinates = getUserCoordinates;
+

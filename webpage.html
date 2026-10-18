@@ -16,7 +16,7 @@
     <!-- เชื่อมโยงไฟล์ตกแต่ง CSS -->
     <!-- Flatpickr Datepicker -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="css/style.css?v=1792257507765">
+    <link rel="stylesheet" href="css/style.css?v=1792337500000">
     <link rel="stylesheet" href="css/userProfile.css">
     
     <!-- Google Identity Services -->
@@ -242,13 +242,14 @@
                             <span id="distanceSliderLabel">ทุกระยะ</span>
                             <i class="bi bi-geo-alt-fill text-success"></i>
                         </button>
-                        <div class="dropdown-menu dropdown-menu-end rounded-3 border-0 shadow mt-2 p-3" style="width: 250px;">
-                            <label class="form-label text-success fw-bold small mb-1">ระยะทางที่ต้องการ (กม.)</label>
-                            <input type="range" class="form-range" id="distanceSlider" min="1" max="51" value="51">
-                            <div class="text-center mt-3">
-                                <button class="btn btn-sm btn-outline-success rounded-pill w-100 fw-bold" id="updateLocationBtn">
-                                    📍 อัปเดตพิกัดของคุณ
-                                </button>
+                        <div class="dropdown-menu dropdown-menu-end rounded-3 border-0 shadow mt-2 p-3" style="width: 220px;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label text-success fw-bold small mb-0">ระยะทางที่ต้องการ</label>
+                            </div>
+                            <input type="range" class="form-range mb-1" id="distanceSlider" min="1" max="51" value="51">
+                            <div class="d-flex justify-content-between text-muted" style="font-size: 0.75rem;">
+                                <span>1 กม.</span>
+                                <span>50+ กม.</span>
                             </div>
                         </div>
                     </div>
@@ -309,7 +310,7 @@
             </div>
         </form>
 
-        <div class="row g-4" id="itemGrid">
+        <div class="row g-2 g-md-3 g-lg-4" id="itemGrid">
             <!-- การ์ดรายการของแจก -->
             <div class="col-md-4 col-sm-6 item-element" data-category="อาหาร" data-title="สลัดผักออร์แกนิกกล่องใหญ่">
                 <div class="card item-card h-100 position-relative">
@@ -545,11 +546,17 @@
                     <p class="mb-3 text-muted">ระบบได้ส่งรหัส OTP 6 หลักไปที่อีเมลของคุณแล้ว<br><small>(ในขั้นตอนทดสอบ ให้ดูรหัส OTP ในหน้าจอ Terminal ของ Server)</small></p>
                     <form id="otpForm">
                         <input type="hidden" id="otpEmailHidden">
+                        <div id="otpDevHint"></div>
                         <div class="mb-3">
                             <input type="text" class="form-control form-control-lg text-center fw-bold fs-3" id="otpCode" placeholder="000000" maxlength="6" required>
                         </div>
                         <button type="submit" class="btn btn-success w-100 py-3 rounded-pill fw-bold">ตรวจสอบรหัส OTP</button>
                     </form>
+                    <div class="mt-3 text-center">
+                        <span class="text-muted small">ยังไม่ได้รับรหัส?</span>
+                        <button type="button" class="btn btn-link text-success fw-bold p-0 ms-1 small" id="resendOtpBtn">ส่งรหัสอีกครั้ง</button>
+                        <span id="resendTimerText" class="text-muted small ms-1 d-none">(ส่งใหม่ได้ใน <span id="resendSeconds">60</span> วิ)</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -562,15 +569,15 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/realtimeClient.js?v=2"></script>
     <script src="js/authClient.js?v=3"></script>
-    <script src="js/modals.js?v=1792169423161"></script>
+    <script src="js/modals.js?v=1792333700000"></script>
     <script src="js/location.js?v=1790195051566"></script> <!-- 👈 เพิ่มบรรทัดนี้ -->
-    <script src="js/item.js?v=1792257706613"></script>
+    <script src="js/item.js?v=1792337600000"></script>
     <script src="js/itemManagement.js?v=1790870163078"></script>
     <script src="js/itemRequests.js?v=1790875493472"></script>
     <script src="js/chat.js?v=1791296061333"></script>
     <script src="js/chatInbox.js?v=3"></script>
-    <script src="js/main.js?v=1790875802971"></script>
-    <script src="js/auth.js?v=3"></script>
+    <script src="js/main.js?v=1792339800000"></script>
+    <script src="js/auth.js?v=6"></script>
     <script src="js/reports.js?v=1792167844403"></script>
     <script src="js/reviews.js?v=3"></script>
     <script src="js/userProfile.js?v=6"></script>

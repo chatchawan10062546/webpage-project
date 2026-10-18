@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ` : '';
 
         const newCardHTML = `
-            <div class="col-md-4 col-sm-6 item-element" data-item-id="${itemId}" data-category="${item.category}" data-title="${safeTitle}" data-latitude="${hasCoordinates ? (item.latitude || item.lat) : ''}" data-longitude="${hasCoordinates ? (item.longitude || item.lng) : ''}">
+            <div class="col-6 col-md-4 col-lg-3 item-element" data-item-id="${itemId}" data-category="${item.category}" data-title="${safeTitle}" data-latitude="${hasCoordinates ? (item.latitude || item.lat) : ''}" data-longitude="${hasCoordinates ? (item.longitude || item.lng) : ''}">
                 <div class="card item-card h-100 position-relative shadow-sm border-0 rounded-4 overflow-hidden">
                     <div class="position-absolute top-0 start-0 p-2 z-2">
                         ${typeBadge}
@@ -148,25 +148,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     ${imagesArray.length > 1 ? `
                         <div class="position-absolute top-0 end-0 p-2 z-2">
-                            <span class="badge bg-dark bg-opacity-75 rounded-pill shadow-sm"><i class="bi bi-images me-1"></i>${imagesArray.length} รูป</span>
+                            <span class="badge bg-dark bg-opacity-75 rounded-pill shadow-sm"><i class="bi bi-images me-1"></i>${imagesArray.length}</span>
                         </div>
                     ` : ''}
-                    <img src="${imagesArray[0]}" class="card-img-top" alt="${item.title}" style="height: 220px; object-fit: cover;">
-                    <div class="card-body d-flex flex-column">
+                    <img src="${imagesArray[0]}" class="card-img-top item-card-img" alt="${item.title}">
+                    <div class="card-body d-flex flex-column p-2 p-md-3">
                         ${ownerBadgeHTML}
-                        <div class="d-flex justify-content-between align-items-start mb-1">
-                            <h5 class="card-title fw-bold mb-0">${item.title}</h5>
-                            <span class="fw-bold text-success fs-5">${priceTagText}</span>
+                        <div class="d-flex justify-content-between align-items-start mb-1 flex-wrap gap-1">
+                            <h6 class="card-title fw-bold mb-0 text-truncate flex-grow-1" style="max-width: 100%; font-size: 0.95rem;">${item.title}</h6>
+                            <span class="fw-bold text-success fs-6">${priceTagText}</span>
                         </div>
-                        <p class="card-text text-muted small mb-2">📍 ${item.location || 'ไม่ระบุสถานที่'} ${hasCoordinates ? '<span class="item-distance text-success fw-semibold">กำลังคำนวณ...</span>' : ''}</p>
-                        <p class="card-text text-secondary text-truncate small">${item.description || ''}</p>
-                        <div class="mb-2 d-flex justify-content-between align-items-center">
-                            <span class="badge bg-secondary">สถานะ: ${statusLabel}</span>
-                            ${(item.quantity !== undefined && item.quantity > 0) ? `<span class="badge bg-info text-dark">เหลือ ${item.quantity} ชิ้น</span>` : (item.quantity === 0 ? `<span class="badge bg-danger">หมดแล้ว</span>` : '')}
+                        <p class="card-text text-muted small mb-1 text-truncate" style="font-size: 0.78rem;">📍 ${item.location || 'ไม่ระบุสถานที่'} ${hasCoordinates ? '<span class="item-distance text-success fw-semibold"></span>' : ''}</p>
+                        <p class="card-text text-secondary text-truncate small mb-1 d-none d-sm-block">${item.description || ''}</p>
+                        <div class="mb-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
+                            <span class="badge bg-secondary">${statusLabel}</span>
+                            ${(item.quantity !== undefined && item.quantity > 0) ? `<span class="badge bg-info text-dark">เหลือ ${item.quantity}</span>` : (item.quantity === 0 ? `<span class="badge bg-danger">หมด</span>` : '')}
                         </div>
-                        <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
-                            <span class="small text-muted">โพสต์เมื่อ ${new Date(item.created_at || Date.now()).toLocaleDateString('th-TH')}</span>
-                            <button class="btn btn-outline-success btn-sm px-3 rounded-pill fw-bold request-btn"
+                        <div class="mt-auto pt-2 border-top d-flex flex-column flex-sm-row justify-content-between align-items-center gap-1">
+                            <span class="small text-muted d-none d-md-inline" style="font-size: 0.75rem;">${new Date(item.created_at || Date.now()).toLocaleDateString('th-TH')}</span>
+                            <button class="btn btn-outline-success btn-sm w-100 w-sm-auto px-3 rounded-pill fw-bold request-btn py-1" style="font-size: 0.8rem;"
                                 data-title="${safeTitle}"
                                 data-category="${item.category}"
                                 data-type="${itemType}"

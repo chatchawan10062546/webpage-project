@@ -137,12 +137,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ----------------------------------------------------
+    // ----------------------------------------------------
     // 🔥 3. ระบบสมัครสมาชิก (ส่งข้อมูลเข้า Database ผ่าน API)
     // ----------------------------------------------------
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            const submitBtn = registerForm.querySelector('button[type="submit"]');
+            const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>กำลังสมัครสมาชิก...';
+            }
 
             const name = document.getElementById('regName').value;
             const email = document.getElementById('regEmail').value;
@@ -161,25 +169,128 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.success) {
                     const regModalElement = document.getElementById('registerModal');
                     if (regModalElement) {
-                        const regModal = bootstrap.Modal.getInstance(regModalElement) || new bootstrap.Modal(regModalElement);
-                        regModal.hide();
+                        const regModal = bootstrap.Modal.getInstance(regModalElement);
+                        if (regModal) regModal.hide();
                     }
 
                     registerForm.reset();
 
-                    // เปิด OTP Modal แทน
-                    const otpModalElement = document.getElementById('otpModal');
-                    if (otpModalElement) {
-                        document.getElementById('otpEmailHidden').value = data.email || email;
-                        const otpModal = new bootstrap.Modal(otpModalElement);
-                        otpModal.show();
-                    }
+                    // เปิด OTP Modal หลังจาก Modal สมัครปิดเรียบร้อยแล้ว
+                    setTimeout(() => {
+                        const otpModalElement = document.getElementById('otpModal');
+                        if (otpModalElement) {
+                            document.getElementById('otpEmailHidden').value = data.email || email;
+                            
+                            const otpHint = document.getElementById('otpDevHint');
+                            if (otpHint) {
+                                if (data.emailSent) {
+                                    otpHint.innerHTML = '<div class="alert alert-success py-2 small mb-3">✅ ส่งรหัส OTP ไปยังอีเมล <strong>' + (data.email || email) + '</strong> แล้ว กรุณาตรวจสอบในกล่องจดหมาย</div>';
+                                } else if (data.otp) {
+                                    otpHint.innerHTML = '<div class="alert alert-warning py-2 small mb-3 text-start"><div class="fw-bold mb-1">💡 รหัส OTP สำหรับทดสอบในเครื่อง:</div><div class="fs-4 text-center fw-bold text-dark my-1 bg-white rounded p-1 border">' + data.otp + '</div><div class="text-muted" style="font-size: 0.78rem;">(ระบบกรอกให้เรียบร้อยแล้ว หรือดูได้จากหน้าจอ Terminal)</div></div>';
+                                }
+                            }
+
+                            // กรอกรหัสให้อัตโนมัติหากอยู่ในโหมดทดสอบ
+                            const otpInput = document.getElementById('otpCode');
+                            if (otpInput) {
+                                if (data.otp && !data.emailSent) {
+                                    otpInput.value = data.otp;
+                                } else {
+                                    otpInput.value = '';
+                                }
+                                otpInput.focus();
+                            }
+
+                            const otpModal = bootstrap.Modal.getOrCreateInstance(otpModalElement);
+                            otpModal.show();
+                        }
+                    }, 200);
                 } else {
                     alert('❌ ' + (data.message || 'ไม่สามารถสมัครสมาชิกได้'));
                 }
             } catch (error) {
                 console.error('Error:', error);
                 alert('⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+                }
+            }
+        });
+    }
+
+    // ----------------------------------------------------
+    // 🔁 3.5 ระบบส่งรหัส OTP ใหม่อีกครั้ง (Resend OTP)
+    // ----------------------------------------------------
+    const resendOtpBtn = document.getElementById('resendOtpBtn');
+    const resendTimerText = document.getElementById('resendTimerText');
+    const resendSeconds = document.getElementById('resendSeconds');
+    let countdownInterval = null;
+
+    if (resendOtpBtn) {
+        resendOtpBtn.addEventListener('click', async () => {
+            const email = document.getElementById('otpEmailHidden')?.value;
+            if (!email) return alert('ไม่พบอีเมลสำหรับส่งรหัส OTP กรุณากรอกสมัครสมาชิกใหม่');
+
+            const originalBtnHtml = resendOtpBtn.innerHTML;
+            resendOtpBtn.disabled = true;
+            resendOtpBtn.classList.add('text-muted');
+            resendOtpBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>กำลังส่ง...';
+
+            try {
+                const response = await fetch('/api/resend-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const otpHint = document.getElementById('otpDevHint');
+                    if (otpHint) {
+                        if (data.emailSent) {
+                            otpHint.innerHTML = '<div class="alert alert-success py-2 small mb-3">✅ ส่งรหัส OTP ใหม่ไปยังอีเมล <strong>' + email + '</strong> เรียบร้อยแล้ว</div>';
+                        } else if (data.otp) {
+                            otpHint.innerHTML = '<div class="alert alert-warning py-2 small mb-3 text-start"><div class="fw-bold mb-1">💡 รหัส OTP ใหม่:</div><div class="fs-4 text-center fw-bold text-dark my-1 bg-white rounded p-1 border">' + data.otp + '</div></div>';
+                        }
+                    }
+
+                    const otpInput = document.getElementById('otpCode');
+                    if (otpInput && data.otp && !data.emailSent) {
+                        otpInput.value = data.otp;
+                    }
+
+                    // เริ่มนับถอยหลัง 60 วินาที
+                    let seconds = 60;
+                    if (resendTimerText && resendSeconds) {
+                        resendTimerText.classList.remove('d-none');
+                        resendSeconds.innerText = seconds;
+
+                        clearInterval(countdownInterval);
+                        countdownInterval = setInterval(() => {
+                            seconds--;
+                            resendSeconds.innerText = seconds;
+                            if (seconds <= 0) {
+                                clearInterval(countdownInterval);
+                                resendOtpBtn.disabled = false;
+                                resendOtpBtn.classList.remove('text-muted');
+                                resendTimerText.classList.add('d-none');
+                            }
+                        }, 1000);
+                    }
+                } else {
+                    alert('❌ ' + (data.message || 'ส่งรหัส OTP ไม่สำเร็จ'));
+                    resendOtpBtn.disabled = false;
+                    resendOtpBtn.classList.remove('text-muted');
+                }
+            } catch (err) {
+                console.error('Resend OTP Error:', err);
+                alert('⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+                resendOtpBtn.disabled = false;
+                resendOtpBtn.classList.remove('text-muted');
+            } finally {
+                resendOtpBtn.innerHTML = originalBtnHtml;
             }
         });
     }

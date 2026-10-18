@@ -70,9 +70,21 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Check if user has location permission before allowing distance filter
             if (!window.currentUserCoordinates && value <= 50) {
-                alert('กรุณากดปุ่ม "📍 อัปเดตพิกัด" เพื่อดึงตำแหน่งของคุณก่อนครับ');
-                distanceSlider.value = 51;
-                if (distanceSliderLabel) distanceSliderLabel.innerText = 'ทุกระยะ';
+                if (typeof window.getUserCoordinates === 'function') {
+                    window.getUserCoordinates()
+                        .then(coordinates => {
+                            if (typeof window.updateAllItemDistances === 'function') {
+                                window.updateAllItemDistances(coordinates.latitude, coordinates.longitude);
+                            }
+                            currentDistance = value;
+                            if (typeof window.loadItemsFromDB === 'function') window.loadItemsFromDB(); else applyFilters();
+                        })
+                        .catch(() => {
+                            alert('กรุณาอนุญาตให้เบราว์เซอร์เข้าถึงตำแหน่ง (GPS) เพื่อกรองระยะทางครับ');
+                            distanceSlider.value = 51;
+                            if (distanceSliderLabel) distanceSliderLabel.innerText = 'ทุกระยะ';
+                        });
+                }
                 return;
             }
 
