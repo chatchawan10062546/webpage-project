@@ -16,7 +16,7 @@
     <!-- เชื่อมโยงไฟล์ตกแต่ง CSS -->
     <!-- Flatpickr Datepicker -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="css/style.css?v=1792340900000">
+    <link rel="stylesheet" href="css/style.css?v=1792344000000">
     <link rel="stylesheet" href="css/userProfile.css">
     
     <!-- Google Identity Services -->
@@ -308,62 +308,12 @@
         </form>
 
         <div class="row g-2 g-md-3 g-lg-4" id="itemGrid">
-            <!-- การ์ดรายการของแจก -->
-            <div class="col-md-4 col-sm-6 item-element" data-category="อาหาร" data-title="สลัดผักออร์แกนิกกล่องใหญ่">
-                <div class="card item-card h-100 position-relative">
-                    <span class="badge bg-warning text-dark item-badge fw-bold">อาหาร</span>
-                    <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=60"
-                        class="card-img-top" alt="อาหารแจก" style="height: 200px; object-fit: cover;">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title fw-bold">สลัดผักออร์แกนิกกล่องใหญ่</h5>
-                        <p class="card-text text-muted small mb-2">📍 ห่างจากคุณ 500 เมตร (ชุมชน มมส.)</p>
-                        <p class="card-text text-secondary text-truncate small">ซื้อมาเกินจากตลาดนัดเย็นครับ
-                            ยังไม่ได้เปิด ทานไม่ทัน เสียดายของครับ มารับได้เลย</p>
-                        <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
-                            <span class="small text-muted">เมื่อ 10 นาทีที่แล้ว</span>
-                            <button
-                                class="btn btn-outline-success btn-sm px-3 rounded-pill fw-bold request-btn">ขอรับของ</button>
-                        </div>
-                    </div>
+            <!-- Loading Skeleton Placeholder -->
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-success mb-3" style="width: 2.5rem; height: 2.5rem;" role="status">
+                    <span class="visually-hidden">กำลังโหลด...</span>
                 </div>
-            </div>
-
-            <div class="col-md-4 col-sm-6 item-element" data-category="ของใช้" data-title="หนังสือติวสอบแคลคูลัส 1">
-                <div class="card item-card h-100 position-relative">
-                    <span class="badge bg-info text-dark item-badge fw-bold">ของใช้</span>
-                    <img src="https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60"
-                        class="card-img-top" alt="ของใช้แจก" style="height: 200px; object-fit: cover;">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title fw-bold">หนังสือติวสอบแคลคูลัส 1</h5>
-                        <p class="card-text text-muted small mb-2">📍 ห่างจากคุณ 1.2 กิโลเมตร</p>
-                        <p class="card-text text-secondary text-truncate small">สภาพดีมากครับ มีรอยจดไฮไลท์นิดหน่อย
-                            ส่งต่อให้น้อง ๆ ที่กำลังจะสอบเอาไปใช้ประโยชน์ต่อครับ</p>
-                        <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
-                            <span class="small text-muted">เมื่อ 1 ชั่วโมงที่แล้ว</span>
-                            <button
-                                class="btn btn-outline-success btn-sm px-3 rounded-pill fw-bold request-btn">ขอรับของ</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-4 col-sm-6 item-element" data-category="อื่นๆ" data-title="รองเท้าผ้าใบสีขาว ไซส์ 38">
-                <div class="card item-card h-100 position-relative">
-                    <span class="badge bg-secondary text-white item-badge fw-bold">อื่นๆ</span>
-                    <img src="https://images.unsplash.com/photo-1595341888016-a392ef81b7de?w=500&auto=format&fit=crop&q=60"
-                        class="card-img-top" alt="ของแจก" style="height: 200px; object-fit: cover;">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title fw-bold">รองเท้าผ้าใบสีขาว ไซส์ 38</h5>
-                        <p class="card-text text-muted small mb-2">📍 ห่างจากคุณ 2.5 กิโลเมตร</p>
-                        <p class="card-text text-secondary text-truncate small">ซื้อมาแล้วไซส์เล็กไปนิดนึงค่ะ
-                            ใส่เดินแค่ครั้งเดียว สภาพใหม่เอี่ยม 99% ส่งต่อฟรีค่ะ</p>
-                        <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
-                            <span class="small text-muted">เมื่อ 3 ชั่วโมงที่แล้ว</span>
-                            <button
-                                class="btn btn-outline-success btn-sm px-3 rounded-pill fw-bold request-btn">ขอรับของ</button>
-                        </div>
-                    </div>
-                </div>
+                <p class="text-muted fw-semibold mb-0">กำลังโหลดรายการของแบ่งปันใกล้ตัวคุณ...</p>
             </div>
         </div>
     </div>
@@ -567,8 +517,8 @@
     <script src="js/realtimeClient.js?v=2"></script>
     <script src="js/authClient.js?v=3"></script>
     <script src="js/modals.js?v=1792342900000"></script>
-    <script src="js/location.js?v=1790195051566"></script> <!-- 👈 เพิ่มบรรทัดนี้ -->
-    <script src="js/item.js?v=1792342900000"></script>
+    <script src="js/location.js?v=1792344000000"></script>
+    <script src="js/item.js?v=1792344000000"></script>
     <script src="js/itemManagement.js?v=1790870163078"></script>
     <script src="js/itemRequests.js?v=1790875493472"></script>
     <script src="js/chat.js?v=1791296061333"></script>

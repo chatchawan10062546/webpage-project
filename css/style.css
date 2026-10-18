@@ -36,6 +36,11 @@ body {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     overflow: hidden;
     background-color: #ffffff;
+    contain: layout paint style;
+    content-visibility: auto;
+    contain-intrinsic-size: 260px;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 /* เอฟเฟกต์เวลาเมาส์ชี้การ์ดให้ลอยขึ้น */
@@ -115,6 +120,8 @@ body {
     height: 140px;
     object-fit: cover;
     width: 100%;
+    aspect-ratio: 16 / 10;
+    content-visibility: auto;
 }
 
 @media (min-width: 768px) {

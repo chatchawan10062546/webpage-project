@@ -68,10 +68,22 @@ document.addEventListener('DOMContentLoaded', () => {
         distanceSlider.addEventListener('change', (e) => {
             const value = parseInt(e.target.value);
             
-            // Check if user has location permission before allowing distance filter
+            // Check if user has location permission or remembered coordinates before allowing distance filter
             if (!window.currentUserCoordinates && value <= 50) {
-                if (typeof window.getUserCoordinates === 'function') {
-                    window.getUserCoordinates()
+                const remembered = typeof window.getRememberedCoordinates === 'function' ? window.getRememberedCoordinates() : null;
+                if (remembered) {
+                    window.currentUserCoordinates = remembered;
+                    if (typeof window.updateAllItemDistances === 'function') {
+                        window.updateAllItemDistances(remembered.latitude, remembered.longitude);
+                    }
+                    currentDistance = value;
+                    if (typeof window.loadItemsFromDB === 'function') window.loadItemsFromDB(); else applyFilters();
+                    return;
+                }
+
+                const fetchFn = typeof window.requestUserLocation === 'function' ? window.requestUserLocation : window.getUserCoordinates;
+                if (typeof fetchFn === 'function') {
+                    fetchFn()
                         .then(coordinates => {
                             if (typeof window.updateAllItemDistances === 'function') {
                                 window.updateAllItemDistances(coordinates.latitude, coordinates.longitude);
@@ -80,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (typeof window.loadItemsFromDB === 'function') window.loadItemsFromDB(); else applyFilters();
                         })
                         .catch(() => {
-                            alert('กรุณาอนุญาตให้เบราว์เซอร์เข้าถึงตำแหน่ง (GPS) เพื่อกรองระยะทางครับ');
+                            alert('กรุณาอนุญาตให้เบราว์เซอร์เข้าถึงตำแหน่ง (GPS) หรือปักหมุดบนแผนที่เพื่อกรองระยะทางครับ');
                             distanceSlider.value = 51;
                             if (distanceSliderLabel) distanceSliderLabel.innerText = 'ทุกระยะ';
                         });

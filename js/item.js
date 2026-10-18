@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="badge bg-dark bg-opacity-75 rounded-pill shadow-sm"><i class="bi bi-images me-1"></i>${imagesArray.length}</span>
                         </div>
                     ` : ''}
-                    <img src="${imagesArray[0]}" class="card-img-top item-card-img" alt="${item.title}">
+                    <img src="${imagesArray[0]}" class="card-img-top item-card-img" alt="${item.title}" loading="lazy" decoding="async">
                     <div class="card-body d-flex flex-column p-2 p-md-3">
                         ${ownerBadgeHTML}
                         <div class="d-flex justify-content-between align-items-start mb-1 flex-wrap gap-1">
@@ -465,7 +465,57 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.addEventListener('change', (e) => {
+    // ฟังก์ชันย่อขนาดรูปภาพก่อนแสดงผลและอัปโหลด เพื่อให้โพสต์ไวและประหยัดเน็ต/แรมมือถือ
+    function compressImageFile(file, maxDimension = 1200, quality = 0.82) {
+        return new Promise((resolve) => {
+            if (!file || !file.type.startsWith('image/') || file.size <= 250 * 1024) {
+                resolve(file);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > maxDimension) {
+                            height = Math.round((height * maxDimension) / width);
+                            width = maxDimension;
+                        }
+                    } else {
+                        if (height > maxDimension) {
+                            width = Math.round((width * maxDimension) / height);
+                            height = maxDimension;
+                        }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        if (blob && blob.size < file.size) {
+                            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            });
+                            resolve(compressed);
+                        } else {
+                            resolve(file);
+                        }
+                    }, 'image/jpeg', quality);
+                };
+                img.onerror = () => resolve(file);
+                img.src = e.target.result;
+            };
+            reader.onerror = () => resolve(file);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    document.addEventListener('change', async (e) => {
         if (e.target && e.target.id === 'postImageFile') {
             const files = Array.from(e.target.files || []);
             for (const file of files) {
@@ -477,7 +527,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('กรุณาเลือกเฉพาะไฟล์รูปภาพ (JPG, PNG, WEBP)');
                     continue;
                 }
-                selectedPostFiles.push(file);
+                const compressed = await compressImageFile(file, 1200, 0.82);
+                selectedPostFiles.push(compressed);
             }
             renderPostImagePreviews();
         }
@@ -1255,6 +1306,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 display.classList.remove('text-danger');
                 display.classList.add('text-success');
             }
+            // บันทึกตำแหน่งที่ปักหมุดไว้ในความจำเครื่องทันที
+            if (typeof window.saveRememberedCoordinates === 'function') {
+                window.saveRememberedCoordinates(lat, lng);
+            }
         }
 
         addItemModalEl.addEventListener('shown.bs.modal', () => {
@@ -1271,13 +1326,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     attribution: '© Google Maps'
                 });
 
-                // ค่าเริ่มต้น: ถ้ามีพิกัด GPS แคชไว้ ให้เปิดมาที่พิกัดผู้ใช้เลย
+                // ค่าเริ่มต้น: ถ้ามีพิกัดที่บันทึกไว้ในเครื่อง ให้เปิดมาที่พิกัดนั้นเลย
                 let initialLat = 16.245;
                 let initialLng = 103.250;
                 let initialZoom = 13;
-                if (window.currentUserCoordinates && window.currentUserCoordinates.latitude) {
-                    initialLat = window.currentUserCoordinates.latitude;
-                    initialLng = window.currentUserCoordinates.longitude;
+                const remembered = typeof window.getRememberedCoordinates === 'function' ? window.getRememberedCoordinates() : window.currentUserCoordinates;
+                if (remembered && remembered.latitude) {
+                    initialLat = remembered.latitude;
+                    initialLng = remembered.longitude;
                     initialZoom = 15;
                 }
 
@@ -1307,18 +1363,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 const origHtml = btnUseLocation.innerHTML;
                 btnUseLocation.disabled = true;
-                btnUseLocation.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>กำลังหาพิกัด...';
+                btnUseLocation.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>กำลังขอพิกัด...';
 
                 try {
-                    let coords = window.currentUserCoordinates;
-                    if (!coords && typeof window.getUserCoordinates === 'function') {
-                        coords = await window.getUserCoordinates();
-                    } else if (!coords && navigator.geolocation) {
+                    let coords = null;
+                    if (typeof window.requestUserLocation === 'function') {
+                        coords = await window.requestUserLocation();
+                    } else if (navigator.geolocation) {
                         coords = await new Promise((resolve, reject) => {
                             navigator.geolocation.getCurrentPosition(
                                 pos => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
                                 reject,
-                                { enableHighAccuracy: true, timeout: 8000 }
+                                { enableHighAccuracy: false, timeout: 6000, maximumAge: 300000 }
                             );
                         });
                     }
@@ -1330,20 +1386,57 @@ document.addEventListener('DOMContentLoaded', () => {
                             addMap.setView([lat, lng], 16);
                             updatePostMarker(lat, lng);
                         }
-                        btnUseLocation.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>ปักหมุดสำเร็จ';
+                        if (typeof window.saveRememberedCoordinates === 'function') {
+                            window.saveRememberedCoordinates(lat, lng);
+                        }
+                        if (typeof window.updateAllItemDistances === 'function') {
+                            window.updateAllItemDistances(lat, lng);
+                        }
+                        btnUseLocation.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>จำตำแหน่งแล้ว';
                         btnUseLocation.classList.replace('btn-outline-success', 'btn-success');
                         setTimeout(() => {
                             btnUseLocation.innerHTML = origHtml;
                             btnUseLocation.classList.replace('btn-success', 'btn-outline-success');
                             btnUseLocation.disabled = false;
                         }, 2500);
+                        return;
                     } else {
                         throw new Error('ไม่พบพิกัด');
                     }
                 } catch (err) {
-                    alert('⚠️ ไม่สามารถดึงตำแหน่งปัจจุบันได้ กรุณาเปิด GPS หรืออนุญาตการเข้าถึงตำแหน่งในเบราว์เซอร์');
-                    btnUseLocation.innerHTML = origHtml;
+                    console.warn('Geolocation error:', err);
+                    const remembered = typeof window.getRememberedCoordinates === 'function' ? window.getRememberedCoordinates() : null;
+
+                    if (remembered && remembered.latitude && remembered.longitude) {
+                        // หากดึงสดไม่ได้แต่เคยจำไว้ ให้ใช้ตำแหน่งเดิมทันที
+                        if (addMap) {
+                            addMap.setView([remembered.latitude, remembered.longitude], 16);
+                            updatePostMarker(remembered.latitude, remembered.longitude);
+                        }
+                        btnUseLocation.innerHTML = '<i class="bi bi-clock-history me-1"></i>ใช้ตำแหน่งที่จำไว้';
+                        btnUseLocation.classList.replace('btn-outline-success', 'btn-info');
+                        btnUseLocation.classList.add('text-white');
+                        setTimeout(() => {
+                            btnUseLocation.innerHTML = origHtml;
+                            btnUseLocation.classList.replace('btn-info', 'btn-outline-success');
+                            btnUseLocation.classList.remove('text-white');
+                            btnUseLocation.disabled = false;
+                        }, 2500);
+                        alert('📍 เบราว์เซอร์ยังไม่ได้เปิด GPS ระบบจึงนำ "ตำแหน่งล่าสุดที่คุณเคยบันทึกไว้" มาปักหมุดให้เรียบร้อยแล้วครับ (คุณสามารถคลิกหรือลากหมุดเพื่อปรับเปลี่ยนได้ตามต้องการ)');
+                        return;
+                    }
+
+                    // หากยังไม่เคยบันทึก และเบราว์เซอร์บล็อกสิทธิ์
+                    if (err && err.code === 1 /* PERMISSION_DENIED */) {
+                        alert('⚠️ คุณได้ปิดกั้นการเข้าถึงตำแหน่งในเบราว์เซอร์ไว้\n\n📌 วิธีเปิดอนุญาตตำแหน่ง:\n- บน iPhone (Safari): แตะไอคอน aA หรือ 🔒 ที่มุมซ้ายล่างของแถบ URL > การตั้งค่าเว็บไซต์ > ตำแหน่งที่ตั้ง > เลือก "อนุญาต"\n- บน Android (Chrome): แตะไอคอน 🔒 หรือ ⚙️ ข้างแถบ URL ด้านบน > สิทธิ์ > เปิดสวิตช์ "ตำแหน่ง"\n\n👉 หรือสามารถคลิก/ลากหมุดบนแผนที่ได้โดยตรง ระบบจะจำตำแหน่งไว้ให้ทันทีครับ');
+                    } else {
+                        alert('⚠️ ไม่สามารถรับสัญญาณ GPS ได้ในขณะนี้\n\n👉 คุณสามารถคลิกหรือลากหมุดบนแผนที่ด้านล่างเพื่อระบุตำแหน่งได้ทันที และระบบจะจำตำแหน่งนี้ไว้ให้อัตโนมัติครับ');
+                    }
+                } finally {
                     btnUseLocation.disabled = false;
+                    if (btnUseLocation.innerHTML.includes('กำลังขอพิกัด')) {
+                        btnUseLocation.innerHTML = origHtml;
+                    }
                 }
             });
         }
