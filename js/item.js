@@ -223,15 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
             </button>
         `;
 
-        const ownerControls = isOwner ? `
-            <div class="item-owner-controls mt-2 pt-2 border-top" data-item-id="${itemId}">
-                <button class="btn btn-outline-primary btn-sm item-edit-btn" type="button" style="font-size: 0.78rem; white-space: nowrap;">✏️ แก้ไข</button>
-                <button class="btn btn-outline-danger btn-sm item-delete-btn" type="button" style="font-size: 0.78rem; white-space: nowrap;">🗑️ ลบ</button>
-                ${toggleBtnHTML}
-                <button class="btn btn-outline-dark btn-sm item-messages-btn" type="button" style="font-size: 0.78rem; white-space: nowrap;">💬 ข้อความ</button>
-            </div>
-        ` : '';
-
         const ownerBadgeHTML = item.owner_name ? `
             <div class="small text-muted mb-1 d-flex align-items-center gap-1">
                 <span class="fw-bold text-dark">👤 ${item.owner_name}</span>
@@ -289,7 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ดูรายละเอียด
                             </button>
                         </div>
-                        ${ownerControls}
                     </div>
                 </div>
             </div>
@@ -1445,29 +1435,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
 
                             ${isOwner ? `
-                                <!-- 👤 3. แผงควบคุมสำหรับเจ้าของรายการ (ปิดการสั่งซื้อสินค้าตนเอง) -->
+                                <!-- 👤 3. แผงแจ้งเตือนสำหรับเจ้าของรายการ (ปิดการสั่งซื้อสินค้าตนเอง) -->
                                 <div id="itemDetailActionContainer">
-                                    <div class="card border-0 bg-success bg-opacity-10 rounded-4 p-3 mb-3 border border-success shadow-sm">
+                                    <div class="card border-0 bg-success bg-opacity-10 rounded-4 p-3 border border-success shadow-sm">
                                         <div class="d-flex align-items-center gap-3">
                                             <div class="bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center shadow-sm" style="width: 44px; height: 44px; min-width: 44px;">
                                                 <i class="bi bi-person-check-fill fs-5"></i>
                                             </div>
                                             <div>
                                                 <h6 class="fw-bold text-success mb-1">📦 นี่คือรายการประกาศของคุณเอง</h6>
-                                                <div class="small text-muted">คุณกำลังดูตัวอย่างประกาศของคุณ ผู้ใช้คนอื่นจะเห็นปุ่มสั่งซื้อ/ขอรับตามปกติ (ระบบปิดการสั่งซื้อสำหรับเจ้าของรายการ)</div>
+                                                <div class="small text-muted">คุณกำลังดูตัวอย่างประกาศของคุณ (ไม่สามารถสั่งซื้อหรือส่งคำขอให้ตนเองได้)</div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div class="d-flex flex-wrap gap-2">
-                                        <button type="button" class="btn btn-outline-primary rounded-pill px-3 py-2 flex-grow-1 fw-bold item-modal-edit-btn" data-item-id="${item.itemId}">
-                                            ✏️ แก้ไขประกาศนี้
-                                        </button>
-                                        <button type="button" class="btn btn-outline-success rounded-pill px-3 py-2 flex-grow-1 fw-bold item-modal-requests-btn" data-item-id="${item.itemId}">
-                                            📋 ดูรายการคำขอ ${item.pending_requests > 0 ? `<span class="badge rounded-pill bg-danger ms-1">${item.pending_requests}</span>` : ''}
-                                        </button>
-                                        <button type="button" class="btn btn-outline-dark rounded-pill px-3 py-2 flex-grow-1 fw-bold item-modal-chat-btn" data-item-id="${item.itemId}">
-                                            💬 แชตกับผู้สนใจ
-                                        </button>
                                     </div>
                                 </div>
                             ` : `
@@ -1525,47 +1504,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const detailModal = new bootstrap.Modal(document.getElementById('itemDetailModal'));
         detailModal.show();
-
-        modalEl.addEventListener('click', (e) => {
-            const editBtn = e.target.closest('.item-modal-edit-btn');
-            const reqBtn = e.target.closest('.item-modal-requests-btn');
-            const chatBtn = e.target.closest('.item-modal-chat-btn');
-
-            if (editBtn) {
-                detailModal.hide();
-                const card = document.querySelector(`.item-element[data-item-id="${item.itemId}"]`);
-                if (card) {
-                    const cardEdit = card.querySelector('.item-edit-btn');
-                    if (cardEdit) { cardEdit.click(); return; }
-                }
-                if (typeof window.showEditModal === 'function') {
-                    window.showEditModal({
-                        itemId: item.itemId,
-                        title: item.title,
-                        category: item.category,
-                        itemType: item.itemType,
-                        price: item.price,
-                        quantity: item.quantity,
-                        location: item.location,
-                        description: item.description,
-                        latitude: item.lat,
-                        longitude: item.lng
-                    });
-                }
-            } else if (reqBtn) {
-                detailModal.hide();
-                const card = document.querySelector(`.item-element[data-item-id="${item.itemId}"]`);
-                if (card) {
-                    const cardReq = card.querySelector('.item-requests-btn');
-                    if (cardReq) cardReq.click();
-                }
-            } else if (chatBtn) {
-                detailModal.hide();
-                if (typeof window.openItemMessages === 'function') {
-                    window.openItemMessages(item.itemId, item.title);
-                }
-            }
-        });
 
         function showModalNotice(type, title, message) {
             document.getElementById('modalNoticeContainer')?.remove();
