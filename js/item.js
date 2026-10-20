@@ -76,11 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     queryParams.append('lng', window.currentUserCoordinates.longitude);
                 }
 
-                // กรองไม่รวมของตนเองในหน้ารวม เพื่อไม่ให้สับสน
-                if (currentUserId) {
-                    queryParams.append('exclude_user_id', currentUserId);
-                }
-
+                // แสดงสินค้าทั้งหมดร่วมกันในหน้าแรก ทั้งของตนเองและคนอื่น
                 queryParams.append('page', currentPage);
                 queryParams.append('limit', 24);
 
@@ -250,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="position-absolute top-0 start-0 p-2 z-2 d-flex flex-wrap gap-1 align-items-center">
                         ${typeBadge}
                         ${approvalBadge}
+                        ${isOwner ? '<span class="badge bg-success bg-opacity-75 rounded-pill shadow-sm"><i class="bi bi-person-check-fill me-1"></i>ของฉัน</span>' : ''}
                         <span class="badge bg-dark bg-opacity-75">${item.category}</span>
                     </div>
                     ${imagesArray.length > 1 ? `
@@ -1447,13 +1444,39 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <p class="text-secondary fs-5 mb-0" style="line-height: 1.6; white-space: pre-line;">${item.description}</p>
                             </div>
 
-                            ${!isOwner ? `
-                                <!-- 🛒 3. รูปแบบการซื้อขายอยู่ล่างสุด -->
+                            ${isOwner ? `
+                                <!-- 👤 3. แผงควบคุมสำหรับเจ้าของรายการ (ปิดการสั่งซื้อสินค้าตนเอง) -->
+                                <div id="itemDetailActionContainer">
+                                    <div class="card border-0 bg-success bg-opacity-10 rounded-4 p-3 mb-3 border border-success shadow-sm">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center shadow-sm" style="width: 44px; height: 44px; min-width: 44px;">
+                                                <i class="bi bi-person-check-fill fs-5"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="fw-bold text-success mb-1">📦 นี่คือรายการประกาศของคุณเอง</h6>
+                                                <div class="small text-muted">คุณกำลังดูตัวอย่างประกาศของคุณ ผู้ใช้คนอื่นจะเห็นปุ่มสั่งซื้อ/ขอรับตามปกติ (ระบบปิดการสั่งซื้อสำหรับเจ้าของรายการ)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button type="button" class="btn btn-outline-primary rounded-pill px-3 py-2 flex-grow-1 fw-bold item-modal-edit-btn" data-item-id="${item.itemId}">
+                                            ✏️ แก้ไขประกาศนี้
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success rounded-pill px-3 py-2 flex-grow-1 fw-bold item-modal-requests-btn" data-item-id="${item.itemId}">
+                                            📋 ดูรายการคำขอ ${item.pending_requests > 0 ? `<span class="badge rounded-pill bg-danger ms-1">${item.pending_requests}</span>` : ''}
+                                        </button>
+                                        <button type="button" class="btn btn-outline-dark rounded-pill px-3 py-2 flex-grow-1 fw-bold item-modal-chat-btn" data-item-id="${item.itemId}">
+                                            💬 แชตกับผู้สนใจ
+                                        </button>
+                                    </div>
+                                </div>
+                            ` : `
+                                <!-- 🛒 3. รูปแบบการซื้อขายอยู่ล่างสุด สำหรับผู้ใช้ทั่วไป -->
                                 <div id="itemDetailActionContainer">
                                     ${!isUnavailable ? '<h5 class="fw-bold text-dark mb-3">เลือกลักษณะการทำรายการ:</h5>': ''}
                                     ${actionButtonsHTML}
                                 </div>
-                            `: ''}
+                            `}
 
                         </div>
                     </div>
@@ -1502,6 +1525,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const detailModal = new bootstrap.Modal(document.getElementById('itemDetailModal'));
         detailModal.show();
+
+        modalEl.addEventListener('click', (e) => {
+            const editBtn = e.target.closest('.item-modal-edit-btn');
+            const reqBtn = e.target.closest('.item-modal-requests-btn');
+            const chatBtn = e.target.closest('.item-modal-chat-btn');
+
+            if (editBtn) {
+                detailModal.hide();
+                const card = document.querySelector(`.item-element[data-item-id="${item.itemId}"]`);
+                if (card) {
+                    const cardEdit = card.querySelector('.item-edit-btn');
+                    if (cardEdit) { cardEdit.click(); return; }
+                }
+                if (typeof window.showEditModal === 'function') {
+                    window.showEditModal({
+                        itemId: item.itemId,
+                        title: item.title,
+                        category: item.category,
+                        itemType: item.itemType,
+                        price: item.price,
+                        quantity: item.quantity,
+                        location: item.location,
+                        description: item.description,
+                        latitude: item.lat,
+                        longitude: item.lng
+                    });
+                }
+            } else if (reqBtn) {
+                detailModal.hide();
+                const card = document.querySelector(`.item-element[data-item-id="${item.itemId}"]`);
+                if (card) {
+                    const cardReq = card.querySelector('.item-requests-btn');
+                    if (cardReq) cardReq.click();
+                }
+            } else if (chatBtn) {
+                detailModal.hide();
+                if (typeof window.openItemMessages === 'function') {
+                    window.openItemMessages(item.itemId, item.title);
+                }
+            }
+        });
 
         function showModalNotice(type, title, message) {
             document.getElementById('modalNoticeContainer')?.remove();
