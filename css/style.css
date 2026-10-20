@@ -213,6 +213,12 @@ body {
     }
 }
 
+/* กรอบตัวกรองข้อมูล (Filter Form) ให้เป็นทรงการ์ดโค้งมน 16px สวยงามเหมือนในมือถือทุกขนาดหน้าจอ */
+#filterForm {
+    border-radius: 16px !important;
+    border-color: #e2e8f0 !important;
+}
+
 /* ป้ายหมวดหมู่มุมบนขวาของการ์ด */
 .item-badge {
     position: absolute;
