@@ -226,42 +226,51 @@ window.openMyRequestsModal = async () => {
                 return `
                     <div class="card mb-3 border-0 shadow-sm rounded-4 overflow-hidden my-request-card" data-request-id="${req.request_id}">
                         <div class="card-body p-3">
-                            <div class="d-flex gap-3 align-items-center">
+                            <!-- แถวบน: ป้ายประเภท + สถานะ แยกแถวเด่นชัดเจน -->
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom flex-wrap gap-1">
+                                <div>${typeTag}</div>
+                                <div>${statusBadge}</div>
+                            </div>
+
+                            <!-- แถวกลาง: รูปภาพ + ชื่อสินค้าเต็มๆ + เจ้าของ + เวลา -->
+                            <div class="d-flex gap-3 align-items-start mb-2">
                                 <img src="${req.item_image || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80'}" 
-                                     class="rounded-3" style="width: 85px; height: 85px; object-fit: cover;">
+                                     class="rounded-3 shadow-sm flex-shrink-0" style="width: 72px; height: 72px; object-fit: cover;">
                                 <div class="flex-grow-1 min-width-0">
-                                    <div class="d-flex justify-content-between align-items-start mb-1">
-                                        <h6 class="fw-bold mb-0 text-truncate fs-5">${req.item_title}</h6>
-                                        ${statusBadge}
-                                    </div>
+                                    <h6 class="fw-bold mb-1 text-dark" style="font-size: 1rem; line-height: 1.35;">${req.item_title}</h6>
                                     <div class="small text-muted mb-1">
-                                        ${typeTag} เจ้าของ: <span class="fw-bold text-dark">${req.owner_name}</span>
+                                        เจ้าของ: <strong class="text-dark">${req.owner_name}</strong>
                                     </div>
-                                    <div class="small text-secondary bg-white p-2 rounded-3 mb-2 border">
-                                        💬 <i>"${req.message || 'ไม่ได้ฝากข้อความ'}"</i>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center small text-muted">
-                                        <span><i class="bi bi-clock me-1"></i>${new Date(req.created_at).toLocaleDateString('th-TH')} ${new Date(req.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>
-                                        <div class="d-flex gap-2">
-                                            ${(req.status === 'pending' || req.status === 'accepted') ? `
-                                                <button type="button" class="btn btn-success btn-sm rounded-pill px-3 fw-bold confirm-received-btn">
-                                                    ✅ ยืนยันได้รับของแล้ว
-                                                </button>
-                                            ` : ''}
-                                            ${typeof window.openChat === 'function' ? `
-                                                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 chat-owner-btn" 
-                                                        data-owner-id="${req.owner_id}" data-item-id="${req.item_id}" data-title="${req.item_title}">
-                                                    💬 แชตคุย
-                                                </button>
-                                            ` : ''}
-                                            ${req.status === 'pending' ? `
-                                                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 cancel-request-btn">
-                                                    ❌ ยกเลิกคำขอ
-                                                </button>
-                                            ` : ''}
-                                        </div>
+                                    <div class="small text-muted" style="font-size: 0.78rem;">
+                                        <i class="bi bi-clock me-1"></i>${new Date(req.created_at).toLocaleDateString('th-TH')} ${new Date(req.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
                                     </div>
                                 </div>
+                            </div>
+
+                            ${req.message ? `
+                                <div class="small text-secondary bg-white p-2 rounded-3 mb-2 border">
+                                    💬 <i>"${req.message}"</i>
+                                </div>
+                            ` : ''}
+
+                            <!-- แถวล่าง: ปุ่ม Action เต็มความกว้าง ตัวหนังสือเรียงสวยงาม ไม่บวม ไม่แตกแถว -->
+                            <div class="d-flex gap-2 align-items-center mt-2 pt-2 border-top flex-wrap">
+                                ${(req.status === 'pending' || req.status === 'accepted') ? `
+                                    <button type="button" class="btn btn-success btn-sm rounded-pill py-2 px-3 fw-bold flex-grow-1 confirm-received-btn shadow-sm" style="font-size: 0.85rem; white-space: nowrap;">
+                                        ✅ ยืนยันได้รับของแล้ว
+                                    </button>
+                                ` : ''}
+                                ${typeof window.openChat === 'function' ? `
+                                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill py-2 px-3 fw-bold flex-grow-1 chat-owner-btn shadow-sm" 
+                                            data-owner-id="${req.owner_id}" data-item-id="${req.item_id}" data-title="${req.item_title}" style="font-size: 0.85rem; white-space: nowrap;">
+                                        💬 แชตคุย
+                                    </button>
+                                ` : ''}
+                                ${req.status === 'pending' ? `
+                                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill py-2 px-3 cancel-request-btn shadow-sm" style="font-size: 0.85rem; white-space: nowrap;">
+                                        ❌ ยกเลิกคำขอ
+                                    </button>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
@@ -272,13 +281,13 @@ window.openMyRequestsModal = async () => {
         document.getElementById('myRequestsModal')?.remove();
         document.body.insertAdjacentHTML('beforeend', `
             <div class="modal fade" id="myRequestsModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
                     <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                         <div class="modal-header bg-success text-white p-3">
                             <h5 class="modal-title fw-bold"><i class="bi bi-send-check me-2"></i>รายการนัดรับ / ขอของฟรี</h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="modal-body p-4 bg-light" style="max-height: 75vh; overflow-y: auto;">
+                        <div class="modal-body p-3 p-md-4 bg-light" style="max-height: 75vh; overflow-y: auto;">
                             ${rowsHTML}
                         </div>
                     </div>

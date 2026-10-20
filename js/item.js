@@ -676,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     #rentalBookingModal .flatpickr-weekdays {
         width: 100% !important;
-        height: 42px !important;
+        height: 36px !important;
     }
     #rentalBookingModal .flatpickr-weekdaycontainer {
         width: 100% !important;
@@ -685,9 +685,9 @@ document.addEventListener('DOMContentLoaded', () => {
     #rentalBookingModal span.flatpickr-weekday {
         flex: 1 !important;
         max-width: 14.2857% !important;
-        font-size: 1.05rem !important;
+        font-size: 0.95rem !important;
         font-weight: 700 !important;
-        color: #333333 !important;
+        color: #495057 !important;
     }
     #rentalBookingModal .flatpickr-days {
         width: 100% !important;
@@ -705,35 +705,78 @@ document.addEventListener('DOMContentLoaded', () => {
         max-width: 14.2857% !important;
         width: 14.2857% !important;
         flex-basis: 14.2857% !important;
-        height: 52px !important;
-        line-height: 52px !important;
-        border-radius: 12px !important;
-        font-size: 1.15rem !important;
+        height: 40px !important;
+        line-height: 40px !important;
+        font-size: 1rem !important;
         font-weight: 600 !important;
-        margin: 2px 0 !important;
+        margin: 1px 0 !important;
+        border: none !important;
     }
     #rentalBookingModal .flatpickr-months {
-        padding: 8px 0 !important;
-        margin-bottom: 8px !important;
+        padding: 4px 0 !important;
+        margin-bottom: 4px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
     }
     #rentalBookingModal .flatpickr-current-month {
-        font-size: 1.35rem !important;
+        font-size: 1.15rem !important;
         font-weight: 700 !important;
-        padding-top: 6px !important;
+        padding-top: 2px !important;
+        position: static !important;
+        width: auto !important;
     }
-    #rentalBookingModal .flatpickr-day.selected, 
-    #rentalBookingModal .flatpickr-day.startRange, 
-    #rentalBookingModal .flatpickr-day.endRange {
+    #rentalBookingModal .numInputWrapper {
+        display: inline-block !important;
+        width: 55px !important;
+    }
+    #rentalBookingModal .numInputWrapper span {
+        display: none !important;
+    }
+
+    /* เมื่อเลือกวันเดียว */
+    #rentalBookingModal .flatpickr-day.selected.startRange.endRange {
+        border-radius: 50px !important;
         background: #0d6efd !important;
         border-color: #0d6efd !important;
         color: #ffffff !important;
-        font-weight: 700 !important;
+        box-shadow: none !important;
     }
+
+    /* วันเริ่มต้น (startRange) */
+    #rentalBookingModal .flatpickr-day.selected.startRange,
+    #rentalBookingModal .flatpickr-day.startRange {
+        border-radius: 50px 0 0 50px !important;
+        background: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: #ffffff !important;
+    }
+
+    /* วันสิ้นสุด (endRange) */
+    #rentalBookingModal .flatpickr-day.selected.endRange,
+    #rentalBookingModal .flatpickr-day.endRange {
+        border-radius: 0 50px 50px 0 !important;
+        background: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: #ffffff !important;
+    }
+
+    /* แก้ไขเงาสีฟ้าตรงกลางเมื่อเลือกวันติดกัน (เช่น 20-21) ให้เป็นสีน้ำเงินเดียวกันสนิท ไร้รอยต่อ */
+    #rentalBookingModal .flatpickr-day.selected.startRange + .endRange:not(:nth-child(7n+1)),
+    #rentalBookingModal .flatpickr-day.startRange.startRange + .endRange:not(:nth-child(7n+1)),
+    #rentalBookingModal .flatpickr-day.endRange.startRange + .endRange:not(:nth-child(7n+1)) {
+        -webkit-box-shadow: -10px 0 0 #0d6efd !important;
+        box-shadow: -10px 0 0 #0d6efd !important;
+    }
+
+    /* วันที่อยู่ระหว่างกลาง (inRange) */
     #rentalBookingModal .flatpickr-day.inRange {
         background: #e7f1ff !important;
-        box-shadow: -5px 0 0 #e7f1ff, 5px 0 0 #e7f1ff !important;
         border-color: #e7f1ff !important;
         color: #0d6efd !important;
+        border-radius: 0 !important;
+        -webkit-box-shadow: -5px 0 0 #e7f1ff, 5px 0 0 #e7f1ff !important;
+        box-shadow: -5px 0 0 #e7f1ff, 5px 0 0 #e7f1ff !important;
     }
 </style>
 
