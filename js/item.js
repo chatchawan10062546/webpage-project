@@ -1339,7 +1339,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     initialLng = remembered.longitude;
                     initialZoom = 15;
                 } else {
-                    const ipLoc = window.approximateIpLocation || (typeof window.getIpLocation === 'function' ? await window.getIpLocation() : null);
+                    const cachedIp = JSON.parse(localStorage.getItem('pankan_ip_location') || 'null');
+                    const ipLoc = window.approximateIpLocation || cachedIp;
                     if (ipLoc && ipLoc.latitude && ipLoc.longitude) {
                         initialLat = ipLoc.latitude;
                         initialLng = ipLoc.longitude;
@@ -1361,6 +1362,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 addMap.on('click', (e) => {
                     updatePostMarker(e.latlng.lat, e.latlng.lng);
                 });
+
+                // หากยังไม่มีการปักหมุด และ IP location เพิ่งโหลดเสร็จ ให้เลื่อนไปยังจังหวัดของผู้ใช้
+                if (!remembered && typeof window.getIpLocation === 'function') {
+                    window.getIpLocation().then(freshIp => {
+                        if (freshIp && freshIp.latitude && !addMarker && addMap) {
+                            addMap.setView([freshIp.latitude, freshIp.longitude], 13);
+                        }
+                    }).catch(() => {});
+                }
             } else {
                 addMap.invalidateSize();
             }
