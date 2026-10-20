@@ -313,22 +313,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const imageInput = document.getElementById('postImageFile');
 
             let coordinates = { latitude: null, longitude: null };
-            const showMapToggle = document.getElementById('showMapToggle');
-            const isMapEnabled = showMapToggle ? showMapToggle.checked : true;
-            
-            if (isMapEnabled) {
-                const mapLat = document.getElementById('itemLat')?.value;
-                const mapLng = document.getElementById('itemLng')?.value;
-                if (mapLat && mapLng) {
-                    coordinates.latitude = parseFloat(mapLat);
-                    coordinates.longitude = parseFloat(mapLng);
-                } else {
-                    try {
-                        coordinates = await getCurrentCoordinates();
-                    } catch (error) {
-                        alert('กรุณาปักหมุดบนแผนที่ หรืออนุญาตตำแหน่ง');
-                        return;
-                    }
+            const mapLat = document.getElementById('itemLat')?.value;
+            const mapLng = document.getElementById('itemLng')?.value;
+            if (mapLat && mapLng) {
+                coordinates.latitude = parseFloat(mapLat);
+                coordinates.longitude = parseFloat(mapLng);
+            } else {
+                try {
+                    coordinates = await getCurrentCoordinates();
+                } catch (error) {
+                    alert('กรุณาปักหมุดบนแผนที่ หรืออนุญาตตำแหน่ง');
+                    return;
                 }
             }
 

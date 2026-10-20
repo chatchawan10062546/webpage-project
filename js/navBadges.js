@@ -82,3 +82,4 @@ document.addEventListener('DOMContentLoaded', () => {
         window.updateAllNavBadges();
     }, 15000);
 });
+

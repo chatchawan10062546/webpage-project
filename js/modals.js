@@ -91,14 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             <!-- อัปโหลดได้หลายรูปภาพ -->
                             
-                            <!-- Toggle for Map Privacy -->
-                            <div class="mb-3 bg-light p-3 rounded-4 border">
-                                <div class="form-check form-switch fs-5 mb-0">
-                                    <input class="form-check-input" type="checkbox" id="showMapToggle" checked style="cursor: pointer;">
-                                    <label class="form-check-label fw-bold ms-2 text-success" for="showMapToggle" style="cursor: pointer;">📍 แชร์พิกัดสถานที่นัดรับบนแผนที่</label>
-                                </div>
-                                <div class="form-text mt-1 text-muted"><i class="bi bi-info-circle"></i> ปิดสวิตช์นี้ได้หากไม่สะดวกเปิดเผยพิกัดที่อยู่อาศัย (เหมาะสำหรับซื้อขายหรือให้เช่า)</div>
-                            </div>
+
                             
                             <!-- Map section for Lat/Lng -->
                             <div class="mb-3" id="mapSection">
