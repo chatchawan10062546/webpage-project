@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <select class="form-select" id="postCategory" required>
                                     <option value="" selected disabled>-- เลือกหมวดหมู่ --</option>
                                     <option value="อาหาร">🥗 อาหาร</option>
+                                    <option value="เสื้อผ้า">👕 เสื้อผ้า</option>
                                     <option value="ของใช้">📦 ของใช้</option>
                                     <option value="อื่นๆ">✨ อื่นๆ</option>
                                 </select>
