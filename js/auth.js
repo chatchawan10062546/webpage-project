@@ -116,13 +116,72 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------
     const togglePassword = document.getElementById('togglePassword');
     const regPassword = document.getElementById('regPassword');
-    const toggleIcon = document.getElementById('toggleIcon');
+    const togglePasswordText = document.getElementById('togglePasswordText');
 
-    if (togglePassword && regPassword && toggleIcon) {
+    if (togglePassword && regPassword) {
         togglePassword.addEventListener('click', () => {
-            const type = regPassword.getAttribute('type') === 'password' ? 'text' : 'password';
-            regPassword.setAttribute('type', type);
-            toggleIcon.className = type === 'text' ? 'bi bi-eye' : 'bi bi-eye-slash';
+            const isPassword = regPassword.getAttribute('type') === 'password';
+            regPassword.setAttribute('type', isPassword ? 'text' : 'password');
+            if (togglePasswordText) {
+                togglePasswordText.textContent = isPassword ? 'ซ่อน' : 'แสดง';
+            }
+        });
+    }
+
+    // ----------------------------------------------------
+    // 🛡️ ตรวจสอบเงื่อนไขรหัสผ่าน 5 ข้อแบบ Real-time
+    // ----------------------------------------------------
+    function checkPasswordCriteria(pwd) {
+        return {
+            hasLength: (pwd || '').length >= 6,
+            hasUpper: /[A-Z]/.test(pwd || ''),
+            hasLower: /[a-z]/.test(pwd || ''),
+            hasNumber: /[0-9]/.test(pwd || ''),
+            hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwd || '')
+        };
+    }
+
+    function updatePasswordRequirementsUI(pwd) {
+        const criteria = checkPasswordCriteria(pwd);
+        
+        function updateItem(elId, isValid) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            const icon = el.querySelector('i');
+            if (isValid) {
+                el.classList.remove('text-danger');
+                el.classList.add('text-success');
+                if (icon) {
+                    icon.className = 'bi bi-check-lg fw-bold text-success';
+                }
+            } else {
+                el.classList.remove('text-success');
+                el.classList.add('text-danger');
+                if (icon) {
+                    icon.className = 'bi bi-x-lg fw-bold text-danger';
+                }
+            }
+        }
+
+        updateItem('ruleLength', criteria.hasLength);
+        updateItem('ruleUpper', criteria.hasUpper);
+        updateItem('ruleLower', criteria.hasLower);
+        updateItem('ruleNumber', criteria.hasNumber);
+        updateItem('ruleSpecial', criteria.hasSpecial);
+
+        return criteria.hasLength && criteria.hasUpper && criteria.hasLower && criteria.hasNumber && criteria.hasSpecial;
+    }
+
+    if (regPassword) {
+        regPassword.addEventListener('input', (e) => {
+            updatePasswordRequirementsUI(e.target.value);
+        });
+    }
+
+    const registerModalEl = document.getElementById('registerModal');
+    if (registerModalEl) {
+        registerModalEl.addEventListener('show.bs.modal', () => {
+            if (regPassword) updatePasswordRequirementsUI(regPassword.value);
         });
     }
 
@@ -162,14 +221,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const password = document.getElementById('regPassword').value;
             const phone = document.getElementById('regPhone').value;
 
-            const specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
-            if (!password || password.length < 6) {
-                alert('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHtml; }
-                return;
-            }
-            if (!specialCharRegex.test(password)) {
-                alert('รหัสผ่านต้องมีตัวอักษรพิเศษอย่างน้อย 1 ตัว (เช่น @, #, $, !, %, *, ?)');
+            const allValid = updatePasswordRequirementsUI(password);
+            if (!allValid) {
+                alert('กรุณาตั้งรหัสผ่านให้ครบตามเงื่อนไขทั้ง 5 ข้อที่กำหนดครับ');
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHtml; }
                 return;
             }

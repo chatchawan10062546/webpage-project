@@ -44,13 +44,27 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
     }
 
-    // 🔒 ตรวจสอบความปลอดภัยของรหัสผ่าน: ความยาวอย่างน้อย 6 ตัวอักษร และต้องมีตัวอักษรพิเศษอย่างน้อย 1 ตัว
+    // 🔒 ตรวจสอบความปลอดภัยของรหัสผ่านครบทั้ง 5 ข้อ:
+    // 1. ความยาวอย่างน้อย 6 ตัวอักษร
+    // 2. ตัวพิมพ์ใหญ่ (A-Z) อย่างน้อย 1 ตัว
+    // 3. ตัวพิมพ์เล็ก (a-z) อย่างน้อย 1 ตัว
+    // 4. ตัวเลข (0-9) อย่างน้อย 1 ตัว
+    // 5. อักขระพิเศษอย่างน้อย 1 ตัว
     const specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
     if (password.length < 6) {
         return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร' });
     }
+    if (!/[A-Z]/.test(password)) {
+        return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีตัวพิมพ์ใหญ่ (A-Z) อย่างน้อย 1 ตัว' });
+    }
+    if (!/[a-z]/.test(password)) {
+        return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีตัวพิมพ์เล็ก (a-z) อย่างน้อย 1 ตัว' });
+    }
+    if (!/[0-9]/.test(password)) {
+        return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีตัวเลข (0-9) อย่างน้อย 1 ตัว' });
+    }
     if (!specialCharRegex.test(password)) {
-        return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีตัวอักษรพิเศษอย่างน้อย 1 ตัว (เช่น @, #, $, !, %, *, ?)' });
+        return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีอักขระพิเศษ (เช่น !@#$%) อย่างน้อย 1 ตัว' });
     }
 
     try {
