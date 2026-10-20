@@ -1,5 +1,6 @@
 // ====================================================
 // 📊 mySales.js : หน้าต่างการส่งมอบและการนัดรับของฉัน (Seller & Buyer)
+// ดีไซน์ใหม่: สบายตา อ่านง่าย แยกสถานะชัดเจน ไม่ซ้อนกล่อง
 // ====================================================
 
 window.openMySalesModal = async (initialTab = null) => {
@@ -31,13 +32,38 @@ window.openMySalesModal = async (initialTab = null) => {
         const sales = salesData.sales || [];
         const buyerRequests = requestsData.requests || [];
 
-        // นับจำนวนที่ต้องดำเนินการ
-        const pendingSalesCount = sales.reduce((acc, s) => acc + (s.requests ? s.requests.filter(r => r.status === 'pending').length : 0), 0);
-        const activeHandoversCount = sales.reduce((acc, s) => acc + (s.requests ? s.requests.filter(r => r.status === 'accepted').length : 0), 0);
-        const activeBuyerCount = buyerRequests.filter(r => r.status === 'pending' || r.status === 'accepted').length;
+        // จำแนกหมวดหมู่ฝั่งคนขาย
+        const pendingSales = [];   // มีคำขอรอตอบรับ (status === 'pending')
+        const acceptedSales = [];  // รอนัดรับส่งมอบ (status === 'accepted')
+        const completedSales = []; // ส่งมอบเรียบร้อยแล้ว (status === 'completed')
+        const emptySales = [];     // ยังไม่มีคำขอ
 
-        // เลือกว่าจะแสดงแท็บไหนก่อน:
-        // ถ้าผู้ใช้มีคำขอที่กดไป (คนซื้อ) และไม่มีของขาย ให้เปิดแท็บคนซื้อทันที
+        sales.forEach(sale => {
+            const reqs = sale.requests || [];
+            if (reqs.length === 0) {
+                emptySales.push(sale);
+            } else {
+                const hasPending = reqs.some(r => r.status === 'pending');
+                const hasAccepted = reqs.some(r => r.status === 'accepted');
+                const hasCompleted = reqs.some(r => r.status === 'completed');
+
+                if (hasPending) {
+                    pendingSales.push(sale);
+                } else if (hasAccepted) {
+                    acceptedSales.push(sale);
+                } else if (hasCompleted) {
+                    completedSales.push(sale);
+                } else {
+                    emptySales.push(sale);
+                }
+            }
+        });
+
+        // นับจำนวนที่รอคนซื้อดำเนินการ
+        const activeBuyerCount = buyerRequests.filter(r => r.status === 'pending' || r.status === 'accepted').length;
+        const totalSellerActive = pendingSales.length + acceptedSales.length;
+
+        // เลือกแท็บเริ่มต้น
         let defaultTab = initialTab;
         if (!defaultTab) {
             if (sales.length === 0 && buyerRequests.length > 0) {
@@ -47,118 +73,202 @@ window.openMySalesModal = async (initialTab = null) => {
             }
         }
 
+        // ฟังก์ชันสร้างการ์ดคำขอฝั่งคนขาย (Clean Card Design)
+        const renderSellerItemCard = (sale, filterStatus = null) => {
+            const typeBadge = sale.item_type === 'sell' 
+                ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1">ขาย ฿${Number(sale.price).toLocaleString()}</span>`
+                : sale.item_type === 'rent'
+                ? `<span class="badge bg-warning-subtle text-dark border border-warning-subtle rounded-pill px-2 py-1">ให้เช่า ฿${Number(sale.price).toLocaleString()}/วัน</span>`
+                : `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">แจกฟรี</span>`;
+
+            // กรองคำขอตามสถานะที่ต้องการแสดง
+            const matchedRequests = filterStatus 
+                ? (sale.requests || []).filter(r => r.status === filterStatus)
+                : (sale.requests || []);
+
+            if (matchedRequests.length === 0 && filterStatus) return '';
+
+            return matchedRequests.map(req => {
+                const isAccepted = req.status === 'accepted';
+                const isPending = req.status === 'pending';
+                const isCompleted = req.status === 'completed';
+
+                let headerBg = 'bg-light text-secondary';
+                let headerIcon = '<i class="bi bi-info-circle me-1"></i>';
+                let headerTitle = 'สถานะ: ' + req.status;
+
+                if (isPending) {
+                    headerBg = 'bg-warning-subtle text-dark border-bottom border-warning-subtle';
+                    headerIcon = '<i class="bi bi-hourglass-split text-warning me-1"></i>';
+                    headerTitle = 'มีคำขอใหม่ • รอคุณตอบรับ';
+                } else if (isAccepted) {
+                    headerBg = 'bg-success-subtle text-success border-bottom border-success-subtle';
+                    headerIcon = '<i class="bi bi-box-seam text-success me-1"></i>';
+                    headerTitle = 'ยอมรับแล้ว • อยู่ระหว่างนัดรับ / ส่งมอบ';
+                } else if (isCompleted) {
+                    headerBg = 'bg-light text-muted border-bottom';
+                    headerIcon = '<i class="bi bi-check-circle-fill text-success me-1"></i>';
+                    headerTitle = 'ส่งมอบสำเร็จเรียบร้อยแล้ว';
+                }
+
+                return `
+                    <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden bg-white my-sale-card" data-item-id="${sale.item_id}">
+                        <!-- แถบบน: สถานะคำขอ & ประเภทสินค้า -->
+                        <div class="px-3 py-2 d-flex justify-content-between align-items-center ${headerBg}">
+                            <div class="fw-bold small d-flex align-items-center">
+                                ${headerIcon}<span>${headerTitle}</span>
+                            </div>
+                            <div>${typeBadge}</div>
+                        </div>
+
+                        <div class="p-3">
+                            <!-- แถวสินค้า: รูป + ชื่อ + จำนวน -->
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <img src="${sale.image_url || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80'}" 
+                                     class="rounded-3 shadow-sm flex-shrink-0" style="width: 56px; height: 56px; object-fit: cover;">
+                                <div class="flex-grow-1 min-width-0">
+                                    <h6 class="fw-bold mb-1 text-dark text-truncate fs-6">${escapeHtml(sale.title)}</h6>
+                                    <div class="small text-muted">
+                                        คงเหลือ: <strong>${sale.quantity}</strong> ชิ้น
+                                        ${sale.quantity <= 0 ? '<span class="badge bg-danger-subtle text-danger ms-1">จอง/หมดแล้ว</span>' : ''}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- กล่องข้อมูลผู้ขอรับ (แถบมน สะอาดตา ไม่ซ้อนการ์ด) -->
+                            <div class="bg-light rounded-3 p-3 mb-3 border">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div class="fw-bold text-dark small">
+                                        <i class="bi bi-person-circle text-primary me-1"></i>ผู้ขอรับ: ${escapeHtml(req.requester_name || 'ผู้ใช้งาน')}
+                                    </div>
+                                    ${req.requester_phone ? `
+                                        <a href="tel:${req.requester_phone}" class="badge bg-white text-dark border text-decoration-none py-1 px-2 shadow-sm">
+                                            <i class="bi bi-telephone me-1 text-success"></i>${escapeHtml(req.requester_phone)}
+                                        </a>
+                                    ` : ''}
+                                </div>
+                                ${req.message ? `
+                                    <div class="small text-secondary mt-2 pt-2 border-top">
+                                        <i class="bi bi-chat-quote me-1 text-muted"></i> "${escapeHtml(req.message)}"
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            <!-- แถวปุ่ม Action: จัดวางเป็นระเบียบ ไม่เบียด -->
+                            <div class="d-flex gap-2 flex-wrap" data-request-id="${req.request_id}">
+                                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-2 fw-bold flex-grow-1 chat-requester-btn shadow-sm"
+                                        data-requester-id="${req.requester_id}" data-item-id="${sale.item_id}" data-title="${escapeHtml(sale.title)}">
+                                    <i class="bi bi-chat-dots-fill me-1"></i>แชตกับผู้ซื้อ
+                                </button>
+                                
+                                ${isPending ? `
+                                    <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-2 fw-bold flex-grow-1 accept-req-btn shadow-sm">
+                                        <i class="bi bi-check-lg me-1"></i>ยอมรับคำขอ
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-2 fw-bold reject-req-btn shadow-sm">
+                                        <i class="bi bi-x-lg me-1"></i>ปฏิเสธ
+                                    </button>
+                                ` : ''}
+
+                                ${isAccepted ? `
+                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-2 fw-bold revoke-req-btn shadow-sm">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>ยกเลิกการจอง / ยึดของคืน
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
         // ==========================================
-        // 1. สร้าง HTML ฝั่งคนขาย (Seller Tab)
+        // 1. สรุปเนื้อหาฝั่งคนขาย (Seller Pane)
         // ==========================================
         let sellerHTML = '';
         if (sales.length === 0) {
             sellerHTML = `
                 <div class="text-center text-muted py-5">
                     <i class="bi bi-box-seam fs-1 d-block mb-2 text-secondary opacity-50"></i>
-                    <p class="mb-0 fs-5 fw-bold text-secondary">คุณยังไม่ได้ลงประกาศรายการใดๆ สำหรับขายหรือแจก</p>
-                    <small class="text-muted">หากต้องการลงประกาศ สามารถกดปุ่ม "ลงประกาศแจกของ" ได้ที่เมนูด้านบนครับ</small>
+                    <p class="mb-0 fs-5 fw-bold text-secondary">คุณยังไม่ได้ลงประกาศรายการใดๆ</p>
+                    <small class="text-muted">สามารถลงประกาศแจกหรือขายได้ที่ปุ่ม "ลงประกาศแจกของ" บนแถบเมนูครับ</small>
                 </div>
             `;
         } else {
-            // แยกรายการที่มีคำขอ กับรายการที่ยังไม่มีคำขอ
-            const salesWithReqs = sales.filter(s => s.requests && s.requests.length > 0);
-            const salesWithoutReqs = sales.filter(s => !s.requests || s.requests.length === 0);
-
-            const renderSaleCard = (sale) => {
-                const typeTag = sale.item_type === 'sell' 
-                    ? `<span class="badge bg-primary me-1">ขาย (฿${Number(sale.price).toLocaleString()})</span>`
-                    : sale.item_type === 'rent'
-                    ? `<span class="badge bg-warning text-dark me-1">ให้เช่า (฿${Number(sale.price).toLocaleString()}/วัน)</span>`
-                    : `<span class="badge bg-success me-1">แจกฟรี</span>`;
-
-                const stockLabel = sale.quantity > 0 
-                    ? `<span class="badge bg-info text-dark">เหลือ ${sale.quantity} ชิ้น</span>` 
-                    : `<span class="badge bg-danger">หมด/จองแล้ว</span>`;
-
-                let requestsHTML = '';
-                if (!sale.requests || sale.requests.length === 0) {
-                    requestsHTML = '<p class="text-muted small mb-0 py-2 text-center">ยังไม่มีผู้ส่งคำขอในขณะนี้</p>';
-                } else {
-                    requestsHTML = sale.requests.map(req => {
-                        const isAccepted = req.status === 'accepted';
-                        const isPending = req.status === 'pending';
-                        const isCompleted = req.status === 'completed';
-
-                        let statusBadge = '<span class="badge bg-secondary">สถานะ: ' + req.status + '</span>';
-                        if (isPending) statusBadge = '<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>รอการตอบรับ</span>';
-                        else if (isAccepted) statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>ยอมรับแล้ว (รอนัดรับ/ส่งมอบ)</span>';
-                        else if (isCompleted) statusBadge = '<span class="badge bg-primary"><i class="bi bi-patch-check-fill me-1"></i>ส่งมอบสำเร็จแล้ว</span>';
-
-                        return `
-                            <div class="border rounded-3 p-3 mb-2 bg-white d-flex flex-column gap-2 shadow-sm ${isAccepted ? 'border-success border-2' : ''}" data-request-id="${req.request_id}">
-                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                                    <span class="fw-bold text-dark"><i class="bi bi-person-circle text-primary me-1"></i>${escapeHtml(req.requester_name || 'ผู้ใช้งาน')}</span>
-                                    <div>
-                                        ${req.requester_phone ? `<a href="tel:${req.requester_phone}" class="badge bg-light text-dark border text-decoration-none me-1"><i class="bi bi-telephone me-1 text-success"></i>${escapeHtml(req.requester_phone)}</a>` : ''}
-                                        ${statusBadge}
-                                    </div>
-                                </div>
-                                <div class="small text-secondary bg-light p-2 rounded-2 border">
-                                    💬 "${escapeHtml(req.message || 'สนใจรายการนี้ครับ/ค่ะ')}"
-                                </div>
-                                <div class="d-flex gap-2 mt-1 flex-wrap">
-                                    <button class="btn btn-sm btn-outline-primary flex-grow-1 fw-bold chat-requester-btn" 
-                                            data-requester-id="${req.requester_id}" data-item-id="${sale.item_id}" data-title="${escapeHtml(sale.title)}">
-                                        💬 แชตกับผู้ซื้อ
-                                    </button>
-                                    ${isPending ? `
-                                        <button class="btn btn-sm btn-success flex-grow-1 fw-bold accept-req-btn">✅ ยอมรับคำขอ</button>
-                                        <button class="btn btn-sm btn-outline-danger flex-grow-1 reject-req-btn">❌ ปฏิเสธ</button>
-                                    ` : ''}
-                                    ${isAccepted ? `
-                                        <button class="btn btn-sm btn-outline-danger flex-grow-1 fw-bold revoke-req-btn">🛑 ยกเลิกการจอง / ยึดของคืน</button>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                }
-
-                return `
-                    <div class="card mb-3 border-0 shadow-sm rounded-4 overflow-hidden my-sale-card" data-item-id="${sale.item_id}">
-                        <div class="card-header bg-white p-3 border-bottom d-flex gap-3 align-items-center">
-                            <img src="${sale.image_url || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80'}" 
-                                 class="rounded-3 shadow-sm flex-shrink-0" style="width: 65px; height: 65px; object-fit: cover;">
-                            <div class="flex-grow-1 min-width-0">
-                                <h6 class="fw-bold mb-1 fs-6 text-truncate">${escapeHtml(sale.title)}</h6>
-                                <div class="d-flex align-items-center gap-1">${typeTag} ${stockLabel}</div>
-                            </div>
-                        </div>
-                        <div class="card-body p-3 bg-light">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="fw-bold text-dark mb-0 small">📋 รายการคำขอ (${(sale.requests || []).length}):</h6>
-                            </div>
-                            ${requestsHTML}
-                        </div>
-                    </div>
-                `;
-            };
-
-            if (salesWithReqs.length > 0) {
+            // หมวดที่ 1: คำขอใหม่รอการตอบรับ (Pending)
+            if (pendingSales.length > 0) {
                 sellerHTML += `
-                    <div class="mb-3">
-                        <div class="fw-bold text-success mb-2"><i class="bi bi-bell-fill me-1"></i>รายการที่มีผู้ส่งคำขอหรือกำลังส่งมอบ (${salesWithReqs.length})</div>
-                        ${salesWithReqs.map(renderSaleCard).join('')}
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-warning text-dark rounded-pill px-3 py-2 fw-bold fs-6">
+                                <i class="bi bi-bell-fill me-1"></i>คำขอใหม่รอคุณตอบรับ (${pendingSales.length})
+                            </span>
+                        </div>
+                        ${pendingSales.map(s => renderSellerItemCard(s, 'pending')).join('')}
                     </div>
                 `;
             }
 
-            if (salesWithoutReqs.length > 0) {
+            // หมวดที่ 2: รอนัดรับส่งมอบ (Accepted)
+            if (acceptedSales.length > 0) {
                 sellerHTML += `
-                    <div class="mt-4">
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-success rounded-pill px-3 py-2 fw-bold fs-6">
+                                <i class="bi bi-box-seam me-1"></i>อยู่ระหว่างนัดรับ / กำลังส่งมอบ (${acceptedSales.length})
+                            </span>
+                        </div>
+                        ${acceptedSales.map(s => renderSellerItemCard(s, 'accepted')).join('')}
+                    </div>
+                `;
+            }
+
+            // หมวดที่ 3: ส่งมอบสำเร็จแล้ว (Completed) - จัดไว้ในหมวดประวัติ
+            if (completedSales.length > 0) {
+                sellerHTML += `
+                    <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-muted fw-bold small"><i class="bi bi-box me-1"></i>รายการอื่นๆ ที่ยังไม่มีคำขอ (${salesWithoutReqs.length})</span>
-                            <button class="btn btn-sm btn-link text-decoration-none p-0 text-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#emptySalesList">
+                            <span class="fw-bold text-secondary small">
+                                <i class="bi bi-check2-circle text-success me-1"></i>ประวัติส่งมอบสำเร็จแล้ว (${completedSales.length})
+                            </span>
+                            <button class="btn btn-sm btn-link text-decoration-none text-secondary p-0" type="button" data-bs-toggle="collapse" data-bs-target="#completedSalesList">
                                 ดู/ซ่อน
                             </button>
                         </div>
-                        <div class="collapse ${salesWithReqs.length === 0 ? 'show' : ''}" id="emptySalesList">
-                            ${salesWithoutReqs.map(renderSaleCard).join('')}
+                        <div class="collapse" id="completedSalesList">
+                            ${completedSales.map(s => renderSellerItemCard(s, 'completed')).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // หมวดที่ 4: รายการที่ยังไม่มีคำขอ
+            if (emptySales.length > 0) {
+                sellerHTML += `
+                    <div class="mt-4 pt-3 border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted fw-bold small">
+                                <i class="bi bi-shop me-1"></i>รายการอื่นๆ ของคุณที่ยังไม่มีคำขอ (${emptySales.length})
+                            </span>
+                            <button class="btn btn-sm btn-link text-decoration-none text-secondary p-0" type="button" data-bs-toggle="collapse" data-bs-target="#emptySalesList">
+                                ดู/ซ่อน
+                            </button>
+                        </div>
+                        <div class="collapse ${totalSellerActive === 0 ? 'show' : ''}" id="emptySalesList">
+                            <div class="row g-2">
+                                ${emptySales.map(sale => `
+                                    <div class="col-12 col-md-6">
+                                        <div class="border rounded-3 p-2 bg-white d-flex align-items-center gap-2 shadow-sm">
+                                            <img src="${sale.image_url || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80'}" 
+                                                 class="rounded-2" style="width: 44px; height: 44px; object-fit: cover;">
+                                            <div class="flex-grow-1 min-width-0">
+                                                <div class="fw-bold text-dark text-truncate small">${escapeHtml(sale.title)}</div>
+                                                <div class="text-muted" style="font-size: 0.75rem;">เหลือ ${sale.quantity} ชิ้น • ยังไม่มีคำขอ</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -166,81 +276,102 @@ window.openMySalesModal = async (initialTab = null) => {
         }
 
         // ==========================================
-        // 2. สร้าง HTML ฝั่งคนซื้อ (Buyer Tab)
+        // 2. สรุปเนื้อหาฝั่งคนซื้อ (Buyer Pane)
         // ==========================================
         let buyerHTML = '';
         if (buyerRequests.length === 0) {
             buyerHTML = `
                 <div class="text-center text-muted py-5">
                     <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary opacity-50"></i>
-                    <p class="mb-0 fs-5 fw-bold text-secondary">คุณยังไม่ได้ส่งคำขอรับของหรือรายการใดๆ</p>
-                    <small class="text-muted">ลองเลือกรายการสิ่งของที่คุณสนใจบนหน้าแรกแล้วกด "ขอรับของ" ดูสิครับ!</small>
+                    <p class="mb-0 fs-5 fw-bold text-secondary">คุณยังไม่ได้ส่งคำขอรับรายการใดๆ</p>
+                    <small class="text-muted">ลองเลือกกดดูรายละเอียดสินค้าที่ชอบแล้วส่งคำขอหาผู้แจกดูสิครับ!</small>
                 </div>
             `;
         } else {
             buyerHTML = buyerRequests.map(req => {
-                let statusBadge = '';
-                if (req.status === 'accepted') {
-                    statusBadge = '<span class="badge bg-warning text-dark px-3 py-2 rounded-pill"><i class="bi bi-box-seam me-1"></i>ผู้ขายอนุมัติแล้ว (รอนัดรับของ)</span>';
-                } else if (req.status === 'completed') {
-                    statusBadge = '<span class="badge bg-success px-3 py-2 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i>ได้รับของเรียบร้อยแล้ว</span>';
-                } else if (req.status === 'rejected') {
-                    statusBadge = '<span class="badge bg-danger px-3 py-2 rounded-pill"><i class="bi bi-x-circle me-1"></i>ถูกปฏิเสธ</span>';
-                } else if (req.status === 'cancelled') {
-                    statusBadge = '<span class="badge bg-secondary px-3 py-2 rounded-pill">ยกเลิกแล้ว</span>';
-                } else {
-                    statusBadge = '<span class="badge bg-info text-dark px-3 py-2 rounded-pill"><i class="bi bi-hourglass-split me-1"></i>รอผู้ขายตอบรับ</span>';
+                const isAccepted = req.status === 'accepted';
+                const isPending = req.status === 'pending';
+                const isCompleted = req.status === 'completed';
+                const isRejected = req.status === 'rejected';
+
+                let headerBg = 'bg-light text-secondary';
+                let headerIcon = '<i class="bi bi-info-circle me-1"></i>';
+                let headerTitle = 'สถานะ: ' + req.status;
+
+                if (isPending) {
+                    headerBg = 'bg-info-subtle text-dark border-bottom border-info-subtle';
+                    headerIcon = '<i class="bi bi-hourglass-split text-info me-1"></i>';
+                    headerTitle = 'ส่งคำขอแล้ว • รอผู้ขายตอบรับ';
+                } else if (isAccepted) {
+                    headerBg = 'bg-warning-subtle text-dark border-bottom border-warning-subtle';
+                    headerIcon = '<i class="bi bi-check-circle-fill text-success me-1"></i>';
+                    headerTitle = 'ผู้ขายอนุมัติแล้ว! • เตรียมนัดรับของ';
+                } else if (isCompleted) {
+                    headerBg = 'bg-success-subtle text-success border-bottom border-success-subtle';
+                    headerIcon = '<i class="bi bi-patch-check-fill text-success me-1"></i>';
+                    headerTitle = 'ได้รับของเรียบร้อยแล้ว';
+                } else if (isRejected) {
+                    headerBg = 'bg-danger-subtle text-danger border-bottom border-danger-subtle';
+                    headerIcon = '<i class="bi bi-x-circle-fill text-danger me-1"></i>';
+                    headerTitle = 'คำขอถูกปฏิเสธ';
                 }
 
-                const typeTag = req.item_type === 'sell' 
-                    ? `<span class="badge bg-primary me-1">ขาย (฿${Number(req.price).toLocaleString()})</span>`
+                const typeBadge = req.item_type === 'sell' 
+                    ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1">ขาย ฿${Number(req.price).toLocaleString()}</span>`
                     : req.item_type === 'rent'
-                    ? `<span class="badge bg-warning text-dark me-1">ให้เช่า (฿${Number(req.price).toLocaleString()}/วัน)</span>`
-                    : `<span class="badge bg-success me-1">แจกฟรี</span>`;
+                    ? `<span class="badge bg-warning-subtle text-dark border border-warning-subtle rounded-pill px-2 py-1">ให้เช่า ฿${Number(req.price).toLocaleString()}/วัน</span>`
+                    : `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">แจกฟรี</span>`;
 
                 return `
-                    <div class="card mb-3 border-0 shadow-sm rounded-4 overflow-hidden my-request-card" data-request-id="${req.request_id}">
-                        <div class="card-body p-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom flex-wrap gap-1">
-                                <div>${typeTag}</div>
-                                <div>${statusBadge}</div>
+                    <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden bg-white my-request-card" data-request-id="${req.request_id}">
+                        <!-- แถบบน: สถานะคำขอ & ประเภทสินค้า -->
+                        <div class="px-3 py-2 d-flex justify-content-between align-items-center ${headerBg}">
+                            <div class="fw-bold small d-flex align-items-center">
+                                ${headerIcon}<span>${headerTitle}</span>
                             </div>
-                            <div class="d-flex gap-3 align-items-start mb-2">
+                            <div>${typeBadge}</div>
+                        </div>
+
+                        <div class="p-3">
+                            <!-- แถวสินค้า -->
+                            <div class="d-flex align-items-center gap-3 mb-3">
                                 <img src="${req.item_image || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80'}" 
-                                     class="rounded-3 shadow-sm flex-shrink-0" style="width: 70px; height: 70px; object-fit: cover;">
+                                     class="rounded-3 shadow-sm flex-shrink-0" style="width: 56px; height: 56px; object-fit: cover;">
                                 <div class="flex-grow-1 min-width-0">
-                                    <h6 class="fw-bold mb-1 text-dark" style="font-size: 1rem; line-height: 1.35;">${escapeHtml(req.item_title)}</h6>
-                                    <div class="small text-muted mb-1">
+                                    <h6 class="fw-bold mb-1 text-dark text-truncate fs-6">${escapeHtml(req.item_title)}</h6>
+                                    <div class="small text-muted">
                                         ผู้ขาย/ผู้แจก: <strong class="text-dark">${escapeHtml(req.owner_name)}</strong>
-                                        ${req.owner_phone ? `<span class="ms-2 badge bg-light text-dark border"><i class="bi bi-telephone me-1 text-success"></i>${escapeHtml(req.owner_phone)}</span>` : ''}
-                                    </div>
-                                    <div class="small text-muted" style="font-size: 0.78rem;">
-                                        <i class="bi bi-clock me-1"></i>${new Date(req.created_at).toLocaleDateString('th-TH')} ${new Date(req.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                                        ${req.owner_phone ? `
+                                            <a href="tel:${req.owner_phone}" class="badge bg-white text-dark border text-decoration-none py-1 px-2 shadow-sm ms-2">
+                                                <i class="bi bi-telephone me-1 text-success"></i>${escapeHtml(req.owner_phone)}
+                                            </a>
+                                        ` : ''}
                                     </div>
                                 </div>
                             </div>
 
                             ${req.message ? `
-                                <div class="small text-secondary bg-light p-2 rounded-3 mb-2 border">
-                                    💬 <i>"${escapeHtml(req.message)}"</i>
+                                <div class="bg-light rounded-3 px-3 py-2 mb-3 border small text-secondary">
+                                    <i class="bi bi-chat-quote me-1 text-muted"></i> ข้อความของคุณ: "${escapeHtml(req.message)}"
                                 </div>
                             ` : ''}
 
-                            <div class="d-flex gap-2 align-items-center mt-2 pt-2 border-top flex-wrap">
+                            <!-- แถวปุ่ม Action -->
+                            <div class="d-flex gap-2 flex-wrap">
                                 ${(req.status === 'pending' || req.status === 'accepted') ? `
-                                    <button type="button" class="btn btn-success btn-sm rounded-pill py-2 px-3 fw-bold flex-grow-1 confirm-received-btn shadow-sm" style="font-size: 0.85rem; white-space: nowrap;">
-                                        ✅ ยืนยันได้รับของแล้ว
+                                    <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-2 fw-bold flex-grow-1 confirm-received-btn shadow-sm">
+                                        <i class="bi bi-check-circle-fill me-1"></i>ยืนยันได้รับของแล้ว
                                     </button>
                                 ` : ''}
 
-                                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill py-2 px-3 fw-bold flex-grow-1 buyer-chat-btn shadow-sm"
-                                        data-owner-id="${req.owner_id}" data-item-id="${req.item_id}" data-title="${escapeHtml(req.item_title)}" style="font-size: 0.85rem; white-space: nowrap;">
-                                    💬 แชตคุย
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-2 fw-bold flex-grow-1 buyer-chat-btn shadow-sm"
+                                        data-owner-id="${req.owner_id}" data-item-id="${req.item_id}" data-title="${escapeHtml(req.item_title)}">
+                                    <i class="bi bi-chat-dots-fill me-1"></i>แชตคุยกับคนขาย
                                 </button>
 
                                 ${req.status === 'pending' ? `
-                                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill py-2 px-3 fw-bold flex-grow-1 cancel-req-btn shadow-sm" style="font-size: 0.85rem; white-space: nowrap;">
-                                        ❌ ยกเลิกคำขอ
+                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-2 fw-bold cancel-req-btn shadow-sm">
+                                        <i class="bi bi-x-circle me-1"></i>ยกเลิกคำขอ
                                     </button>
                                 ` : ''}
                             </div>
@@ -251,7 +382,7 @@ window.openMySalesModal = async (initialTab = null) => {
         }
 
         // ==========================================
-        // 3. Render Modal With Tabs
+        // 3. Render Modal With Clean Tabs
         // ==========================================
         document.getElementById('mySalesModal')?.remove();
         document.body.insertAdjacentHTML('beforeend', `
@@ -263,27 +394,27 @@ window.openMySalesModal = async (initialTab = null) => {
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         
-                        <!-- Nav Tabs -->
-                        <div class="bg-white border-bottom px-3 pt-2">
+                        <!-- Nav Tabs สะอาดตา สไตล์โมเดิร์น -->
+                        <div class="bg-white border-bottom px-3 pt-3">
                             <ul class="nav nav-pills nav-fill gap-2" id="deliveryTab" role="tablist">
                                 <li class="nav-item" role="presentation">
                                     <button class="nav-link rounded-pill fw-bold py-2 ${defaultTab === 'seller' ? 'active' : ''}" 
                                             id="seller-tab" data-bs-toggle="pill" data-bs-target="#seller-pane" type="button" role="tab">
-                                        📦 ฉันส่งมอบ (คนขาย/แจก) 
-                                        ${(pendingSalesCount + activeHandoversCount) > 0 ? `<span class="badge rounded-pill bg-danger ms-1">${pendingSalesCount + activeHandoversCount}</span>` : ''}
+                                        📦 รายการส่งมอบ (คนขาย)
+                                        ${totalSellerActive > 0 ? `<span class="badge rounded-pill bg-danger ms-1">${totalSellerActive}</span>` : ''}
                                     </button>
                                 </li>
                                 <li class="nav-item" role="presentation">
                                     <button class="nav-link rounded-pill fw-bold py-2 ${defaultTab === 'buyer' ? 'active' : ''}" 
                                             id="buyer-tab" data-bs-toggle="pill" data-bs-target="#buyer-pane" type="button" role="tab">
-                                        📥 ฉันนัดรับของ (คนซื้อ/รับ)
+                                        📥 รายการนัดรับ (คนซื้อ)
                                         ${activeBuyerCount > 0 ? `<span class="badge rounded-pill bg-danger ms-1">${activeBuyerCount}</span>` : ''}
                                     </button>
                                 </li>
                             </ul>
                         </div>
 
-                        <div class="modal-body p-4 bg-light">
+                        <div class="modal-body p-3 p-md-4 bg-light">
                             <div class="tab-content" id="deliveryTabContent">
                                 <div class="tab-pane fade ${defaultTab === 'seller' ? 'show active' : ''}" id="seller-pane" role="tabpanel">
                                     ${sellerHTML}
@@ -303,7 +434,7 @@ window.openMySalesModal = async (initialTab = null) => {
         modal.show();
         modalElement.addEventListener('hidden.bs.modal', () => modalElement.remove(), { once: true });
 
-        // Event Delegations
+        // จัดการคลิก Action ภายใน Modal
         modalElement.addEventListener('click', async (e) => {
             // แชตฝั่งคนขาย
             const chatBtn = e.target.closest('.chat-requester-btn');
