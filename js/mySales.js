@@ -36,13 +36,10 @@ window.openMySalesModal = async () => {
         const pendingSales = [];   // มีคำขอรอตอบรับ (status === 'pending')
         const acceptedSales = [];  // รอนัดรับส่งมอบ/อยู่ระหว่างเช่า (status === 'accepted' || status === 'renting')
         const completedSales = []; // ส่งมอบเรียบร้อยแล้ว/คืนแล้ว (status === 'completed' || status === 'returned')
-        const emptySales = [];     // ยังไม่มีคำขอ
 
         sales.forEach(sale => {
             const reqs = sale.requests || [];
-            if (reqs.length === 0) {
-                emptySales.push(sale);
-            } else {
+            if (reqs.length > 0) {
                 const hasReturning = reqs.some(r => r.status === 'returning');
                 const hasPending = reqs.some(r => r.status === 'pending');
                 const hasAccepted = reqs.some(r => r.status === 'accepted' || r.status === 'renting');
@@ -56,8 +53,6 @@ window.openMySalesModal = async () => {
                     acceptedSales.push(sale);
                 } else if (hasCompleted) {
                     completedSales.push(sale);
-                } else {
-                    emptySales.push(sale);
                 }
             }
         });
@@ -196,12 +191,12 @@ window.openMySalesModal = async () => {
         };
 
         let bodyHTML = '';
-        if (sales.length === 0) {
+        if (totalActive === 0 && completedSales.length === 0) {
             bodyHTML = `
                 <div class="text-center text-muted py-5">
-                    <i class="bi bi-box-seam fs-1 d-block mb-2 text-secondary opacity-50"></i>
-                    <p class="mb-0 fs-5 fw-bold text-secondary">คุณยังไม่ได้ลงประกาศรายการใดๆ สำหรับขายหรือแจก</p>
-                    <small class="text-muted">หากต้องการลงประกาศ สามารถกดปุ่ม "ลงประกาศแจกของ" ได้ที่เมนูด้านบนครับ</small>
+                    <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                    <p class="mb-0 fs-5 fw-bold text-secondary">ยังไม่มีคำขอสำหรับรายการของคุณ</p>
+                    <small class="text-muted">เมื่อมีผู้ใช้งานส่งคำขอนัดรับ ซื้อ หรือเช่าสินค้า รายการจะปรากฏขึ้นที่นี่โดยอัตโนมัติครับ</small>
                 </div>
             `;
         } else {
@@ -259,40 +254,8 @@ window.openMySalesModal = async () => {
                                 ดู/ซ่อน
                             </button>
                         </div>
-                        <div class="collapse" id="completedSalesList">
+                        <div class="collapse ${totalActive === 0 ? 'show' : ''}" id="completedSalesList">
                             ${completedSales.map(s => renderSellerItemCard(s, 'completed')).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // หมวดที่ 4: รายการที่ยังไม่มีคำขอ
-            if (emptySales.length > 0) {
-                bodyHTML += `
-                    <div class="mt-4 pt-3 border-top">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-muted fw-bold small">
-                                <i class="bi bi-shop me-1"></i>รายการอื่นๆ ของคุณที่ยังไม่มีคำขอ (${emptySales.length})
-                            </span>
-                            <button class="btn btn-sm btn-link text-decoration-none text-secondary p-0" type="button" data-bs-toggle="collapse" data-bs-target="#emptySalesList">
-                                ดู/ซ่อน
-                            </button>
-                        </div>
-                        <div class="collapse ${totalActive === 0 ? 'show' : ''}" id="emptySalesList">
-                            <div class="row g-2">
-                                ${emptySales.map(sale => `
-                                    <div class="col-12 col-md-6">
-                                        <div class="border rounded-3 p-2 bg-white d-flex align-items-center gap-2 shadow-sm">
-                                            <img src="${sale.image_url || '/assets/pansuk_icon.jpg'}" 
-                                                 class="rounded-2" style="width: 44px; height: 44px; object-fit: cover;">
-                                            <div class="flex-grow-1 min-width-0">
-                                                <div class="fw-bold text-dark text-truncate small">${escapeHtml(sale.title)}</div>
-                                                <div class="text-muted" style="font-size: 0.75rem;">เหลือ ${sale.quantity} ชิ้น • ยังไม่มีคำขอ</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
                         </div>
                     </div>
                 `;
