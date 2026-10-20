@@ -239,12 +239,165 @@
             }
         }
 
-        /* เมนูเมื่อกดย่อเป็น 3 ขีด (Collapse) บนมือถือ / จอแนวตั้ง (< 992px) */
+        /* สไตล์เมนูมือถือ Modern Card Dropdown (< 992px) */
         @media (max-width: 991.98px) {
-            .custom-main-navbar .navbar-nav .nav-link {
+            .custom-main-navbar .navbar-toggler {
+                border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+                border-radius: 12px;
+                padding: 0.35rem 0.6rem;
+                outline: none !important;
+                box-shadow: none !important;
+                transition: all 0.2s ease;
+            }
+            .custom-main-navbar .navbar-toggler:focus {
+                background-color: rgba(255, 255, 255, 0.15);
+            }
+
+            /* กล่องการ์ด Modern Card เมนูสีขาวโค้งมน เงาสวยงาม */
+            .custom-main-navbar .navbar-collapse {
+                background: #ffffff !important;
+                border-radius: 20px !important;
+                margin-top: 0.85rem !important;
+                margin-bottom: 0.75rem !important;
+                padding: 1.1rem !important;
+                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22) !important;
+                border: 1px solid rgba(0, 0, 0, 0.05) !important;
+                animation: mobileNavFadeIn 0.25s ease-out;
+            }
+
+            @keyframes mobileNavFadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(-8px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .custom-main-navbar .navbar-nav {
+                width: 100% !important;
+                gap: 0.45rem !important;
+                align-items: stretch !important;
+            }
+
+            .custom-main-navbar .navbar-nav .nav-item {
+                width: 100% !important;
+            }
+
+            /* 1. ปุ่ม "ลงประกาศแจกของ" ไฮไลต์พิเศษด้านบนสุด */
+            .custom-main-navbar .navbar-nav .nav-item:first-child .nav-link {
+                background: linear-gradient(135deg, #198754 0%, #20c997 100%) !important;
+                color: #ffffff !important;
                 font-size: 1rem !important;
-                padding: 0.5rem 1rem !important;
-                border-radius: 8px;
+                font-weight: 700 !important;
+                text-align: center !important;
+                justify-content: center !important;
+                border-radius: 14px !important;
+                padding: 0.75rem 1rem !important;
+                box-shadow: 0 4px 14px rgba(25, 135, 84, 0.3) !important;
+                margin-bottom: 0.35rem !important;
+                border: none !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            .custom-main-navbar .navbar-nav .nav-item:first-child .nav-link:hover,
+            .custom-main-navbar .navbar-nav .nav-item:first-child .nav-link:active {
+                background: linear-gradient(135deg, #146c43 0%, #198754 100%) !important;
+                transform: translateY(-1px);
+            }
+
+            /* 2. รายการเมนูปกติบนการ์ดสีขาว */
+            .custom-main-navbar .navbar-nav .nav-item:not(:first-child) .nav-link {
+                color: #2d3748 !important;
+                font-size: 0.95rem !important;
+                font-weight: 600 !important;
+                padding: 0.7rem 1rem !important;
+                border-radius: 12px !important;
+                background-color: #f8faf9 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                transition: all 0.2s ease !important;
+                border: 1px solid rgba(0, 0, 0, 0.04) !important;
+            }
+
+            .custom-main-navbar .navbar-nav .nav-item:not(:first-child) .nav-link:hover,
+            .custom-main-navbar .navbar-nav .nav-item:not(:first-child) .nav-link:active {
+                background-color: #eaf5ee !important;
+                color: #198754 !important;
+                border-color: rgba(25, 135, 84, 0.2) !important;
+                transform: translateX(4px);
+            }
+
+            /* ตัวเลขแจ้งเตือน (Badge) บนมือถือ */
+            .custom-main-navbar .navbar-nav .badge {
+                font-size: 0.76rem !important;
+                font-weight: 700 !important;
+                padding: 0.3em 0.65em !important;
+                box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+            }
+
+            /* Dropdown แจ้งเตือนบนการ์ดมือถือ */
+            .custom-main-navbar #notifDropdownMenu {
+                width: 100% !important;
+                max-width: 100% !important;
+                position: static !important;
+                float: none !important;
+                margin-top: 0.5rem !important;
+                border: 1px solid #e2e8e5 !important;
+                border-radius: 14px !important;
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08) !important;
+            }
+
+            /* 3. ส่วนเข้าสู่ระบบ / โปรไฟล์ เต็มความกว้างด้านล่าง */
+            #authNavContainer {
+                width: 100% !important;
+                margin-top: 0.4rem !important;
+                padding-top: 0.75rem !important;
+                border-top: 1px solid #edf2f0 !important;
+            }
+
+            #authNavContainer .btn {
+                width: 100% !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                font-size: 0.96rem !important;
+                padding: 0.7rem 1.2rem !important;
+                border-radius: 14px !important;
+                transition: all 0.2s ease !important;
+            }
+
+            /* กรณีที่ยังไม่ได้ล็อกอิน: ปุ่มสีเขียวเด่นชัด */
+            #authNavContainer > button {
+                background: linear-gradient(135deg, #198754 0%, #146c43 100%) !important;
+                color: #ffffff !important;
+                font-weight: 700 !important;
+                box-shadow: 0 4px 14px rgba(25, 135, 84, 0.25) !important;
+                border: none !important;
+            }
+            #authNavContainer > button:active {
+                transform: scale(0.99);
+            }
+
+            /* กรณีที่ล็อกอินแล้ว: ปุ่มการ์ดแสดงโปรไฟล์ */
+            #authNavContainer .dropdown {
+                width: 100% !important;
+            }
+            #authNavContainer .dropdown .btn {
+                background-color: #f8faf9 !important;
+                color: #198754 !important;
+                border: 1.5px solid #d8e5dd !important;
+                font-weight: 700 !important;
+            }
+            #authNavContainer .dropdown-menu {
+                width: 100% !important;
+                border-radius: 14px !important;
+                border: 1px solid #e2e8e5 !important;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+                margin-top: 0.5rem !important;
             }
         }
     </style>
@@ -267,7 +420,7 @@
                 <ul class="navbar-nav ms-auto gap-2 gap-lg-2 gap-xl-3 align-items-center py-2 py-lg-0">
                     <!-- ปุ่มลงประกาศแจกของ -->
                     <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="handlePostItemClick(event)">ลงประกาศแจกของ</a>
+                        <a class="nav-link" href="#" onclick="handlePostItemClick(event)"><i class="bi bi-plus-circle me-2 d-lg-none"></i>ลงประกาศแจกของ</a>
                     </li>
                     
                     <li class="nav-item"><a class="nav-link position-relative d-flex align-items-center" href="#" id="chatNavLink"><span>💬 แชตข้อความ</span> <span class="badge bg-danger rounded-pill ms-1" id="chatUnreadBadge" style="display:none;">0</span></a></li>
