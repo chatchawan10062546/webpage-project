@@ -399,7 +399,7 @@ router.patch('/item-requests/:requestId', requireAuth, (req, res) => {
             const updateSql = `
                UPDATE items 
                SET quantity = GREATEST(quantity - 1, 0),
-                   status = CASE WHEN (quantity - 1) <= 0 THEN 'reserved' ELSE status END
+                   status = CASE WHEN GREATEST(quantity - 1, 0) <= 0 THEN 'reserved' ELSE 'available' END
                WHERE item_id = ?
             `;
             return db.query(updateSql, [rows[0].item_id], (itemErr) => {
@@ -485,17 +485,38 @@ router.patch('/item-requests/:requestId/confirm-received', requireAuth, (req, re
       db.query('UPDATE item_requests SET status = "completed" WHERE request_id = ?', [requestId], (updateErr) => {
          if (updateErr) return res.status(500).json({ success: false, message: 'ยืนยันรับของไม่สำเร็จ' });
 
-         // ปรับสถานะ item เป็น completed และลดจำนวนลง 1 ชิ้น
+         // อัปเดตสถานะ item: สต็อกถูกหักไปแล้วตั้งแต่ตอนเจ้าของกดรับคำขอ (accept) จึงไม่หัก quantity ซ้ำอีก
+         // - หาก quantity > 0 (ยังมีชิ้นที่เหลือให้คนอื่นขอได้) ให้คงสถานะ 'available'
+         // - หาก quantity <= 0 และไม่มีคำขอที่ accepted ค้างอยู่ ให้ปรับเป็น 'completed' (หมดแล้ว)
          const updateItemSql = `
-            UPDATE items 
-            SET quantity = GREATEST(quantity - 1, 0),
-                status = CASE WHEN (quantity - 1) <= 0 THEN 'completed' ELSE status END
-            WHERE item_id = ?
+            UPDATE items i
+            SET i.status = CASE 
+               WHEN i.quantity > 0 THEN 'available'
+               WHEN (SELECT COUNT(*) FROM item_requests r WHERE r.item_id = i.item_id AND r.status = 'accepted') > 0 THEN 'reserved'
+               ELSE 'completed'
+            END
+            WHERE i.item_id = ?
          `;
-         db.query(updateItemSql, [reqData.item_id]);
+         db.query(updateItemSql, [reqData.item_id], (itemUpErr) => {
+            if (itemUpErr) console.error('Update item status on confirm received error:', itemUpErr);
+         });
 
          // ให้โบนัส XP ผู้ขาย/ผู้แจก +50 XP
          addXP(reqData.owner_id, 50);
+
+         // แจ้งเตือนผู้แจก/ผู้ขายว่าผู้ขอรับยืนยันรับของแล้ว
+         const notifMsg = `ผู้ขอรับยืนยันได้รับ "${reqData.item_title}" เรียบร้อยแล้ว`;
+         db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, ?, ?, ?, ?)',
+            [reqData.owner_id, requesterId, 'request_completed', requestId, notifMsg], (notifErr) => {
+               if (!notifErr) {
+                  emitToUser(reqData.owner_id, 'new_notification', {
+                     type: 'request_completed',
+                     reference_id: requestId,
+                     message: notifMsg
+                  });
+               }
+            }
+         );
 
          res.json({
             success: true,
