@@ -145,18 +145,27 @@ router.get('/chat/rooms/:roomId/messages', requireAuth, (req, res) => {
    });
 });
 
-// ส่งข้อความในห้องที่ผู้ใช้เป็นสมาชิก
-router.post('/chat/rooms/:roomId/messages', requireAuth, upload.single('image'), (req, res) => {
+// ส่งข้อความในห้องที่ผู้ใช้เป็นสมาชิก (รองรับส่งข้อความ และส่งรูปภาพได้หลายรูปพร้อมกัน)
+router.post('/chat/rooms/:roomId/messages', requireAuth, upload.any(), (req, res) => {
    const { roomId } = req.params;
    let { message } = req.body;
    const user_id = req.authUser.userId;
    const user_name = req.authUser.name;
 
-   if (req.file) {
-      message = '[IMAGE]/uploads/' + req.file.filename;
+   const uploadedFiles = req.files || [];
+   if (uploadedFiles.length > 0) {
+      const imageUrls = uploadedFiles.map(f => '/uploads/' + f.filename);
+      const textMsg = (message && message.trim()) ? message.trim() : '';
+      if (textMsg) {
+         message = '[IMAGES]' + JSON.stringify({ text: textMsg, images: imageUrls });
+      } else if (imageUrls.length === 1) {
+         message = '[IMAGE]' + imageUrls[0];
+      } else {
+         message = '[IMAGES]' + imageUrls.join(',');
+      }
    }
 
-   if (!user_id || !user_name || !message?.trim()) {
+   if (!user_id || !user_name || (!message?.trim() && uploadedFiles.length === 0)) {
       return res.status(400).json({ success: false, message: 'ข้อความไม่ถูกต้อง' });
    }
 

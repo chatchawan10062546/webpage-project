@@ -170,7 +170,23 @@
             chatBadge.style.display = 'inline-block';
         }
 
-        const msgText = data.message.startsWith('[IMAGE]') ? '📷 [ส่งรูปภาพ]' : data.message;
+        let msgText = data.message || '';
+        if (msgText.startsWith('[IMAGE]')) {
+            msgText = '📷 [ส่งรูปภาพ]';
+        } else if (msgText.startsWith('[IMAGES]')) {
+            const payload = msgText.slice(8);
+            if (payload.startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(payload);
+                    msgText = parsed.text ? `📷 [รูปภาพ] ${parsed.text}` : `📷 [ส่งรูปภาพ ${parsed.images?.length || ''} รูป]`;
+                } catch(e) {
+                    msgText = '📷 [ส่งรูปภาพหลายรูป]';
+                }
+            } else {
+                const count = payload.split(',').length;
+                msgText = `📷 [ส่งรูปภาพ ${count} รูป]`;
+            }
+        }
         showRealtimeToast({
             title: `💬 ข้อความใหม่จาก ${data.user_name}`,
             message: msgText,

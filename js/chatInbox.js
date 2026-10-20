@@ -46,6 +46,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     window.updateChatUnreadBadge = updateChatUnreadBadge;
 
+    function formatInboxMessagePreview(msg) {
+        if (!msg) return 'ยังไม่มีข้อความ';
+        if (msg.startsWith('[IMAGE]')) return '📷 [รูปภาพ]';
+        if (msg.startsWith('[IMAGES]')) {
+            const payload = msg.slice(8);
+            if (payload.startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(payload);
+                    if (parsed.text) return `📷 [รูปภาพ] ${parsed.text}`;
+                    const count = parsed.images?.length || 1;
+                    return `📷 [ส่งรูปภาพ ${count} รูป]`;
+                } catch(e) {}
+            }
+            const count = payload.split(',').length;
+            return `📷 [ส่งรูปภาพ ${count} รูป]`;
+        }
+        return msg;
+    }
+
     async function showInbox() {
         const userId = getUserId();
         if (!userId) {
@@ -70,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
                             <div class="small text-muted">คุยกับ ${escapeHtml(room.other_user_name)}</div>
-                            <div class="text-truncate chat-latest-message ${unreadCount > 0 ? 'fw-bold text-dark' : ''}">${escapeHtml(room.latest_message || 'ยังไม่มีข้อความ')}</div>
+                            <div class="text-truncate chat-latest-message ${unreadCount > 0 ? 'fw-bold text-dark' : ''}">${escapeHtml(formatInboxMessagePreview(room.latest_message))}</div>
                         </div>
                     </div>
                 </button>
