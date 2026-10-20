@@ -339,9 +339,18 @@
 
                     if (isBuyer) {
                         if (!isRentingOrBeyond && isShipped) {
-                            actionBtn = `<button class="btn btn-sm btn-outline-success mt-2 confirm-receive-btn" data-id="${t.trans_id}" data-item-id="${t.item_id}" data-item-title="${escapeHtml(t.title)}" data-seller-id="${t.giver_id}" data-seller-name="${escapeHtml(t.seller_name)}" data-is-rent="true">✅ ยืนยันได้รับสินค้าแล้ว (เริ่มเช่า)</button>`;
+                            actionBtn = `
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    <button class="btn btn-sm btn-outline-success confirm-receive-btn" data-id="${t.trans_id}" data-item-id="${t.item_id}" data-item-title="${escapeHtml(t.title)}" data-seller-id="${t.giver_id}" data-seller-name="${escapeHtml(t.seller_name)}" data-is-rent="true">
+                                        ✅ ยืนยันได้รับสินค้าแล้ว (เริ่มเช่า)
+                                    </button>
+                                    <button class="btn btn-sm btn-warning text-dark fw-bold return-item-btn" data-id="${t.trans_id}">
+                                        📦 คืนสินค้า / แจ้งส่งคืน
+                                    </button>
+                                </div>
+                            `;
                         } else if (t.status === 'renting' || t.rental_status === 'renting') {
-                            actionBtn = `<button class="btn btn-sm btn-warning text-dark fw-bold mt-2 return-item-btn" data-id="${t.trans_id}">📦 แจ้งส่งคืนสินค้า</button>`;
+                            actionBtn = `<button class="btn btn-sm btn-warning text-dark fw-bold mt-2 return-item-btn" data-id="${t.trans_id}">📦 คืนสินค้า / แจ้งส่งคืน</button>`;
                         }
                     } else {
                         if (t.rental_status === 'returning') {

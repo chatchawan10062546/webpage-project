@@ -32,9 +32,10 @@ window.openMySalesModal = async () => {
         const sales = salesData.sales || [];
 
         // จำแนกหมวดหมู่ฝั่งคนขาย
+        const returningSales = []; // มีผู้เช่าส่งคืนของรอตรวจรับ (status === 'returning')
         const pendingSales = [];   // มีคำขอรอตอบรับ (status === 'pending')
-        const acceptedSales = [];  // รอนัดรับส่งมอบ (status === 'accepted')
-        const completedSales = []; // ส่งมอบเรียบร้อยแล้ว (status === 'completed')
+        const acceptedSales = [];  // รอนัดรับส่งมอบ/อยู่ระหว่างเช่า (status === 'accepted' || status === 'renting')
+        const completedSales = []; // ส่งมอบเรียบร้อยแล้ว/คืนแล้ว (status === 'completed' || status === 'returned')
         const emptySales = [];     // ยังไม่มีคำขอ
 
         sales.forEach(sale => {
@@ -42,11 +43,14 @@ window.openMySalesModal = async () => {
             if (reqs.length === 0) {
                 emptySales.push(sale);
             } else {
+                const hasReturning = reqs.some(r => r.status === 'returning');
                 const hasPending = reqs.some(r => r.status === 'pending');
-                const hasAccepted = reqs.some(r => r.status === 'accepted');
-                const hasCompleted = reqs.some(r => r.status === 'completed');
+                const hasAccepted = reqs.some(r => r.status === 'accepted' || r.status === 'renting');
+                const hasCompleted = reqs.some(r => r.status === 'completed' || r.status === 'returned');
 
-                if (hasPending) {
+                if (hasReturning) {
+                    returningSales.push(sale);
+                } else if (hasPending) {
                     pendingSales.push(sale);
                 } else if (hasAccepted) {
                     acceptedSales.push(sale);
@@ -58,7 +62,7 @@ window.openMySalesModal = async () => {
             }
         });
 
-        const totalActive = pendingSales.length + acceptedSales.length;
+        const totalActive = returningSales.length + pendingSales.length + acceptedSales.length;
 
         // ฟังก์ชันสร้างการ์ดคำขอฝั่งคนขาย (Clean Order Card Design)
         const renderSellerItemCard = (sale, filterStatus = null) => {
@@ -69,32 +73,43 @@ window.openMySalesModal = async () => {
                 : `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">แจกฟรี</span>`;
 
             const matchedRequests = filterStatus 
-                ? (sale.requests || []).filter(r => r.status === filterStatus)
+                ? (sale.requests || []).filter(r => {
+                    if (filterStatus === 'accepted') return r.status === 'accepted' || r.status === 'renting';
+                    if (filterStatus === 'completed') return r.status === 'completed' || r.status === 'returned';
+                    return r.status === filterStatus;
+                })
                 : (sale.requests || []);
 
             if (matchedRequests.length === 0 && filterStatus) return '';
 
             return matchedRequests.map(req => {
-                const isAccepted = req.status === 'accepted';
+                const isReturning = req.status === 'returning';
+                const isAccepted = req.status === 'accepted' || req.status === 'renting';
                 const isPending = req.status === 'pending';
-                const isCompleted = req.status === 'completed';
+                const isCompleted = req.status === 'completed' || req.status === 'returned';
 
                 let headerBg = 'bg-light text-secondary';
                 let headerIcon = '<i class="bi bi-info-circle me-1"></i>';
                 let headerTitle = 'สถานะ: ' + req.status;
 
-                if (isPending) {
+                if (isReturning) {
+                    headerBg = 'bg-info-subtle text-dark border-bottom border-info-subtle';
+                    headerIcon = '<i class="bi bi-truck text-primary me-1"></i>';
+                    headerTitle = 'ผู้เช่าแจ้งส่งคืนของแล้ว • รอคุณตรวจรับ';
+                } else if (isPending) {
                     headerBg = 'bg-warning-subtle text-dark border-bottom border-warning-subtle';
                     headerIcon = '<i class="bi bi-hourglass-split text-warning me-1"></i>';
                     headerTitle = 'มีคำขอใหม่ • รอคุณตอบรับ';
                 } else if (isAccepted) {
                     headerBg = 'bg-success-subtle text-success border-bottom border-success-subtle';
                     headerIcon = '<i class="bi bi-box-seam text-success me-1"></i>';
-                    headerTitle = 'ยอมรับแล้ว • อยู่ระหว่างนัดรับ / ส่งมอบ';
+                    headerTitle = req.status === 'renting' 
+                        ? 'กำลังเช่าอยู่ • ผู้เช่าได้รับของแล้ว' 
+                        : 'ยอมรับแล้ว • อยู่ระหว่างนัดรับ / ส่งมอบ';
                 } else if (isCompleted) {
                     headerBg = 'bg-light text-muted border-bottom';
                     headerIcon = '<i class="bi bi-check-circle-fill text-success me-1"></i>';
-                    headerTitle = 'ส่งมอบสำเร็จเรียบร้อยแล้ว';
+                    headerTitle = req.status === 'returned' ? 'ตรวจรับของคืนสำเร็จเรียบร้อย' : 'ส่งมอบสำเร็จเรียบร้อยแล้ว';
                 }
 
                 return `
@@ -147,12 +162,24 @@ window.openMySalesModal = async () => {
                                     <i class="bi bi-chat-dots-fill me-1"></i>แชตกับผู้ซื้อ
                                 </button>
                                 
+                                ${isReturning ? `
+                                    <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-2 fw-bold flex-grow-1 confirm-return-req-btn shadow-sm">
+                                        <i class="bi bi-check-circle-fill me-1"></i>✅ ตรวจรับของคืนแล้ว (นำเข้าสต็อก)
+                                    </button>
+                                ` : ''}
+
                                 ${isPending ? `
                                     <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-2 fw-bold flex-grow-1 accept-req-btn shadow-sm">
                                         <i class="bi bi-check-lg me-1"></i>ยอมรับคำขอ
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-2 fw-bold reject-req-btn shadow-sm">
                                         <i class="bi bi-x-lg me-1"></i>ปฏิเสธ
+                                    </button>
+                                ` : ''}
+
+                                ${(isAccepted && sale.item_type === 'rent' && !isReturning) ? `
+                                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 py-2 fw-bold confirm-return-req-btn shadow-sm" title="กดยืนยันเมื่อได้รับของคืนเรียบร้อย">
+                                        <i class="bi bi-box-arrow-in-left me-1"></i>✅ ยืนยันรับของคืน (นำเข้าสต็อก)
                                     </button>
                                 ` : ''}
 
@@ -178,6 +205,20 @@ window.openMySalesModal = async () => {
                 </div>
             `;
         } else {
+            // หมวดที่ 0: ผู้เช่าแจ้งส่งคืนของแล้ว (Returning)
+            if (returningSales.length > 0) {
+                bodyHTML += `
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-info text-dark rounded-pill px-3 py-2 fw-bold fs-6">
+                                <i class="bi bi-truck me-1"></i>ผู้เช่าแจ้งส่งคืนของแล้ว รอคุณตรวจรับ (${returningSales.length})
+                            </span>
+                        </div>
+                        ${returningSales.map(s => renderSellerItemCard(s, 'returning')).join('')}
+                    </div>
+                `;
+            }
+
             // หมวดที่ 1: คำขอใหม่รอคุณตอบรับ (Pending)
             if (pendingSales.length > 0) {
                 bodyHTML += `
@@ -295,6 +336,24 @@ window.openMySalesModal = async () => {
             const reqDiv = e.target.closest('[data-request-id]');
             if (!reqDiv) return;
             const requestId = reqDiv.dataset.requestId;
+
+            if (e.target.closest('.confirm-return-req-btn')) {
+                if (!confirm('ยืนยันว่าคุณได้รับสินค้าคืนในสภาพเรียบร้อยแล้วใช่หรือไม่?\n(ระบบจะนำสินค้าชิ้นนี้กลับเข้าสต็อก +1 ทันทีเพื่อให้ผู้อื่นเช่าต่อได้)')) return;
+                const btn = e.target.closest('.confirm-return-req-btn');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>กำลังบันทึก...';
+                try {
+                    const res = await requestJson(`/api/item-requests/${requestId}/confirm-return`, {
+                        method: 'PATCH'
+                    });
+                    alert(res.message || 'ตรวจรับสินค้าคืนเรียบร้อย นำสินค้ากลับเข้าสต็อกแล้ว');
+                    if (typeof window.updateAllNavBadges === 'function') window.updateAllNavBadges();
+                    modal.hide(); window.openMySalesModal();
+                } catch(err) {
+                    btn.disabled = false;
+                    alert('ผิดพลาด: ' + err.message);
+                }
+            }
 
             if (e.target.closest('.accept-req-btn')) {
                 if (!confirm('ยืนยันยอมรับคำขอนี้? (ของจะถูกจองให้คนนี้)')) return;

@@ -214,11 +214,22 @@ window.openMyRequestsModal = async () => {
             `;
         } else {
             rowsHTML = requests.map(req => {
+                const isRent = req.item_type === 'rent';
                 let statusBadge = '';
                 if (req.status === 'accepted') {
-                    statusBadge = '<span class="badge bg-warning text-dark px-3 py-2 rounded-pill"><i class="bi bi-box-seam me-1"></i>ผู้ขายอนุมัติแล้ว (รอรับของ)</span>';
+                    statusBadge = isRent 
+                        ? '<span class="badge bg-warning text-dark px-3 py-2 rounded-pill"><i class="bi bi-box-seam me-1"></i>ผู้ปล่อยเช่าอนุมัติแล้ว (นัดรับ/กำลังเช่า)</span>'
+                        : '<span class="badge bg-warning text-dark px-3 py-2 rounded-pill"><i class="bi bi-box-seam me-1"></i>ผู้ขายอนุมัติแล้ว (รอรับของ)</span>';
+                } else if (req.status === 'renting') {
+                    statusBadge = '<span class="badge bg-primary text-white px-3 py-2 rounded-pill"><i class="bi bi-clock-history me-1"></i>กำลังเช่าสินค้าอยู่</span>';
+                } else if (req.status === 'returning') {
+                    statusBadge = '<span class="badge bg-info text-dark px-3 py-2 rounded-pill"><i class="bi bi-truck me-1"></i>แจ้งส่งคืนแล้ว (รอผู้ปล่อยเช่าตรวจรับ)</span>';
+                } else if (req.status === 'returned') {
+                    statusBadge = '<span class="badge bg-success px-3 py-2 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i>ส่งคืนสินค้าเรียบร้อยแล้ว</span>';
                 } else if (req.status === 'completed') {
-                    statusBadge = '<span class="badge bg-success px-3 py-2 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i>ได้รับของเรียบร้อยแล้ว</span>';
+                    statusBadge = isRent
+                        ? '<span class="badge bg-primary text-white px-3 py-2 rounded-pill"><i class="bi bi-clock-history me-1"></i>ได้รับของแล้ว (กำลังเช่าอยู่)</span>'
+                        : '<span class="badge bg-success px-3 py-2 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i>ได้รับของเรียบร้อยแล้ว</span>';
                 } else if (req.status === 'rejected') {
                     statusBadge = '<span class="badge bg-danger px-3 py-2 rounded-pill"><i class="bi bi-x-circle me-1"></i>ถูกปฏิเสธ</span>';
                 } else if (req.status === 'cancelled') {
@@ -265,11 +276,28 @@ window.openMyRequestsModal = async () => {
 
                             <!-- แถวล่าง: ปุ่ม Action เต็มความกว้าง ตัวหนังสือเรียงสวยงาม ไม่บวม ไม่แตกแถว -->
                             <div class="d-flex gap-2 align-items-center mt-2 pt-2 border-top flex-wrap">
-                                ${(req.status === 'pending' || req.status === 'accepted') ? `
-                                    <button type="button" class="btn btn-success btn-sm rounded-pill py-2 px-3 fw-bold flex-grow-1 confirm-received-btn shadow-sm" style="font-size: 0.85rem; white-space: nowrap;">
-                                        ✅ ยืนยันได้รับของแล้ว
-                                    </button>
-                                ` : ''}
+                                ${isRent ? `
+                                    ${req.status === 'returning' ? `
+                                        <button type="button" class="btn btn-secondary btn-sm rounded-pill py-2 px-3 fw-bold flex-grow-1 shadow-sm" disabled style="font-size: 0.85rem; white-space: nowrap;">
+                                            <i class="bi bi-hourglass-split me-1"></i>แจ้งส่งคืนแล้ว (รอเจ้าของตรวจรับ)
+                                        </button>
+                                    ` : (['accepted', 'renting', 'completed'].includes(req.status)) ? `
+                                        <button type="button" class="btn btn-warning text-dark btn-sm rounded-pill py-2 px-3 fw-bold flex-grow-1 return-rental-req-btn shadow-sm" style="font-size: 0.85rem; white-space: nowrap;">
+                                            <i class="bi bi-box-arrow-in-left me-1"></i>📦 คืนสินค้า / ส่งคืนของ
+                                        </button>
+                                        ${req.status === 'accepted' ? `
+                                            <button type="button" class="btn btn-outline-success btn-sm rounded-pill py-2 px-3 fw-bold confirm-received-btn shadow-sm" style="font-size: 0.85rem; white-space: nowrap;">
+                                                ✅ ยืนยันได้รับของแล้ว
+                                            </button>
+                                        ` : ''}
+                                    ` : ''}
+                                ` : `
+                                    ${(req.status === 'pending' || req.status === 'accepted') ? `
+                                        <button type="button" class="btn btn-success btn-sm rounded-pill py-2 px-3 fw-bold flex-grow-1 confirm-received-btn shadow-sm" style="font-size: 0.85rem; white-space: nowrap;">
+                                            ✅ ยืนยันได้รับของแล้ว
+                                        </button>
+                                    ` : ''}
+                                `}
                                 ${typeof window.openChat === 'function' ? `
                                     <button type="button" class="btn btn-outline-primary btn-sm rounded-pill py-2 px-3 fw-bold flex-grow-1 chat-owner-btn shadow-sm" 
                                             data-owner-id="${req.owner_id}" data-item-id="${req.item_id}" data-title="${req.item_title}" style="font-size: 0.85rem; white-space: nowrap;">
@@ -314,11 +342,31 @@ window.openMyRequestsModal = async () => {
             const chatBtn = e.target.closest('.chat-owner-btn');
             const cancelBtn = e.target.closest('.cancel-request-btn');
             const confirmBtn = e.target.closest('.confirm-received-btn');
+            const returnBtn = e.target.closest('.return-rental-req-btn');
             const card = e.target.closest('.my-request-card');
 
             if (chatBtn && typeof window.openChat === 'function') {
                 modal.hide();
                 window.openChat(chatBtn.dataset.ownerId, chatBtn.dataset.title, chatBtn.dataset.itemId);
+            }
+
+            if (returnBtn && card) {
+                if (!confirm('ยืนยันว่าคุณต้องการส่งคืนสินค้านี้ใช่หรือไม่?\n(ระบบจะแจ้งเตือนผู้ปล่อยเช่าให้ตรวจรับของและคืนสินค้าเข้าสต็อก)')) return;
+                const requestId = card.dataset.requestId;
+                returnBtn.disabled = true;
+                returnBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>กำลังส่ง...';
+                try {
+                    const result = await requestJson(`/api/item-requests/${requestId}/return`, {
+                        method: 'PATCH'
+                    });
+                    alert(result.message || 'แจ้งส่งคืนสินค้าเรียบร้อยแล้ว รอผู้ปล่อยเช่าตรวจรับของ');
+                    modal.hide();
+                    window.openMyRequestsModal();
+                } catch (err) {
+                    returnBtn.disabled = false;
+                    returnBtn.innerHTML = '<i class="bi bi-box-arrow-in-left me-1"></i>📦 คืนสินค้า / ส่งคืนของ';
+                    alert('ดำเนินการไม่สำเร็จ: ' + err.message);
+                }
             }
 
             if (confirmBtn && card) {

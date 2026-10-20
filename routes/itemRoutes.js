@@ -511,7 +511,7 @@ router.patch('/item-requests/:requestId/confirm-received', requireAuth, (req, re
 
    const sqlFind = `
       SELECT r.request_id, r.item_id, r.status AS request_status,
-             i.title AS item_title, i.user_id AS owner_id, u.name AS owner_name
+             i.title AS item_title, i.user_id AS owner_id, u.name AS owner_name, i.item_type
       FROM item_requests r
       JOIN items i ON i.item_id = r.item_id
       JOIN users u ON u.user_id = i.user_id
@@ -523,22 +523,23 @@ router.patch('/item-requests/:requestId/confirm-received', requireAuth, (req, re
       if (rows.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบคำขอนี้หรือไม่มีสิทธิ์ดำเนินการ' });
       
       const reqData = rows[0];
-      if (['completed', 'cancelled', 'rejected'].includes(reqData.request_status)) {
+      if (['returned', 'cancelled', 'rejected'].includes(reqData.request_status)) {
          return res.status(400).json({ success: false, message: 'คำขอนี้ถูกดำเนินการหรือยกเลิกไปแล้ว' });
       }
 
-      // อัปเดตสถานะคำขอเป็น completed
-      db.query('UPDATE item_requests SET status = "completed" WHERE request_id = ?', [requestId], (updateErr) => {
+      // สำหรับการเช่า: เปลี่ยนสถานะเป็น 'renting' (กำลังเช่าอยู่) เพื่อให้แสดงปุ่มคืนของ
+      // สำหรับการแจกฟรีหรือซื้อขาด: ปรับเป็น 'completed'
+      const nextStatus = reqData.item_type === 'rent' ? 'renting' : 'completed';
+
+      db.query('UPDATE item_requests SET status = ? WHERE request_id = ?', [nextStatus, requestId], (updateErr) => {
          if (updateErr) return res.status(500).json({ success: false, message: 'ยืนยันรับของไม่สำเร็จ' });
 
          // อัปเดตสถานะ item: สต็อกถูกหักไปแล้วตั้งแต่ตอนเจ้าของกดรับคำขอ (accept) จึงไม่หัก quantity ซ้ำอีก
-         // - หาก quantity > 0 (ยังมีชิ้นที่เหลือให้คนอื่นขอได้) ให้คงสถานะ 'available'
-         // - หาก quantity <= 0 และไม่มีคำขอที่ accepted ค้างอยู่ ให้ปรับเป็น 'completed' (หมดแล้ว)
          const updateItemSql = `
             UPDATE items i
             SET i.status = CASE 
                WHEN i.quantity > 0 THEN 'available'
-               WHEN (SELECT COUNT(*) FROM item_requests r WHERE r.item_id = i.item_id AND r.status = 'accepted') > 0 THEN 'reserved'
+               WHEN (SELECT COUNT(*) FROM item_requests r WHERE r.item_id = i.item_id AND r.status IN ('accepted', 'renting')) > 0 THEN 'reserved'
                ELSE 'completed'
             END
             WHERE i.item_id = ?
@@ -551,7 +552,10 @@ router.patch('/item-requests/:requestId/confirm-received', requireAuth, (req, re
          addXP(reqData.owner_id, 50);
 
          // แจ้งเตือนผู้แจก/ผู้ขายว่าผู้ขอรับยืนยันรับของแล้ว
-         const notifMsg = `ผู้ขอรับยืนยันได้รับ "${reqData.item_title}" เรียบร้อยแล้ว`;
+         const notifMsg = reqData.item_type === 'rent'
+            ? `ผู้เช่ายืนยันได้รับของ "${reqData.item_title}" แล้ว เริ่มต้นระยะเวลาเช่า`
+            : `ผู้ขอรับยืนยันได้รับ "${reqData.item_title}" เรียบร้อยแล้ว`;
+
          db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, ?, ?, ?, ?)',
             [reqData.owner_id, requesterId, 'request_completed', requestId, notifMsg], (notifErr) => {
                if (!notifErr) {
@@ -566,11 +570,113 @@ router.patch('/item-requests/:requestId/confirm-received', requireAuth, (req, re
 
          res.json({
             success: true,
-            message: 'ยืนยันได้รับสินค้าเรียบร้อยแล้ว!',
+            message: reqData.item_type === 'rent' ? 'ยืนยันรับของเรียบร้อย เริ่มต้นระยะเวลาเช่าแล้ว!' : 'ยืนยันได้รับสินค้าเรียบร้อยแล้ว!',
             item_id: reqData.item_id,
             owner_id: reqData.owner_id,
             owner_name: reqData.owner_name,
             item_title: reqData.item_title
+         });
+      });
+   });
+});
+
+// 📌 10.1 API ผู้เช่าแจ้งส่งคืนสินค้า (สำหรับของเช่า)
+router.patch('/item-requests/:requestId/return', requireAuth, (req, res) => {
+   const requesterId = req.authUser.userId;
+   const { requestId } = req.params;
+
+   const sqlFind = `
+      SELECT r.request_id, r.item_id, r.status AS request_status,
+             i.title AS item_title, i.user_id AS owner_id, u.name AS owner_name, i.item_type
+      FROM item_requests r
+      JOIN items i ON i.item_id = r.item_id
+      JOIN users u ON u.user_id = i.user_id
+      WHERE r.request_id = ? AND r.requester_id = ?
+   `;
+
+   db.query(sqlFind, [requestId, requesterId], (err, rows) => {
+      if (err) return res.status(500).json({ success: false, message: 'ตรวจสอบสิทธิ์คำขอไม่สำเร็จ' });
+      if (rows.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบคำขอนี้หรือไม่มีสิทธิ์ดำเนินการ' });
+
+      const reqData = rows[0];
+      if (['returning', 'returned', 'cancelled', 'rejected'].includes(reqData.request_status)) {
+         return res.status(400).json({ success: false, message: 'คำขอนี้ไม่ได้อยู่ในสถานะที่สามารถส่งคืนได้' });
+      }
+
+      db.query('UPDATE item_requests SET status = "returning" WHERE request_id = ?', [requestId], (updateErr) => {
+         if (updateErr) return res.status(500).json({ success: false, message: 'แจ้งส่งคืนสินค้าไม่สำเร็จ' });
+
+         const notifMsg = `ผู้เช่าได้แจ้งส่งคืนสินค้า "${reqData.item_title}" แล้ว กรุณาตรวจรับของ`;
+         db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, ?, ?, ?, ?)',
+            [reqData.owner_id, requesterId, 'request_returning', requestId, notifMsg], () => {
+               emitToUser(reqData.owner_id, 'new_notification', {
+                  type: 'request_returning',
+                  reference_id: requestId,
+                  message: notifMsg
+               });
+            }
+         );
+
+         res.json({
+            success: true,
+            message: 'แจ้งส่งคืนสินค้าเรียบร้อยแล้ว รอผู้ปล่อยเช่าตรวจรับของ'
+         });
+      });
+   });
+});
+
+// 📌 10.2 API เจ้าของกดยืนยันได้รับสินค้าคืนเรียบร้อย (คืนของเข้าสต็อก)
+router.patch('/item-requests/:requestId/confirm-return', requireAuth, (req, res) => {
+   const ownerId = req.authUser.userId;
+   const { requestId } = req.params;
+
+   const sqlFind = `
+      SELECT r.request_id, r.item_id, r.status AS request_status, r.requester_id,
+             i.title AS item_title, i.user_id AS owner_id, u.name AS requester_name, i.item_type
+      FROM item_requests r
+      JOIN items i ON i.item_id = r.item_id
+      JOIN users u ON u.user_id = r.requester_id
+      WHERE r.request_id = ? AND i.user_id = ?
+   `;
+
+   db.query(sqlFind, [requestId, ownerId], (err, rows) => {
+      if (err) return res.status(500).json({ success: false, message: 'ตรวจสอบข้อมูลไม่สำเร็จ' });
+      if (rows.length === 0) return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์จัดการคำขอนี้' });
+
+      const reqData = rows[0];
+      if (reqData.request_status === 'returned') {
+         return res.status(400).json({ success: false, message: 'คำขอนี้ได้รับการยืนยันคืนสินค้าไปแล้ว' });
+      }
+
+      db.query('UPDATE item_requests SET status = "returned" WHERE request_id = ?', [requestId], (updateErr) => {
+         if (updateErr) return res.status(500).json({ success: false, message: 'ยืนยันรับคืนสินค้าไม่สำเร็จ' });
+
+         // คืนสต็อกสินค้า +1 และเปิดสถานะเป็น available
+         const restoreSql = `
+            UPDATE items 
+            SET quantity = quantity + 1,
+                status = 'available'
+            WHERE item_id = ?
+         `;
+         db.query(restoreSql, [reqData.item_id], (restoreErr) => {
+            if (restoreErr) console.error('Restore item quantity error:', restoreErr);
+         });
+
+         // แจ้งเตือนผู้เช่า
+         const notifMsg = `ผู้ปล่อยเช่าได้รับสินค้า "${reqData.item_title}" คืนเรียบร้อยแล้ว ขอบคุณที่ใช้บริการ!`;
+         db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, ?, ?, ?, ?)',
+            [reqData.requester_id, ownerId, 'request_returned', requestId, notifMsg], () => {
+               emitToUser(reqData.requester_id, 'new_notification', {
+                  type: 'request_returned',
+                  reference_id: requestId,
+                  message: notifMsg
+               });
+            }
+         );
+
+         res.json({
+            success: true,
+            message: 'ตรวจรับสินค้าคืนเรียบร้อย นำสินค้ากลับเข้าสต็อกแล้ว'
          });
       });
    });
@@ -637,10 +743,17 @@ router.get('/my-sales', requireAuth, (req, res) => {
              r.request_id, r.message, r.status AS request_status, r.created_at,
              u.name AS requester_name, u.user_id AS requester_id, u.phone AS requester_phone
       FROM items i
-      LEFT JOIN item_requests r ON i.item_id = r.item_id AND r.status IN ('pending', 'accepted', 'completed')
+      LEFT JOIN item_requests r ON i.item_id = r.item_id AND r.status IN ('pending', 'accepted', 'renting', 'returning', 'returned', 'completed')
       LEFT JOIN users u ON r.requester_id = u.user_id
       WHERE i.user_id = ?
-      ORDER BY (CASE WHEN r.status = 'pending' THEN 1 WHEN r.status = 'accepted' THEN 2 WHEN r.status = 'completed' THEN 3 ELSE 4 END) ASC, i.item_id DESC, r.created_at DESC
+      ORDER BY (CASE 
+         WHEN r.status = 'returning' THEN 1 
+         WHEN r.status = 'pending' THEN 2 
+         WHEN r.status = 'accepted' THEN 3 
+         WHEN r.status = 'renting' THEN 4 
+         WHEN r.status = 'completed' THEN 5 
+         ELSE 6 
+      END) ASC, i.item_id DESC, r.created_at DESC
    `;
    db.query(sql, [ownerId], (err, results) => {
       if (err) return res.status(500).json({ success: false, message: 'ดึงข้อมูลไม่สำเร็จ' });
@@ -666,10 +779,10 @@ router.get('/my-sales', requireAuth, (req, res) => {
             });
          }
       });
-      // Sort sales array so items with requests come first!
+      // Sort sales array so items with active requests come first!
       const salesList = Object.values(salesMap).sort((a, b) => {
-         const aActive = a.requests.some(r => r.status === 'pending' || r.status === 'accepted') ? 1 : 0;
-         const bActive = b.requests.some(r => r.status === 'pending' || r.status === 'accepted') ? 1 : 0;
+         const aActive = a.requests.some(r => ['pending', 'accepted', 'renting', 'returning'].includes(r.status)) ? 1 : 0;
+         const bActive = b.requests.some(r => ['pending', 'accepted', 'renting', 'returning'].includes(r.status)) ? 1 : 0;
          if (aActive !== bActive) return bActive - aActive;
          return b.requests.length - a.requests.length;
       });

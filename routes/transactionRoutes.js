@@ -379,7 +379,7 @@ router.post('/transactions/:transactionId/return', requireAuth, (req, res) => {
        db.query(
           `UPDATE transactions
            SET rental_status = 'returning', return_tracking = ?, returned_at = CURRENT_TIMESTAMP
-           WHERE trans_id = ? AND receiver_id = ? AND (rental_status = 'renting' OR status = 'renting')`,
+           WHERE trans_id = ? AND receiver_id = ? AND (rental_status = 'renting' OR status = 'renting' OR shipping_status = 'shipped' OR shipping_status = 'delivered')`,
           [return_tracking || 'ส่งคืนเรียบร้อย', transactionId, buyerId],
           (updateErr, result) => {
              if (updateErr) return res.status(500).json({ success: false, message: 'แจ้งส่งคืนสินค้าไม่สำเร็จ' });
