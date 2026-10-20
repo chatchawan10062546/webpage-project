@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             queryParams.append('page', currentPage);
-            queryParams.append('limit', 12);
+            queryParams.append('limit', 24);
 
             const response = await fetch(`/api/items?${queryParams.toString()}`);
             const data = await response.json();
@@ -59,6 +59,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p class="text-muted fs-5">ยังไม่มีรายการสิ่งของในขณะนี้</p>
                         </div>
                     `;
+                    const loadMoreContainer = document.getElementById('loadMoreContainer');
+                    if (loadMoreContainer) loadMoreContainer.classList.add('d-none');
                     return;
                 }
 
@@ -66,6 +68,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 data.items.forEach(item => renderItemCard(item, false));
                 if (window.currentUserCoordinates) {
                     updateAllItemDistances(window.currentUserCoordinates.latitude, window.currentUserCoordinates.longitude);
+                }
+
+                // ตรวจสอบปุ่มโหลดเพิ่มเติม
+                const loadMoreContainer = document.getElementById('loadMoreContainer');
+                if (loadMoreContainer) {
+                    if (data.currentPage < data.totalPages) {
+                        loadMoreContainer.classList.remove('d-none');
+                    } else {
+                        loadMoreContainer.classList.add('d-none');
+                    }
                 }
             }
         } catch (err) {
@@ -212,8 +224,10 @@ document.addEventListener('DOMContentLoaded', () => {
         filterForm.addEventListener('submit', (e) => {
             e.preventDefault();
             loadItemsFromDB();
+        });
+    }
 
-    // Auto-reload items when filters change
+    // Auto-reload items when dropdown filters change
     ['typeFilter', 'categoryFilter', 'sortFilter'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -223,12 +237,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-        });
-    }
+    // Auto-reload items when price filters change (debounced 500ms)
+    let priceFilterDebounce = null;
+    ['minPriceFilter', 'maxPriceFilter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', () => {
+                clearTimeout(priceFilterDebounce);
+                priceFilterDebounce = setTimeout(() => {
+                    loadItemsFromDB();
+                }, 500);
+            });
+        }
+    });
+
     const resetFilterBtn = document.getElementById('resetFilterBtn');
     if (resetFilterBtn) {
         resetFilterBtn.addEventListener('click', () => {
-            filterForm.reset();
+            if (filterForm) filterForm.reset();
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.value = '';
             loadItemsFromDB();
         });
     }

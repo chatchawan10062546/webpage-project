@@ -261,7 +261,7 @@
             <h3 class="fw-bold text-success mb-0 feed-title">✨ รายการของแจก ล่าสุดใกล้ตัวคุณ</h3>
         </div>
         
-        <form id="filterForm" class="mb-3 mb-md-4 d-flex flex-wrap gap-2 gap-md-3 align-items-center bg-white p-2 p-md-3 rounded-4 shadow-sm border" style="border-color: #e2e8f0 !important;">
+        <form id="filterForm" autocomplete="off" class="mb-3 mb-md-4 d-flex flex-wrap gap-2 gap-md-3 align-items-center bg-white p-2 p-md-3 rounded-4 shadow-sm border" style="border-color: #e2e8f0 !important;">
             <div class="fw-bold text-success ms-2 d-none d-md-block">
                 <i class="bi bi-funnel-fill"></i> ตัวกรอง:
             </div>
@@ -315,6 +315,13 @@
                 </div>
                 <p class="text-muted fw-semibold mb-0">กำลังโหลดรายการของแบ่งปันใกล้ตัวคุณ...</p>
             </div>
+        </div>
+
+        <!-- ปุ่มโหลดรายการเพิ่มเติม -->
+        <div class="text-center my-4 d-none" id="loadMoreContainer">
+            <button id="loadMoreBtn" class="btn btn-outline-success rounded-pill px-4 py-2 fw-bold shadow-sm">
+                <i class="bi bi-arrow-down-circle me-1"></i> โหลดรายการเพิ่มเติม
+            </button>
         </div>
     </div>
 
@@ -518,7 +525,7 @@
     <script src="js/authClient.js?v=3"></script>
     <script src="js/modals.js?v=1792488000000"></script>
     <script src="js/location.js?v=1792487200000"></script>
-    <script src="js/item.js?v=1792487200000"></script>
+    <script src="js/item.js?v=1792493000000"></script>
     <script src="js/itemManagement.js?v=1790870163078"></script>
     <script src="js/itemRequests.js?v=1790875493472"></script>
     <script src="js/chat.js?v=1791296061333"></script>

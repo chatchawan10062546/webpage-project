@@ -58,7 +58,7 @@ router.get('/items', (req, res) => {
     else if (sort === 'oldest') orderClause = 'ORDER BY i.item_id ASC';
 
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 12;
+    const limit = parseInt(req.query.limit) || 24;
     const offset = (page - 1) * limit;
 
     const countSql = `SELECT COUNT(DISTINCT i.item_id) AS total FROM items i WHERE ${conditions.join(' AND ')}`;
@@ -104,7 +104,7 @@ router.get('/items', (req, res) => {
             }
             return { ...row, images };
         });
-        res.json({ success: true, items, totalPages, currentPage: page });
+        res.json({ success: true, items, totalPages, totalItems, currentPage: page });
         });
     });
 });
