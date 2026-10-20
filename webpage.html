@@ -174,99 +174,73 @@
             }
         }
 
-        /* สไตล์ Navbar ปรับปรุงสำหรับ Tablet / iPad และ Desktop ให้อ่านง่าย สบายตา */
+        /* สไตล์ Navbar เหมือนในคอม 100% ตัวหนังสือเต็มไม่ตัดคำ และจัดระยะบน iPad ให้สวยงามไม่ตัดบรรทัด */
         .custom-main-navbar .navbar-nav .nav-link {
             white-space: nowrap !important;
-            font-size: 1rem;
-            font-weight: 600;
-            padding: 0.4rem 0.75rem !important;
+            font-size: 0.95rem;
+            font-weight: 500;
+            padding: 0.4rem 0.65rem !important;
             border-radius: 999px;
             transition: all 0.2s ease-in-out;
             color: rgba(255, 255, 255, 0.95) !important;
         }
         .custom-main-navbar .navbar-nav .nav-link:hover {
             color: #ffffff !important;
-            background-color: rgba(255, 255, 255, 0.2);
-        }
-        .custom-main-navbar .nav-post-btn {
-            white-space: nowrap !important;
-            font-size: 1rem;
-            font-weight: 700;
-            border-radius: 999px;
-            padding: 0.4rem 1.1rem !important;
-            background-color: #ffffff;
-            color: #198754 !important;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-            transition: all 0.2s ease;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-        }
-        .custom-main-navbar .nav-post-btn:hover {
-            background-color: #f8f9fa;
-            transform: translateY(-1px);
-            color: #146c43 !important;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.18);
+            background-color: rgba(255, 255, 255, 0.18);
         }
         .custom-main-navbar .navbar-nav .badge {
-            font-size: 0.76rem !important;
-            font-weight: 700 !important;
-            padding: 0.25em 0.55em !important;
+            font-size: 0.72rem !important;
+            font-weight: 600 !important;
         }
 
-        /* ปรับเฉพาะหน้าจอขนาดกลาง / iPad (992px - 1280px) ให้ตัวหนังสือใหญ่ อ่านชัดเจน ไม่เบียด */
-        @media (min-width: 992px) and (max-width: 1280px) {
+        /* ปรับสัดส่วนและระยะห่างบนหน้าจอขนาดกลาง / iPad (992px - 1250px) ให้เมนูเรียงบรรทัดเดียวสวยงามเหมือนในคอม */
+        @media (min-width: 992px) and (max-width: 1250px) {
             .custom-nav-container {
-                padding-left: 0.75rem !important;
-                padding-right: 0.75rem !important;
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
             }
             .navbar-brand {
-                margin-right: 0.5rem !important;
+                margin-right: 0.35rem !important;
             }
             .navbar-brand img {
-                width: 40px !important;
-                height: 40px !important;
+                width: 38px !important;
+                height: 38px !important;
             }
             .navbar-brand span {
-                font-size: 1.12rem !important;
+                font-size: 1.05rem !important;
             }
-            .navbar-brand .brand-subtext {
-                display: none !important;
+            .custom-main-navbar .navbar-collapse {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            .custom-main-navbar .navbar-collapse::-webkit-scrollbar {
+                display: none;
             }
             .custom-main-navbar .navbar-nav {
-                gap: 0.25rem !important;
+                flex-wrap: nowrap !important;
+                gap: 0.15rem !important;
             }
             .custom-main-navbar .navbar-nav .nav-link {
-                font-size: 0.94rem !important;
-                padding: 0.35rem 0.55rem !important;
-            }
-            .custom-main-navbar .nav-post-btn {
-                font-size: 0.94rem !important;
-                padding: 0.35rem 0.85rem !important;
+                font-size: 0.88rem !important;
+                padding: 0.35rem 0.42rem !important;
             }
             #authNavContainer .btn {
-                font-size: 0.94rem !important;
-                padding: 0.35rem 0.8rem !important;
+                font-size: 0.88rem !important;
+                padding: 0.35rem 0.65rem !important;
             }
             #authNavContainer img {
-                width: 26px !important;
-                height: 26px !important;
+                width: 24px !important;
+                height: 24px !important;
             }
         }
 
-        /* ปรับเมนูตอนกดปุ่ม 3 ขีด (Collapse) บนจอมือถือและแท็บเล็ตแนวตั้ง (< 992px) */
+        /* เมนูเมื่อกดย่อเป็น 3 ขีด (Collapse) บนมือถือ / จอแนวตั้ง (< 992px) */
         @media (max-width: 991.98px) {
             .custom-main-navbar .navbar-nav .nav-link {
-                font-size: 1.05rem !important;
-                padding: 0.55rem 1rem !important;
+                font-size: 1rem !important;
+                padding: 0.5rem 1rem !important;
                 border-radius: 8px;
-            }
-            .custom-main-navbar .nav-post-btn {
-                font-size: 1.05rem !important;
-                padding: 0.55rem 1rem !important;
-                display: flex;
-                justify-content: center;
-                margin-bottom: 0.5rem;
             }
         }
     </style>
@@ -280,19 +254,19 @@
             <!-- โลโก้และชื่อเว็บ (คลิกเพื่อกลับหน้าแรก) -->
             <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="webpage.html" title="กลับสู่หน้าแรก">
                 <img src="/assets/pansuk_icon.jpg?v=3" alt="Logo" class="rounded-circle border border-2 border-white shadow-sm" style="height: 45px; width: 45px; object-fit: cover;">
-                <span class="text-white" style="letter-spacing: 0.5px;">ปันสุข <small class="fw-normal opacity-75 brand-subtext">(PanSuk)</small></span>
+                <span class="text-white" style="letter-spacing: 0.5px;">ปันสุข <small class="fw-normal opacity-75">(PanSuk)</small></span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto gap-1 gap-lg-2 gap-xl-3 align-items-center py-2 py-lg-0">
+                <ul class="navbar-nav ms-auto gap-2 gap-lg-2 gap-xl-3 align-items-center py-2 py-lg-0">
                     <!-- ปุ่มลงประกาศแจกของ -->
                     <li class="nav-item">
-                        <a class="nav-post-btn" href="#" onclick="handlePostItemClick(event)"><i class="bi bi-plus-circle me-1"></i>ลงประกาศ</a>
+                        <a class="nav-link" href="#" onclick="handlePostItemClick(event)">ลงประกาศแจกของ</a>
                     </li>
                     
-                    <li class="nav-item"><a class="nav-link position-relative d-flex align-items-center" href="#" id="chatNavLink"><span>💬 ข้อความ</span> <span class="badge bg-danger rounded-pill ms-1" id="chatUnreadBadge" style="display:none;">0</span></a></li>
+                    <li class="nav-item"><a class="nav-link position-relative d-flex align-items-center" href="#" id="chatNavLink"><span>💬 แชตข้อความ</span> <span class="badge bg-danger rounded-pill ms-1" id="chatUnreadBadge" style="display:none;">0</span></a></li>
                     <li class="nav-item dropdown">
                         <a class="nav-link d-flex align-items-center" href="#" id="notifDropdownToggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <span>🔔 แจ้งเตือน</span> <span class="badge bg-danger rounded-pill ms-1" id="notifBadge" style="display:none;">0</span>
@@ -309,19 +283,19 @@
                     </li>
                     <li class="nav-item d-none" id="myRequestsNavContainer">
                         <a class="nav-link position-relative d-flex align-items-center" href="#" id="myRequestsOpenBtn">
-                            <span>🤝 รายการนัดรับ</span>
+                            <span>รายการนัดรับ / ขอของฟรี</span>
                             <span class="badge bg-danger rounded-pill ms-1" id="myRequestsBadge" style="display:none;">0</span>
                         </a>
                     </li>
                     <li class="nav-item d-none" id="mySalesNavContainer">
                         <a class="nav-link position-relative d-flex align-items-center" href="#" id="mySalesOpenBtn">
-                            <span>📦 การส่งมอบ</span>
+                            <span>📦 การส่งมอบของฉัน (คนขาย)</span>
                             <span class="badge bg-danger rounded-pill ms-1" id="mySalesBadge" style="display:none;">0</span>
                         </a>
                     </li>
                     <li class="nav-item d-none" id="myTransactionsNavContainer">
                         <a class="nav-link position-relative d-flex align-items-center" href="#" id="myTransactionsNavBtn">
-                            <span>🛡️ คนกลาง</span>
+                            <span>🛡️ ประวัติคนกลาง</span>
                             <span class="badge bg-danger rounded-pill ms-1" id="navTransactionsBadge" style="display:none;">0</span>
                         </a>
                     </li>
