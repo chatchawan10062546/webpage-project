@@ -58,6 +58,8 @@ function updateAuthUI() {
         // 🟢 กรณีล็อกอินแล้ว: แสดงปุ่มรูปและชื่อโปรไฟล์
                 const myReqNav = document.getElementById('myRequestsNavContainer');
         if (myReqNav) myReqNav.classList.remove('d-none');
+        const mySalesNav = document.getElementById('mySalesNavContainer');
+        if (mySalesNav) mySalesNav.classList.remove('d-none');
         authNavContainer.innerHTML = `
             <div class="dropdown">
                 <button class="btn btn-light dropdown-toggle rounded-pill fw-bold text-success d-flex align-items-center gap-2 px-3 shadow-sm" type="button" data-bs-toggle="dropdown">
@@ -65,7 +67,8 @@ function updateAuthUI() {
                     <span>${user.name || 'สมาชิก'}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 rounded-3">
-                    <li><a class="dropdown-item" href="#" id="profileOpenBtn">โปรไฟล์ของฉัน</a></li>
+                    <li><a class="dropdown-item" href="#" id="profileOpenBtn">👤 โปรไฟล์ของฉัน</a></li>
+                    <li><a class="dropdown-item fw-semibold text-primary" href="#" onclick="if(window.openMySalesModal) window.openMySalesModal(); return false;">📦 การส่งมอบของฉัน (คนขาย)</a></li>
                     ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html">หลังบ้านแอดมิน</a></li>' : ''}
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item text-danger fw-bold" href="#" id="logoutBtn">ออกจากระบบ</a></li>
@@ -86,6 +89,8 @@ function updateAuthUI() {
     } else {
                 const myReqNav = document.getElementById('myRequestsNavContainer');
         if (myReqNav) myReqNav.classList.add('d-none');
+        const mySalesNav = document.getElementById('mySalesNavContainer');
+        if (mySalesNav) mySalesNav.classList.add('d-none');
         if (reportNavContainer) reportNavContainer.innerHTML = '';
         // 🔴 กรณีที่ยังไม่ได้ล็อกอิน: แสดงปุ่มเข้าสู่ระบบ
         authNavContainer.innerHTML = `
@@ -156,6 +161,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const email = document.getElementById('regEmail').value;
             const password = document.getElementById('regPassword').value;
             const phone = document.getElementById('regPhone').value;
+
+            const specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
+            if (!password || password.length < 6) {
+                alert('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHtml; }
+                return;
+            }
+            if (!specialCharRegex.test(password)) {
+                alert('รหัสผ่านต้องมีตัวอักษรพิเศษอย่างน้อย 1 ตัว (เช่น @, #, $, !, %, *, ?)');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHtml; }
+                return;
+            }
 
             try {
                 const response = await fetch('/api/register', {

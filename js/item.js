@@ -121,11 +121,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? '<span class="badge bg-warning text-dark me-1">ให้เช่า</span>'
                 : '<span class="badge bg-success me-1">แจกฟรี</span>';
 
-        const statusLabel = item.status === 'reserved'
-            ? 'จองแล้ว'
-            : item.status === 'completed'
-                ? 'เสร็จสิ้น'
-                : 'พร้อมใช้งาน';
+        const statusLabel = (item.status === 'completed' || item.status === 'reserved')
+            ? (itemType === 'free' ? 'แจกหมดแล้ว' : 'ปิดการขาย/จองแล้ว')
+            : (itemType === 'free' ? 'พร้อมแจก' : 'พร้อมใช้งาน');
 
         const priceTagText = itemType === 'sell'
             ? `฿${Number(price).toLocaleString()}`
@@ -134,12 +132,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 : 'ฟรี';
 
         const imagesJson = JSON.stringify(imagesArray).replace(/"/g, '&quot;');
+        const isFreeItem = itemType === 'free';
+        const isCompleted = item.status === 'completed' || item.status === 'reserved';
+        const toggleBtnHTML = isFreeItem ? `
+            <button class="btn ${isCompleted ? 'btn-outline-success' : 'btn-outline-secondary'} btn-sm item-toggle-status-btn" type="button" style="font-size: 0.78rem; white-space: nowrap;">
+                ${isCompleted ? '🔄 มีของอยู่' : '❌ หมดแล้ว'}
+            </button>
+        ` : `
+            <button class="btn btn-outline-success btn-sm item-requests-btn position-relative" type="button" style="font-size: 0.78rem; white-space: nowrap;">
+                📋 คำขอ ${item.pending_requests > 0 ? `<span class="badge rounded-pill bg-danger" style="font-size: 0.65rem;">${item.pending_requests}</span>` : ""}
+            </button>
+        `;
+
         const ownerControls = isOwner ? `
-            <div class="item-owner-controls mt-3 pt-3 border-top d-flex gap-2" data-item-id="${itemId}">
-                <button class="btn btn-outline-primary btn-sm flex-grow-1 item-edit-btn" type="button">แก้ไข</button>
-                <button class="btn btn-outline-danger btn-sm flex-grow-1 item-delete-btn" type="button">ลบ</button>
-                <button class="btn btn-outline-success btn-sm flex-grow-1 item-requests-btn position-relative" type="button">คำขอ ${item.pending_requests > 0 ? `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">${item.pending_requests}</span>` : ""}</button>
-                <button class="btn btn-outline-dark btn-sm flex-grow-1 item-messages-btn" type="button">ข้อความ</button>
+            <div class="item-owner-controls mt-2 pt-2 border-top" data-item-id="${itemId}">
+                <button class="btn btn-outline-primary btn-sm item-edit-btn" type="button" style="font-size: 0.78rem; white-space: nowrap;">✏️ แก้ไข</button>
+                <button class="btn btn-outline-danger btn-sm item-delete-btn" type="button" style="font-size: 0.78rem; white-space: nowrap;">🗑️ ลบ</button>
+                ${toggleBtnHTML}
+                <button class="btn btn-outline-dark btn-sm item-messages-btn" type="button" style="font-size: 0.78rem; white-space: nowrap;">💬 ข้อความ</button>
             </div>
         ` : '';
 
@@ -1011,6 +1021,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="fs-6 opacity-75 fw-normal mt-1">สอบถามรายละเอียดเพิ่มเติม</div>
                 </button>
             `;
+        } else if (item.itemType === 'free') {
+            actionButtonsHTML = `
+                <button class="btn btn-success w-100 p-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
+                        style="background-color: #198754;" data-action="direct">
+                    💬 แชตพูดคุยเพื่อขอรับของแจกฟรี
+                    <div class="fs-6 opacity-75 fw-normal mt-1">พูดคุยสอบถามสถานที่และนัดหมายรับของกับผู้ส่งต่อโดยตรงผ่านแชต</div>
+                </button>
+            `;
         } else {
             actionButtonsHTML = `
                 <button class="btn btn-success w-100 p-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
@@ -1018,22 +1036,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     🤝 นัดรับสินค้า
                     <div class="fs-6 opacity-75 fw-normal mt-1">ส่งคำขอให้ผู้ขายยืนยันการนัดรับ</div>
                 </button>
-            `;
-
-            if (item.itemType !== 'free') {
-                actionButtonsHTML += `
-                    <button class="btn btn-primary w-100 p-3 mt-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
-                            style="background-color: #0d6efd;" data-action="escrow">
-                        🛡️ ดำเนินการซื้อขาย (฿${Number(item.price).toLocaleString()}) ผ่านระบบคนกลาง
-                        <div class="fs-6 opacity-75 fw-normal mt-1">ชำระเงินปลอดภัย พักเงินไว้ที่ระบบจนกว่าจะได้รับของเรียบร้อย</div>
-                    </button>
-                `;
-            }
-
-            actionButtonsHTML += `
+                <button class="btn btn-primary w-100 p-3 mt-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
+                        style="background-color: #0d6efd;" data-action="escrow">
+                    🛡️ ดำเนินการซื้อขาย (฿${Number(item.price).toLocaleString()}) ผ่านระบบคนกลาง
+                    <div class="fs-6 opacity-75 fw-normal mt-1">ชำระเงินปลอดภัย พักเงินไว้ที่ระบบจนกว่าจะได้รับของเรียบร้อย</div>
+                </button>
                 <button class="btn btn-outline-primary w-100 p-3 mt-3 rounded-4 shadow-sm btn-select-option border-0 fs-5 fw-bold" 
                         data-action="direct">
-                    💬 แชตพูดคุยกับผู้โพสต์
+                    💬 แชตพูดคุยกับผู้ขาย
                     <div class="fs-6 opacity-75 fw-normal mt-1">สอบถามรายละเอียดเพิ่มเติม</div>
                 </button>
             `;

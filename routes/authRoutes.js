@@ -44,6 +44,15 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
     }
 
+    // 🔒 ตรวจสอบความปลอดภัยของรหัสผ่าน: ความยาวอย่างน้อย 6 ตัวอักษร และต้องมีตัวอักษรพิเศษอย่างน้อย 1 ตัว
+    const specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
+    if (password.length < 6) {
+        return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร' });
+    }
+    if (!specialCharRegex.test(password)) {
+        return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีตัวอักษรพิเศษอย่างน้อย 1 ตัว (เช่น @, #, $, !, %, *, ?)' });
+    }
+
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         const otpCode = generateOTP();
@@ -343,6 +352,11 @@ router.post('/forgot-password', (req, res) => {
 router.post('/reset-password', async (req, res) => {
     const { token, newPassword } = req.body;
     if (!token || !newPassword) return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
+
+    const specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
+    if (newPassword.length < 6 || !specialCharRegex.test(newPassword)) {
+        return res.status(400).json({ success: false, message: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร และต้องมีตัวอักษรพิเศษอย่างน้อย 1 ตัว' });
+    }
 
     db.query('SELECT user_id, reset_token_expires FROM users WHERE reset_token = ?', [token], async (err, rows) => {
         if (err) return res.status(500).json({ success: false, message: 'ระบบขัดข้อง' });

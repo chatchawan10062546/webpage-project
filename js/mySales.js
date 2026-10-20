@@ -45,20 +45,27 @@ window.openMySalesModal = async () => {
                 } else {
                     requestsHTML = sale.requests.map(req => {
                         return `
-                            <div class="border rounded p-2 mb-2 bg-white d-flex flex-column gap-2" data-request-id="${req.request_id}">
-                                <div class="d-flex justify-content-between align-items-center">
+                            <div class="border rounded-3 p-3 mb-2 bg-white d-flex flex-column gap-2 shadow-sm" data-request-id="${req.request_id}">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                                     <span class="fw-bold small">👤 ${req.requester_name}</span>
-                                    ${req.status === 'pending' ? '<span class="badge bg-warning text-dark">รอพิจารณา</span>' : '<span class="badge bg-success">ยอมรับแล้ว</span>'}
+                                    <div>
+                                        ${req.requester_phone ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-telephone me-1"></i>${req.requester_phone}</span>` : ''}
+                                        ${req.status === 'pending' ? '<span class="badge bg-warning text-dark">รอพิจารณา</span>' : '<span class="badge bg-success">ยอมรับแล้ว (รอนัดรับ)</span>'}
+                                    </div>
                                 </div>
                                 <div class="small text-secondary bg-light p-2 rounded-2 border">
                                     💬 "${req.message || 'ไม่ได้ฝากข้อความ'}"
                                 </div>
-                                <div class="d-flex gap-2 mt-1">
+                                <div class="d-flex gap-2 mt-1 flex-wrap">
+                                    <button class="btn btn-sm btn-outline-primary flex-grow-1 fw-bold chat-requester-btn" 
+                                            data-requester-id="${req.requester_id}" data-item-id="${sale.item_id}" data-title="${sale.title}">
+                                        💬 แชตกับผู้ซื้อ
+                                    </button>
                                     ${req.status === 'pending' ? `
-                                        <button class="btn btn-sm btn-success flex-grow-1 fw-bold accept-req-btn">✅ ยอมรับ</button>
+                                        <button class="btn btn-sm btn-success flex-grow-1 fw-bold accept-req-btn">✅ ยอมรับคำขอ</button>
                                         <button class="btn btn-sm btn-outline-danger flex-grow-1 reject-req-btn">❌ ปฏิเสธ</button>
                                     ` : `
-                                        <button class="btn btn-sm btn-outline-danger w-100 fw-bold revoke-req-btn">🛑 ยึดของคืน (คนซื้อเท)</button>
+                                        <button class="btn btn-sm btn-outline-danger flex-grow-1 fw-bold revoke-req-btn">🛑 ยกเลิกการจอง / ยึดของคืน</button>
                                     `}
                                 </div>
                             </div>
@@ -120,6 +127,13 @@ window.openMySalesModal = async () => {
         modalElement.addEventListener('hidden.bs.modal', () => modalElement.remove(), { once: true });
 
         modalElement.addEventListener('click', async (e) => {
+            const chatBtn = e.target.closest('.chat-requester-btn');
+            if (chatBtn && typeof window.openChat === 'function') {
+                modal.hide();
+                window.openChat(chatBtn.dataset.requesterId, chatBtn.dataset.title, chatBtn.dataset.itemId);
+                return;
+            }
+
             const reqDiv = e.target.closest('[data-request-id]');
             if (!reqDiv) return;
             const requestId = reqDiv.dataset.requestId;
@@ -160,3 +174,16 @@ window.openMySalesModal = async () => {
         alert('เปิดหน้าต่างไม่สำเร็จ: ' + error.message);
     }
 };
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('mySalesOpenBtn');
+    if (btn) {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (typeof window.openMySalesModal === 'function') {
+                window.openMySalesModal();
+            }
+        });
+    }
+});

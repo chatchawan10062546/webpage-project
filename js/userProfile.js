@@ -25,6 +25,8 @@ function updateProfileUI() {
 
         const myReqNav = document.getElementById('myRequestsNavContainer');
         if (myReqNav) myReqNav.classList.remove('d-none');
+        const mySalesNav = document.getElementById('mySalesNavContainer');
+        if (mySalesNav) mySalesNav.classList.remove('d-none');
         const myTxNav = document.getElementById('myTransactionsNavContainer');
         if (myTxNav) myTxNav.classList.remove('d-none');
 
@@ -59,6 +61,9 @@ function updateProfileUI() {
                     <li>
                         <a class="dropdown-item" href="#" id="myListingsOpenBtn"><i class="bi bi-box-seam me-2"></i>รายการที่ฉันประกาศ</a>
                     </li>
+                    <li>
+                        <a class="dropdown-item fw-semibold text-primary" href="#" onclick="if(window.openMySalesModal) window.openMySalesModal(); return false;"><i class="bi bi-truck me-2"></i>📦 การส่งมอบของฉัน (คนขาย)</a>
+                    </li>
                     ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html"><i class="bi bi-speedometer2 me-2"></i>หลังบ้านแอดมิน</a></li>' : ''}
                     <li><hr class="dropdown-divider my-1"></li>
                     <li>
@@ -81,6 +86,8 @@ function updateProfileUI() {
     } else {
         const myReqNav = document.getElementById('myRequestsNavContainer');
         if (myReqNav) myReqNav.classList.add('d-none');
+        const mySalesNav = document.getElementById('mySalesNavContainer');
+        if (mySalesNav) mySalesNav.classList.add('d-none');
         const myTxNav = document.getElementById('myTransactionsNavContainer');
         if (myTxNav) myTxNav.classList.add('d-none');
         authContainer.innerHTML = `

@@ -136,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
     itemGrid.addEventListener('click', (event) => {
         const editButton = event.target.closest('.item-edit-btn');
         const deleteButton = event.target.closest('.item-delete-btn');
+        const toggleStatusBtn = event.target.closest('.item-toggle-status-btn');
         const card = event.target.closest('.item-element');
         if (!card) return;
 
@@ -153,6 +154,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ user_id: getUserId() })
             }).then(() => card.remove())
                 .catch(error => alert('ไม่สามารถลบรายการได้: ' + error.message));
+        }
+
+        if (toggleStatusBtn) {
+            const itemId = card.dataset.itemId;
+            sendRequest(`/api/items/${itemId}/toggle-status`, {
+                method: 'PATCH'
+            }).then(res => {
+                alert(res.message);
+                if (typeof window.loadItemsFromDB === 'function') {
+                    window.loadItemsFromDB();
+                } else {
+                    location.reload();
+                }
+            }).catch(error => alert('ไม่สามารถเปลี่ยนสถานะได้: ' + error.message));
         }
     });
 

@@ -501,11 +501,11 @@ router.get('/my-sales', requireAuth, (req, res) => {
    const sql = `
       SELECT i.item_id, i.title, i.category, i.image_url, i.item_type, i.price, i.quantity, i.status AS item_status,
              r.request_id, r.message, r.status AS request_status, r.created_at,
-             u.name AS requester_name, u.user_id AS requester_id
+             u.name AS requester_name, u.user_id AS requester_id, u.phone AS requester_phone
       FROM items i
       LEFT JOIN item_requests r ON i.item_id = r.item_id AND r.status IN ('pending', 'accepted')
       LEFT JOIN users u ON r.requester_id = u.user_id
-      WHERE i.user_id = ? AND i.status != 'completed'
+      WHERE i.user_id = ?
       ORDER BY i.item_id DESC, r.created_at DESC
    `;
    db.query(sql, [ownerId], (err, results) => {
@@ -525,6 +525,7 @@ router.get('/my-sales', requireAuth, (req, res) => {
                request_id: row.request_id,
                requester_id: row.requester_id,
                requester_name: row.requester_name,
+               requester_phone: row.requester_phone,
                message: row.message,
                status: row.request_status,
                created_at: row.created_at
@@ -532,6 +533,32 @@ router.get('/my-sales', requireAuth, (req, res) => {
          }
       });
       res.json({ success: true, sales: Object.values(salesMap) });
+   });
+});
+
+// 📌 14. API ให้เจ้าของสลับสถานะสินค้า (เช่น แจกหมดแล้ว / ยังไม่หมด)
+router.patch('/items/:itemId/toggle-status', requireAuth, (req, res) => {
+   const ownerId = req.authUser.userId;
+   const { itemId } = req.params;
+
+   db.query('SELECT status, quantity FROM items WHERE item_id = ? AND user_id = ?', [itemId, ownerId], (err, rows) => {
+      if (err) return res.status(500).json({ success: false, message: 'ตรวจสอบข้อมูลไม่สำเร็จ' });
+      if (rows.length === 0) return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์จัดการรายการนี้' });
+
+      const currentStatus = rows[0].status;
+      const newStatus = (currentStatus === 'completed' || currentStatus === 'reserved') ? 'available' : 'completed';
+      const newQuantity = newStatus === 'available' ? (rows[0].quantity > 0 ? rows[0].quantity : 1) : 0;
+
+      db.query('UPDATE items SET status = ?, quantity = ? WHERE item_id = ? AND user_id = ?', 
+         [newStatus, newQuantity, itemId, ownerId], (updateErr) => {
+            if (updateErr) return res.status(500).json({ success: false, message: 'อัปเดตสถานะไม่สำเร็จ' });
+            res.json({
+               success: true,
+               message: newStatus === 'completed' ? 'ทำเครื่องหมายว่า "แจกหมดแล้ว" เรียบร้อย' : 'เปิดรายการเป็น "พร้อมแจก/พร้อมใช้งาน" เรียบร้อย',
+               status: newStatus,
+               quantity: newQuantity
+            });
+      });
    });
 });
 

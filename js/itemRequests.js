@@ -147,7 +147,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ status, user_id: userId })
-                    }).then(() => location.reload())
+                    }).then((res) => {
+                        const modal = bootstrap.Modal.getInstance(modalElement);
+                        if (modal) modal.hide();
+                        alert(res.message || 'จัดการคำขอเรียบร้อยแล้ว');
+                        if (status === 'accepted' && typeof window.openMySalesModal === 'function') {
+                            window.openMySalesModal();
+                        } else {
+                            location.reload();
+                        }
+                    })
                         .catch(error => alert('จัดการคำขอไม่สำเร็จ: ' + error.message));
                 });
             })
