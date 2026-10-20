@@ -842,8 +842,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <div class="small opacity-75 fw-normal">พักค่าเช่า + เงินมัดจำไว้ที่ระบบ ปล่อยเงินและคืนมัดจำเมื่อตรวจรับของ</div>
                                 </button>
                                 <button type="button" class="btn btn-outline-success p-3 rounded-4 shadow-sm fw-bold fs-6" id="rentalDirectBtn">
-                                    🤝 นัดรับ / คุยตรงกับผู้ปล่อยเช่า
-                                    <div class="small opacity-75 fw-normal">เปิดแชตพร้อมสรุปวันและยอดรวม เพื่อส่งมอบและจ่ายเงินกันโดยตรง</div>
+                                    🤝 ส่งคำขอนัดรับเช่า (นัดรับ/จ่ายเงินโดยตรง)
+                                    <div class="small opacity-75 fw-normal">ส่งคำขอเช่าพร้อมสรุปวันและยอดรวมหาผู้ให้เช่าทันที</div>
                                 </button>
                             </div>
                         </div>
@@ -959,14 +959,48 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // กดปุ่มนัดรับ / คุยตรง
-        document.getElementById('rentalDirectBtn').addEventListener('click', () => {
+        // กดปุ่มส่งคำขอนัดรับเช่า
+        document.getElementById('rentalDirectBtn').addEventListener('click', async () => {
+            const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+            const currentUserId = currentUser?.id || currentUser?.user_id || currentUser?.userId;
+            if (!currentUserId) {
+                alert('กรุณาเข้าสู่ระบบก่อนส่งคำขอนัดรับเช่า');
+                const loginModalEl = document.getElementById('loginModal');
+                if (loginModalEl) new bootstrap.Modal(loginModalEl).show();
+                return;
+            }
+
             const calc = calculateRental();
-            if (!calc) return;
-            modal.hide();
-            const initialMsg = `สวัสดีครับ สนใจขอเช่า "${item.title}" ตั้งแต่วันที่ ${calc.startVal} ถึง ${calc.endVal} (รวม ${calc.days} วัน)\n- ค่าเช่า: ฿${calc.totalRent.toLocaleString()}\n- เงินมัดจำ: ฿${calc.deposit.toLocaleString()}\n- ยอดรวม: ฿${calc.grandTotal.toLocaleString()}\nสะดวกนัดรับแถวไหนครับ?`;
-            if (typeof window.openChat === 'function') {
-                window.openChat(item.ownerId, item.title, item.itemId, null, initialMsg);
+            if (!calc) {
+                alert('กรุณาเลือกวันที่เช่าให้ถูกต้อง');
+                return;
+            }
+
+            const btn = document.getElementById('rentalDirectBtn');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังส่งคำขอหาผู้ปล่อยเช่า...';
+
+            const summaryMsg = `📅 ขอเช่าวันที่: ${calc.startVal} ถึง ${calc.endVal} (รวม ${calc.days} วัน)\n💵 ค่าเช่ารวม: ฿${calc.totalRent.toLocaleString()}\n🛡️ เงินมัดจำ: ฿${calc.deposit.toLocaleString()}\n💳 ยอดรวมที่ต้องชำระ: ฿${calc.grandTotal.toLocaleString()}`;
+
+            if (typeof window.submitItemRequest === 'function') {
+                const res = await window.submitItemRequest(item.itemId, 'rent', summaryMsg);
+                if (res && res.success) {
+                    modal.hide();
+                    alert(`✅ ส่งคำขอนัดรับเช่า "${item.title}" สำเร็จเรียบร้อย! 🎉\nระบบได้ส่งคำขอไปยังผู้ปล่อยเช่าแล้ว สามารถตรวจสอบสถานะได้ที่เมนู "🤝 รายการนัดรับ" ครับ`);
+                } else if (res && res.isDuplicate) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHTML;
+                    alert('⚠️ คุณเคยส่งคำขอรายการนี้ไปแล้ว! สามารถติดตามสถานะได้ที่เมนู "🤝 รายการนัดรับ" ครับ');
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHTML;
+                    alert('❌ ส่งคำขอไม่สำเร็จ: ' + (res?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'));
+                }
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                alert('ระบบส่งคำขอไม่พร้อมใช้งาน กรุณารีเฟรชหน้าเว็บ');
             }
         });
     }

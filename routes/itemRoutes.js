@@ -287,10 +287,56 @@ router.post('/items/:itemId/requests', requireAuth, (req, res) => {
             // --- 🔔 แจ้งเตือนเจ้าของของ ---
             const titleMatch = items[0].title;
             const ownerId = items[0].user_id;
-            const notifMsg = `มีผู้ใช้สนใจขอรับ "${titleMatch}" ของคุณ`;
+            const isRent = items[0].item_type === 'rent';
+            const notifMsg = isRent ? `มีผู้ใช้ส่งคำขอนัดรับเช่า "${titleMatch}" ของคุณ` : `มีผู้ใช้สนใจขอรับ "${titleMatch}" ของคุณ`;
             db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, ?, ?, ?, ?)', 
                      [ownerId, requester_id, 'request_received', insertResult.insertId, notifMsg], (notifErr) => {
                 if(notifErr) console.error(notifErr);
+            });
+
+            // 💬 บันทึกข้อความสรุปคำขอลงในห้องแชตอัตโนมัติ เพื่อเป็นหลักฐานทั้งสองฝ่าย
+            const roomName = `รายการ: ${titleMatch}`;
+            const findRoomSql = `
+               SELECT r.id FROM chat_rooms r
+               JOIN chat_room_members m1 ON m1.room_id = r.id AND m1.user_id = ?
+               JOIN chat_room_members m2 ON m2.room_id = r.id AND m2.user_id = ?
+               WHERE r.item_id = ?
+               LIMIT 1
+            `;
+            db.query(findRoomSql, [requester_id, ownerId, itemId], (rFindErr, rRooms) => {
+               const addMsgToRoom = (rId) => {
+                  const reqUserName = req.authUser.name || 'ผู้ขอรับ';
+                  const formattedMsg = `🤝 ส่งคำขอนัดรับ: "${titleMatch}"\n${message || 'สนใจรายการนี้ครับ/ค่ะ'}`;
+                  db.query('INSERT INTO chat_messages (room_id, user_id, user_name, message) VALUES (?, ?, ?, ?)',
+                     [rId, requester_id, reqUserName, formattedMsg], (msgErr, msgRes) => {
+                        if (!msgErr && msgRes) {
+                           emitToUser(ownerId, 'new_chat_message', {
+                              room_id: Number(rId),
+                              message: formattedMsg,
+                              sender_name: reqUserName,
+                              sender_id: requester_id,
+                              id: msgRes.insertId,
+                              created_at: new Date()
+                           });
+                        }
+                     }
+                  );
+               };
+
+               if (!rFindErr && rRooms && rRooms.length > 0) {
+                  addMsgToRoom(rRooms[0].id);
+               } else {
+                  db.query('INSERT INTO chat_rooms (name, item_id) VALUES (?, ?)', [roomName, itemId], (crErr, crRes) => {
+                     if (!crErr && crRes) {
+                        const newRoomId = crRes.insertId;
+                        db.query('INSERT INTO chat_room_members (room_id, user_id) VALUES (?, ?), (?, ?)',
+                           [newRoomId, requester_id, newRoomId, ownerId], (mErr) => {
+                              if (!mErr) addMsgToRoom(newRoomId);
+                           }
+                        );
+                     }
+                  });
+               }
             });
 
             // ⚡ Real-Time Socket Notification to Owner
