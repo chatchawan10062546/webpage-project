@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showEditModal(item) {
+        editingItem = item;
         const oldModal = document.getElementById('editItemModal');
         if (oldModal) oldModal.remove();
 
@@ -125,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.show();
         modalElement.addEventListener('hidden.bs.modal', () => modalElement.remove(), { once: true });
     }
+    window.showEditModal = showEditModal;
 
     async function sendRequest(url, options) {
         const response = await fetch(url, options);
