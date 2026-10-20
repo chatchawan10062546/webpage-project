@@ -152,7 +152,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: getUserId() })
-            }).then(() => card.remove())
+            }).then(() => {
+                card.remove();
+                if (typeof window.loadItemsFromDB === 'function') {
+                    window.loadItemsFromDB();
+                }
+            })
                 .catch(error => alert('ไม่สามารถลบรายการได้: ' + error.message));
         }
 

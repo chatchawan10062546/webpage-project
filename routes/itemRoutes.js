@@ -20,9 +20,15 @@ const { addXP } = require('../utils/xpHelper');
 
 // 📌 1. API ดึงรายการสิ่งของทั้งหมดจาก DB (เฉพาะที่อนุมัติแล้ว)
 router.get('/items', (req, res) => {
-    const { category, type, min_price, max_price, sort, search, lat, lng, max_distance } = req.query;
+    const { category, type, min_price, max_price, sort, search, lat, lng, max_distance, exclude_user_id } = req.query;
     let conditions = ['i.is_approved = TRUE', "i.status = 'available'"];
     let params = [];
+
+    // กรองไม่รวมของตนเองในหน้ารวม (เพื่อป้องกันความสับสน)
+    if (exclude_user_id) {
+        conditions.push('i.user_id != ?');
+        params.push(exclude_user_id);
+    }
 
     // Filter by distance if provided
     if (lat && lng && max_distance && max_distance !== 'all') {
@@ -106,6 +112,103 @@ router.get('/items', (req, res) => {
             return { ...row, images };
         });
         res.json({ success: true, items, totalPages, totalItems, currentPage: page });
+        });
+    });
+});
+
+// 📌 1.1 API ดึงรายการสิ่งของทั้งหมดของผู้ใช้เอง (รวมทั้งที่รออนุมัติ / เปิดรับ / ปิดรับ พร้อมสรุปสถิติ)
+router.get('/items/mine', requireAuth, (req, res) => {
+    const user_id = req.authUser.userId;
+    const { category, type, min_price, max_price, status_filter, search, sort } = req.query;
+
+    let conditions = ['i.user_id = ?'];
+    let params = [user_id];
+
+    if (search) {
+        conditions.push('(i.title LIKE ? OR i.description LIKE ?)');
+        params.push('%' + search + '%', '%' + search + '%');
+    }
+    if (category) {
+        conditions.push('i.category = ?');
+        params.push(category);
+    }
+    if (type) {
+        conditions.push('i.item_type = ?');
+        params.push(type);
+    }
+    if (min_price) {
+        conditions.push('i.price >= ?');
+        params.push(Number(min_price));
+    }
+    if (max_price) {
+        conditions.push('i.price <= ?');
+        params.push(Number(max_price));
+    }
+    if (status_filter === 'pending') {
+        conditions.push('i.is_approved = 0');
+    } else if (status_filter === 'approved') {
+        conditions.push('i.is_approved = 1');
+    } else if (status_filter === 'available') {
+        conditions.push("i.status = 'available' AND i.is_approved = 1");
+    } else if (status_filter === 'completed') {
+        conditions.push("i.status = 'completed'");
+    }
+
+    let orderClause = 'ORDER BY i.item_id DESC';
+    if (sort === 'price_asc') orderClause = 'ORDER BY i.price ASC';
+    else if (sort === 'price_desc') orderClause = 'ORDER BY i.price DESC';
+    else if (sort === 'oldest') orderClause = 'ORDER BY i.item_id ASC';
+
+    // ดึงสรุปสถิติรายการทั้งหมดของผู้ใช้
+    const statsSql = `
+        SELECT 
+            COUNT(*) AS total,
+            SUM(CASE WHEN is_approved = 0 THEN 1 ELSE 0 END) AS pending,
+            SUM(CASE WHEN status = 'available' AND is_approved = 1 THEN 1 ELSE 0 END) AS available,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
+        FROM items WHERE user_id = ?
+    `;
+
+    db.query(statsSql, [user_id], (statsErr, statsRows) => {
+        const stats = {
+            total: statsRows?.[0]?.total || 0,
+            pending: statsRows?.[0]?.pending || 0,
+            available: statsRows?.[0]?.available || 0,
+            completed: statsRows?.[0]?.completed || 0
+        };
+
+        const sql = `
+           SELECT i.*, 
+                  u.name AS owner_name, 
+                  u.level AS owner_level, 
+                  u.xp AS owner_xp,
+                  COALESCE(AVG(r.rating), 0) AS owner_rating,
+                  COUNT(r.review_id) AS owner_review_count,
+                  (SELECT COUNT(*) FROM item_requests req WHERE req.item_id = i.item_id AND req.status = 'pending') AS pending_requests,
+                  (SELECT GROUP_CONCAT(img.image_url ORDER BY img.sort_order ASC) FROM item_images img WHERE img.item_id = i.item_id) AS gallery_images
+           FROM items i
+           JOIN users u ON u.user_id = i.user_id
+           LEFT JOIN reviews r ON r.reviewee_id = i.user_id
+           WHERE ${conditions.join(' AND ')}
+           GROUP BY i.item_id
+           ${orderClause}
+        `;
+
+        db.query(sql, params, (err, results) => {
+            if (err) {
+                console.error('Fetch My Items Error:', err);
+                return res.status(500).json({ success: false, message: 'ดึงข้อมูลรายการของคุณไม่สำเร็จ' });
+            }
+            const items = results.map(row => {
+                let images = [];
+                if (row.gallery_images) {
+                    images = row.gallery_images.split(',').filter(Boolean);
+                } else if (row.image_url) {
+                    images = [row.image_url];
+                }
+                return { ...row, images };
+            });
+            res.json({ success: true, items, stats, totalItems: items.length });
         });
     });
 });

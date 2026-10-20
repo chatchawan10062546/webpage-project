@@ -111,4 +111,10 @@ document.addEventListener('click', e => {
         e.preventDefault();
         if (typeof window.openMyTransactionsModal === 'function') window.openMyTransactionsModal();
     }
+    if (e.target.closest('#myListingsOpenBtn')) {
+        e.preventDefault();
+        if (typeof window.switchFeedMode === 'function') {
+            window.switchFeedMode('my_listings');
+        }
+    }
 });

@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------
     
     let currentPage = 1;
+    window.currentFeedMode = (window.location.hash === '#my-listings') ? 'my_listings' : 'all';
+
     window.loadItemsFromDB = async function loadItemsFromDB(append = false) {
         if (!append) currentPage = 1;
 
@@ -24,10 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const min_price = document.getElementById('minPriceFilter')?.value || '';
             const max_price = document.getElementById('maxPriceFilter')?.value || '';
             const sort = document.getElementById('sortFilter')?.value || 'newest';
-            
-            // อ่านค่าจาก distance slider ใน main.js (ถ้ามี)
-            const distanceSlider = document.getElementById('distanceSlider');
-            const max_distance = distanceSlider ? distanceSlider.value : 'all';
+            const status_filter = document.getElementById('statusFilter')?.value || '';
+
+            const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+            const currentUserId = currentUser?.id || currentUser?.user_id || currentUser?.userId;
+            const token = localStorage.getItem('authToken') || localStorage.getItem('token');
 
             const queryParams = new URLSearchParams();
             if (search) queryParams.append('search', search);
@@ -36,29 +39,97 @@ document.addEventListener('DOMContentLoaded', () => {
             if (min_price) queryParams.append('min_price', min_price);
             if (max_price) queryParams.append('max_price', max_price);
             if (sort) queryParams.append('sort', sort);
-            
-            // ถ้าเลือกกรองระยะทาง ให้ส่งพิกัดผู้ใช้ไปด้วย
-            if (max_distance !== 'all' && Number(max_distance) <= 50 && window.currentUserCoordinates) {
-                queryParams.append('max_distance', max_distance);
-                queryParams.append('lat', window.currentUserCoordinates.latitude);
-                queryParams.append('lng', window.currentUserCoordinates.longitude);
+
+            let fetchUrl = '';
+            let fetchOptions = {};
+
+            if (window.currentFeedMode === 'my_listings') {
+                if (!token || !currentUser) {
+                    if (itemGrid) {
+                        itemGrid.innerHTML = `
+                            <div class="col-12 text-center py-5">
+                                <i class="bi bi-person-lock fs-1 text-muted d-block mb-3"></i>
+                                <p class="text-muted fs-5">กรุณาเข้าสู่ระบบเพื่อจัดการรายการที่ประกาศ</p>
+                                <button class="btn btn-success rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#loginModal">เข้าสู่ระบบ</button>
+                            </div>
+                        `;
+                    }
+                    const loadMoreContainer = document.getElementById('loadMoreContainer');
+                    if (loadMoreContainer) loadMoreContainer.classList.add('d-none');
+                    return;
+                }
+
+                if (status_filter) queryParams.append('status_filter', status_filter);
+                fetchUrl = `/api/items/mine?${queryParams.toString()}`;
+                fetchOptions = {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                };
+            } else {
+                // อ่านค่าจาก distance slider ใน main.js (ถ้ามี)
+                const distanceSlider = document.getElementById('distanceSlider');
+                const max_distance = distanceSlider ? distanceSlider.value : 'all';
+
+                // ถ้าเลือกกรองระยะทาง ให้ส่งพิกัดผู้ใช้ไปด้วย
+                if (max_distance !== 'all' && Number(max_distance) <= 50 && window.currentUserCoordinates) {
+                    queryParams.append('max_distance', max_distance);
+                    queryParams.append('lat', window.currentUserCoordinates.latitude);
+                    queryParams.append('lng', window.currentUserCoordinates.longitude);
+                }
+
+                // กรองไม่รวมของตนเองในหน้ารวม เพื่อไม่ให้สับสน
+                if (currentUserId) {
+                    queryParams.append('exclude_user_id', currentUserId);
+                }
+
+                queryParams.append('page', currentPage);
+                queryParams.append('limit', 24);
+
+                fetchUrl = `/api/items?${queryParams.toString()}`;
             }
 
-            queryParams.append('page', currentPage);
-            queryParams.append('limit', 24);
-
-            const response = await fetch(`/api/items?${queryParams.toString()}`);
+            const response = await fetch(fetchUrl, fetchOptions);
             const data = await response.json();
 
             if (data.success && itemGrid) {
                 if (!append) itemGrid.innerHTML = '';
 
-                if (data.items.length === 0) {
-                    itemGrid.innerHTML = `
-                        <div class="col-12 text-center py-5">
-                            <p class="text-muted fs-5">ยังไม่มีรายการสิ่งของในขณะนี้</p>
-                        </div>
-                    `;
+                // อัปเดตสถิติและตัวเลขนับจำนวนประกาศของผู้ใช้
+                if (data.stats) {
+                    const elTotal = document.getElementById('myStatsTotal');
+                    const elAvail = document.getElementById('myStatsAvailable');
+                    const elPend = document.getElementById('myStatsPending');
+                    const countBadge = document.getElementById('myItemsCountBadge');
+
+                    if (elTotal) elTotal.textContent = data.stats.total;
+                    if (elAvail) elAvail.textContent = data.stats.available;
+                    if (elPend) elPend.textContent = data.stats.pending;
+                    if (countBadge) {
+                        countBadge.textContent = data.stats.total;
+                        countBadge.classList.toggle('d-none', data.stats.total === 0);
+                    }
+                }
+
+                if (!data.items || data.items.length === 0) {
+                    if (window.currentFeedMode === 'my_listings') {
+                        itemGrid.innerHTML = `
+                            <div class="col-12 text-center py-5">
+                                <div class="bg-light d-inline-flex p-4 rounded-circle mb-3">
+                                    <i class="bi bi-box-seam fs-1 text-success"></i>
+                                </div>
+                                <h5 class="fw-bold text-dark">ยังไม่มีรายการที่คุณลงประกาศ</h5>
+                                <p class="text-muted">คุณสามารถเริ่มลงประกาศแบ่งปัน เช่า หรือขายสิ่งของของคุณได้ง่ายๆ</p>
+                                <button class="btn btn-success rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                                    <i class="bi bi-plus-circle me-1"></i> ลงประกาศสิ่งของ
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        itemGrid.innerHTML = `
+                            <div class="col-12 text-center py-5">
+                                <p class="text-muted fs-5">ยังไม่มีรายการสิ่งของในขณะนี้</p>
+                            </div>
+                        `;
+                    }
                     const loadMoreContainer = document.getElementById('loadMoreContainer');
                     if (loadMoreContainer) loadMoreContainer.classList.add('d-none');
                     return;
@@ -70,10 +141,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateAllItemDistances(window.currentUserCoordinates.latitude, window.currentUserCoordinates.longitude);
                 }
 
-                // ตรวจสอบปุ่มโหลดเพิ่มเติม
+                // ตรวจสอบปุ่มโหลดเพิ่มเติม (เฉพาะโหมด all ที่มี pagination)
                 const loadMoreContainer = document.getElementById('loadMoreContainer');
                 if (loadMoreContainer) {
-                    if (data.currentPage < data.totalPages) {
+                    if (window.currentFeedMode === 'all' && data.currentPage < data.totalPages) {
                         loadMoreContainer.classList.remove('d-none');
                     } else {
                         loadMoreContainer.classList.add('d-none');
@@ -83,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             console.error('Error loading items from database:', err);
         }
-    }
+    };
 
     // ----------------------------------------------------
     // 2. ฟังก์ชันแสดงผลการ์ดสิ่งของ (Item Card)
@@ -121,9 +192,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? '<span class="badge bg-warning text-dark me-1">ให้เช่า</span>'
                 : '<span class="badge bg-success me-1">แจกฟรี</span>';
 
-        const statusLabel = (item.status === 'completed' || item.status === 'reserved')
+        const approvalBadge = (item.is_approved === 0 || item.is_approved === false)
+            ? '<span class="badge bg-warning text-dark me-1 shadow-sm"><i class="bi bi-hourglass-split"></i> รออนุมัติ</span>'
+            : (item.is_approved === -1)
+                ? '<span class="badge bg-danger me-1 shadow-sm"><i class="bi bi-x-circle"></i> ไม่อนุมัติ</span>'
+                : '';
+
+        let statusLabel = (item.status === 'completed' || item.status === 'reserved')
             ? (itemType === 'free' ? 'แจกหมดแล้ว' : 'ปิดการขาย/จองแล้ว')
             : (itemType === 'free' ? 'พร้อมแจก' : 'พร้อมใช้งาน');
+        if (item.is_approved === 0 || item.is_approved === false) {
+            statusLabel = '⏳ รอแอดมินตรวจ';
+        }
 
         const priceTagText = itemType === 'sell'
             ? `฿${Number(price).toLocaleString()}`
@@ -164,8 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const newCardHTML = `
             <div class="col-6 col-md-4 col-lg-3 item-element" data-item-id="${itemId}" data-category="${item.category}" data-title="${safeTitle}" data-latitude="${hasCoordinates ? (item.latitude || item.lat) : ''}" data-longitude="${hasCoordinates ? (item.longitude || item.lng) : ''}">
                 <div class="card item-card h-100 position-relative shadow-sm border-0 rounded-4 overflow-hidden">
-                    <div class="position-absolute top-0 start-0 p-2 z-2">
+                    <div class="position-absolute top-0 start-0 p-2 z-2 d-flex flex-wrap gap-1 align-items-center">
                         ${typeBadge}
+                        ${approvalBadge}
                         <span class="badge bg-dark bg-opacity-75">${item.category}</span>
                     </div>
                     ${imagesArray.length > 1 ? `
@@ -238,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Auto-reload items when dropdown filters change
-    ['typeFilter', 'categoryFilter', 'sortFilter'].forEach(id => {
+    ['typeFilter', 'categoryFilter', 'sortFilter', 'statusFilter'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', () => {
@@ -267,14 +348,136 @@ document.addEventListener('DOMContentLoaded', () => {
             if (filterForm) filterForm.reset();
             const searchInput = document.getElementById('searchInput');
             if (searchInput) searchInput.value = '';
+            const statusFilter = document.getElementById('statusFilter');
+            if (statusFilter) statusFilter.value = '';
             loadItemsFromDB();
         });
     }
 
-    
-    
+    // ----------------------------------------------------
+    // ฟังก์ชันสลับโหมดหน้ารวมสินค้า: 'all' (สำรวจของใกล้ตัว) VS 'my_listings' (รายการที่ฉันประกาศ)
+    // ----------------------------------------------------
+    window.switchFeedMode = function(mode, scroll = true) {
+        const tabAll = document.getElementById('tab-all-items');
+        const tabMy = document.getElementById('tab-my-items');
+        const banner = document.getElementById('myListingsBanner');
+        const feedHeaderContainer = document.getElementById('feedHeaderContainer');
+        const feedMainTitle = document.getElementById('feedMainTitle');
+        const statusFilterCol = document.getElementById('statusFilterCol');
 
-    loadItemsFromDB();
+        const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+
+        if (mode === 'my_listings') {
+            if (!token || !currentUser) {
+                const loginModalEl = document.getElementById('loginModal');
+                if (loginModalEl) {
+                    const loginModal = bootstrap.Modal.getInstance(loginModalEl) || new bootstrap.Modal(loginModalEl);
+                    loginModal.show();
+                }
+                return;
+            }
+
+            window.currentFeedMode = 'my_listings';
+            try {
+                history.replaceState(null, '', '#my-listings');
+            } catch (e) {}
+
+            if (tabAll) {
+                tabAll.classList.remove('active');
+                tabAll.classList.add('text-secondary');
+            }
+            if (tabMy) {
+                tabMy.classList.add('active');
+                tabMy.classList.remove('text-secondary');
+            }
+
+            if (banner) banner.classList.remove('d-none');
+            if (feedHeaderContainer) feedHeaderContainer.classList.add('d-none');
+            if (statusFilterCol) statusFilterCol.classList.remove('d-none');
+
+            currentPage = 1;
+            window.loadItemsFromDB();
+
+            if (scroll) {
+                const switcher = document.getElementById('feedViewSwitcherSection');
+                if (switcher) {
+                    switcher.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        } else {
+            window.currentFeedMode = 'all';
+            if (window.location.hash === '#my-listings') {
+                try {
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                } catch (e) {}
+            }
+
+            if (tabAll) {
+                tabAll.classList.add('active');
+                tabAll.classList.remove('text-secondary');
+            }
+            if (tabMy) {
+                tabMy.classList.remove('active');
+                tabMy.classList.add('text-secondary');
+            }
+
+            if (banner) banner.classList.add('d-none');
+            if (feedHeaderContainer) feedHeaderContainer.classList.remove('d-none');
+            if (feedMainTitle) feedMainTitle.innerHTML = '✨ รายการของแจก ล่าสุดใกล้ตัวคุณ';
+            if (statusFilterCol) statusFilterCol.classList.add('d-none');
+
+            currentPage = 1;
+            window.loadItemsFromDB();
+
+            if (scroll) {
+                const switcher = document.getElementById('feedViewSwitcherSection');
+                if (switcher) {
+                    switcher.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        }
+    };
+
+    window.refreshMyItemsCount = async function() {
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const res = await fetch('/api/items/mine?limit=1', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success && data.stats) {
+                const countBadge = document.getElementById('myItemsCountBadge');
+                if (countBadge) {
+                    countBadge.textContent = data.stats.total;
+                    countBadge.classList.toggle('d-none', data.stats.total === 0);
+                }
+                const elTotal = document.getElementById('myStatsTotal');
+                const elAvail = document.getElementById('myStatsAvailable');
+                const elPend = document.getElementById('myStatsPending');
+                if (elTotal) elTotal.textContent = data.stats.total;
+                if (elAvail) elAvail.textContent = data.stats.available;
+                if (elPend) elPend.textContent = data.stats.pending;
+            }
+        } catch (e) {}
+    };
+
+    // ตรวจสอบ URL Hash เพื่อเปิดโหมดที่ต้องการเมื่อโหลดหน้า
+    if (window.location.hash === '#my-listings') {
+        window.switchFeedMode('my_listings', false);
+    } else {
+        window.loadItemsFromDB();
+        window.refreshMyItemsCount();
+    }
+
+    window.addEventListener('hashchange', () => {
+        if (window.location.hash === '#my-listings' && window.currentFeedMode !== 'my_listings') {
+            window.switchFeedMode('my_listings', true);
+        } else if (window.location.hash !== '#my-listings' && window.currentFeedMode === 'my_listings') {
+            window.switchFeedMode('all', true);
+        }
+    });
 
     // ----------------------------------------------------
     // 3. ดักจับการลงประกาศใหม่ (บันทึกลง Database ผ่าน API)
@@ -399,11 +602,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         addMarker = null;
                     }
 
-                    // เลื่อนกลับไปด้านบนหน้าจออย่างนุ่มนวล
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-                    // โหลดรายการสิ่งของใหม่ทั้งหมดจาก Database
-                    loadItemsFromDB();
+                    // สลับมายังโหมด 'รายการที่ฉันประกาศ' ทันที เพื่อให้เห็นของที่เพิ่งลง
+                    if (typeof window.switchFeedMode === 'function') {
+                        window.switchFeedMode('my_listings', true);
+                    } else {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        loadItemsFromDB();
+                    }
                 } else {
                     alert('❌ ไม่สามารถบันทึกข้อมูลได้: ' + (data.message || 'เกิดข้อผิดพลาด'));
                 }

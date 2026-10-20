@@ -255,12 +255,16 @@ document.addEventListener('DOMContentLoaded', () => {
         showProfile('profile');
     });
 
-    // ปุ่ม "รายการที่ฉันประกาศ" — เปิดโปรไฟล์แล้วเลื่อนไปส่วนรายการ
+    // ปุ่ม "รายการที่ฉันประกาศ" — สลับเข้าโหมดจัดการสินค้าของฉันบนหน้าหลัก
     const myListingsBtn = document.getElementById('myListingsOpenBtn');
     if (myListingsBtn) {
         myListingsBtn.addEventListener('click', event => {
             event.preventDefault();
-            showProfile('listings');
+            if (typeof window.switchFeedMode === 'function') {
+                window.switchFeedMode('my_listings');
+            } else {
+                showProfile('listings');
+            }
         });
     }
 });
