@@ -167,10 +167,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'PATCH'
             }).then(res => {
                 alert(res.message);
-                if (typeof window.loadItemsFromDB === 'function') {
-                    window.loadItemsFromDB();
+                if (res.status === 'completed') {
+                    // หากกดหมดแล้ว ให้นำการ์ดออกจากหน้าเว็บทันที โดยข้อมูลยังคงเก็บรักษาไว้ในฐานข้อมูลครบถ้วน
+                    card.style.transition = 'all 0.35s ease';
+                    card.style.opacity = '0';
+                    card.style.transform = 'scale(0.85)';
+                    setTimeout(() => {
+                        card.remove();
+                        if (typeof window.refreshMyItemsCount === 'function') window.refreshMyItemsCount();
+                        if (typeof window.loadItemsFromDB === 'function') window.loadItemsFromDB();
+                    }, 350);
                 } else {
-                    location.reload();
+                    if (typeof window.loadItemsFromDB === 'function') {
+                        window.loadItemsFromDB();
+                    } else {
+                        location.reload();
+                    }
                 }
             }).catch(error => alert('ไม่สามารถเปลี่ยนสถานะได้: ' + error.message));
         }

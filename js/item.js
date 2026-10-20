@@ -98,14 +98,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     const elTotal = document.getElementById('myStatsTotal');
                     const elAvail = document.getElementById('myStatsAvailable');
                     const elPend = document.getElementById('myStatsPending');
+                    const elComp = document.getElementById('myStatsCompleted');
                     const countBadge = document.getElementById('myItemsCountBadge');
 
                     if (elTotal) elTotal.textContent = data.stats.total;
                     if (elAvail) elAvail.textContent = data.stats.available;
                     if (elPend) elPend.textContent = data.stats.pending;
+                    if (elComp) elComp.textContent = data.stats.completed || 0;
                     if (countBadge) {
-                        countBadge.textContent = data.stats.total;
-                        countBadge.classList.toggle('d-none', data.stats.total === 0);
+                        const activeCount = (Number(data.stats.available || 0) + Number(data.stats.pending || 0));
+                        countBadge.textContent = activeCount;
+                        countBadge.classList.toggle('d-none', activeCount === 0);
                     }
                 }
 
@@ -450,15 +453,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success && data.stats) {
                 const countBadge = document.getElementById('myItemsCountBadge');
                 if (countBadge) {
-                    countBadge.textContent = data.stats.total;
-                    countBadge.classList.toggle('d-none', data.stats.total === 0);
+                    const activeCount = (Number(data.stats.available || 0) + Number(data.stats.pending || 0));
+                    countBadge.textContent = activeCount;
+                    countBadge.classList.toggle('d-none', activeCount === 0);
                 }
                 const elTotal = document.getElementById('myStatsTotal');
                 const elAvail = document.getElementById('myStatsAvailable');
                 const elPend = document.getElementById('myStatsPending');
+                const elComp = document.getElementById('myStatsCompleted');
                 if (elTotal) elTotal.textContent = data.stats.total;
                 if (elAvail) elAvail.textContent = data.stats.available;
                 if (elPend) elPend.textContent = data.stats.pending;
+                if (elComp) elComp.textContent = data.stats.completed || 0;
             }
         } catch (e) {}
     };

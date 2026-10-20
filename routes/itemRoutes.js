@@ -18,10 +18,10 @@ const upload = multer({ storage: storage });
 
 const { addXP } = require('../utils/xpHelper');
 
-// 📌 1. API ดึงรายการสิ่งของทั้งหมดจาก DB (เฉพาะที่อนุมัติแล้ว)
+// 📌 1. API ดึงรายการสิ่งของทั้งหมดจาก DB (เฉพาะที่อนุมัติแล้ว และยังมีของอยู่)
 router.get('/items', (req, res) => {
     const { category, type, min_price, max_price, sort, search, lat, lng, max_distance, exclude_user_id } = req.query;
-    let conditions = ['i.is_approved = TRUE', "i.status = 'available'"];
+    let conditions = ['i.is_approved = TRUE', "i.status = 'available'", '(i.quantity > 0 OR i.quantity IS NULL)'];
     let params = [];
 
     // กรองไม่รวมของตนเองในหน้ารวม (เพื่อป้องกันความสับสน)
@@ -147,11 +147,16 @@ router.get('/items/mine', requireAuth, (req, res) => {
     if (status_filter === 'pending') {
         conditions.push('i.is_approved = 0');
     } else if (status_filter === 'approved') {
-        conditions.push('i.is_approved = 1');
+        conditions.push('i.is_approved = 1 AND i.status != "completed" AND (i.quantity > 0 OR i.quantity IS NULL)');
     } else if (status_filter === 'available') {
-        conditions.push("i.status = 'available' AND i.is_approved = 1");
+        conditions.push("i.status = 'available' AND i.is_approved = 1 AND (i.quantity > 0 OR i.quantity IS NULL)");
     } else if (status_filter === 'completed') {
-        conditions.push("i.status = 'completed'");
+        conditions.push("(i.status = 'completed' OR i.quantity <= 0)");
+    } else if (status_filter === 'all') {
+        // แสดงทั้งหมด รวมทั้งที่หมดแล้วและยังไม่หมด
+    } else {
+        // ค่าเริ่มต้น (Default): เอาออกจากหน้าเว็บเมื่อกดหมดแล้ว แต่ยังคงเก็บข้อมูลในฐานข้อมูลไว้
+        conditions.push("i.status != 'completed' AND (i.quantity > 0 OR i.quantity IS NULL)");
     }
 
     let orderClause = 'ORDER BY i.item_id DESC';
@@ -164,8 +169,8 @@ router.get('/items/mine', requireAuth, (req, res) => {
         SELECT 
             COUNT(*) AS total,
             SUM(CASE WHEN is_approved = 0 THEN 1 ELSE 0 END) AS pending,
-            SUM(CASE WHEN status = 'available' AND is_approved = 1 THEN 1 ELSE 0 END) AS available,
-            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
+            SUM(CASE WHEN status = 'available' AND is_approved = 1 AND (quantity > 0 OR quantity IS NULL) THEN 1 ELSE 0 END) AS available,
+            SUM(CASE WHEN status = 'completed' OR quantity <= 0 THEN 1 ELSE 0 END) AS completed
         FROM items WHERE user_id = ?
     `;
 

@@ -583,6 +583,10 @@
                             <div class="small fw-light" style="font-size: 0.75rem;">รออนุมัติ</div>
                             <div class="fw-bold fs-5 text-light" id="myStatsPending">0</div>
                         </div>
+                        <div class="bg-white bg-opacity-25 rounded-3 px-3 py-2 text-center text-white" style="backdrop-filter: blur(4px);">
+                            <div class="small fw-light" style="font-size: 0.75rem;">หมดแล้ว (เก็บไว้)</div>
+                            <div class="fw-bold fs-5 text-warning" id="myStatsCompleted">0</div>
+                        </div>
                         <button type="button" class="btn btn-light rounded-pill px-3 py-2 fw-bold text-success shadow-sm" onclick="switchFeedMode('all')">
                             <i class="bi bi-arrow-left me-1"></i> สินค้าทั้งหมด
                         </button>
@@ -635,12 +639,12 @@
                 </select>
             </div>
 
-            <div class="filter-col-half d-none" id="statusFilterCol" style="width: 150px; flex-grow: 1;">
+            <div class="filter-col-half d-none" id="statusFilterCol" style="width: 170px; flex-grow: 1;">
                 <select class="form-select border-0 bg-light rounded-pill px-3" id="statusFilter">
-                    <option value="">🔄 ทุกสถานะ</option>
-                    <option value="available">🟢 กำลังเปิดรับ</option>
+                    <option value="">🟢 รายการที่เปิดอยู่ (ซ่อนที่หมด)</option>
                     <option value="pending">⏳ รอแอดมินอนุมัติ</option>
-                    <option value="completed">🏁 จบรายการแล้ว</option>
+                    <option value="completed">📦 ประวัติที่หมดแล้ว (ที่เก็บไว้)</option>
+                    <option value="all">🔄 รายการทั้งหมด (รวมที่หมด)</option>
                 </select>
             </div>
             
