@@ -20,17 +20,22 @@
     }
 
     function renderMessages(container, messages, replyEnabled = false) {
-        container.innerHTML = messages.map(message => `
-            <div class="mb-2 ${String(message.user_id) === String(getUser()?.id || getUser()?.user_id) ? 'text-end' : ''}" data-msg-id="${message.id || ''}">
-                <div class="small text-muted">${message.user_name} ${message.message_type === 'request' ? '(คำขอรับของ)' : ''}</div>
-                <div class="d-inline-block bg-light border rounded px-3 py-2">
+        container.innerHTML = messages.map(message => {
+            const isMe = String(message.user_id) === String(getUser()?.id || getUser()?.user_id);
+            const isRequestCard = message.message && (message.message.includes('ส่งคำขอนัดรับ:') || message.message.includes('📅 ขอเช่าวันที่:'));
+            const bubbleBg = isMe ? (isRequestCard ? 'bg-success bg-opacity-10 border border-success' : 'bg-light border') : (isRequestCard ? 'bg-warning bg-opacity-10 border border-warning' : 'bg-light border');
+            return `
+            <div class="mb-2 ${isMe ? 'text-end' : ''}" data-msg-id="${message.id || ''}">
+                <div class="small text-muted mb-1">${message.user_name} ${message.message_type === 'request' ? '(คำขอรับของ)' : ''}</div>
+                <div class="d-inline-block ${bubbleBg} rounded-3 px-3 py-2 text-dark shadow-sm" style="white-space: pre-line; text-align: start; line-height: 1.5; max-width: 85%; font-size: 0.92rem;">
                     ${message.message.startsWith("[IMAGE]") ? "<img src=\"" + message.message.replace("[IMAGE]", "") + "\" class=\"img-fluid rounded\" style=\"max-height: 200px; cursor: pointer;\" onclick=\"window.open(this.src, '_blank')\">" : message.message}
                 </div>
-                ${replyEnabled && String(message.user_id) !== String(getUser()?.id || getUser()?.user_id) ? `
+                ${replyEnabled && !isMe ? `
                     <button type="button" class="btn btn-sm btn-outline-success ms-2 message-reply-btn" data-user-id="${message.user_id}">ตอบกลับ</button>
                 ` : ''}
             </div>
-        `).join('') || '<p class="text-muted">ยังไม่มีข้อความ</p>';
+            `;
+        }).join('') || '<p class="text-muted">ยังไม่มีข้อความ</p>';
         container.scrollTop = container.scrollHeight;
     }
 
@@ -95,11 +100,23 @@
                 <div class="modal fade" id="chatModal" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">แชต: ${itemTitle}</h5>
-                                <div>
-                                    <button type="button" class="btn btn-outline-danger btn-sm me-2 report-chat-btn" data-other-user-id="${otherUserId}" data-item-id="${itemId}" data-title="${itemTitle}">🚨 รายงาน</button>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <div class="modal-header d-flex justify-content-between align-items-center gap-2 py-2 px-3 border-bottom bg-light">
+                                <div class="d-flex align-items-center gap-2 min-width-0 flex-grow-1 overflow-hidden">
+                                    <i class="bi bi-chat-dots-fill text-success fs-5 flex-shrink-0"></i>
+                                    <div class="min-width-0 flex-grow-1">
+                                        <h6 class="modal-title fw-bold text-dark mb-0 text-truncate" title="แชต: ${itemTitle}">
+                                            ${itemTitle ? `แชต: ${itemTitle}` : 'แชตสนทนา'}
+                                        </h6>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 report-chat-btn shadow-none" 
+                                            data-other-user-id="${otherUserId}" data-item-id="${itemId}" data-title="${itemTitle}"
+                                            style="font-size: 0.8rem; font-weight: 600; white-space: nowrap;" title="รายงานปัญหาผู้ใช้หรือแชตนี้">
+                                        <i class="bi bi-shield-exclamation text-danger"></i>
+                                        <span>รายงาน</span>
+                                    </button>
+                                    <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
                             </div>
                             <div class="modal-body">
@@ -144,10 +161,12 @@
                             return;
                         }
                         const isMe = String(newMsg.user_id) === String(userId);
+                        const isRequestCard = newMsg.message && (newMsg.message.includes('ส่งคำขอนัดรับ:') || newMsg.message.includes('📅 ขอเช่าวันที่:'));
+                        const bubbleBg = isMe ? (isRequestCard ? 'bg-success bg-opacity-10 border border-success' : 'bg-light border') : (isRequestCard ? 'bg-warning bg-opacity-10 border border-warning' : 'bg-light border');
                         const msgHtml = `
                             <div class="mb-2 ${isMe ? 'text-end' : ''}" data-msg-id="${newMsg.id || ''}">
-                                <div class="small text-muted">${newMsg.user_name}</div>
-                                <div class="d-inline-block bg-light border rounded px-3 py-2">
+                                <div class="small text-muted mb-1">${newMsg.user_name}</div>
+                                <div class="d-inline-block ${bubbleBg} rounded-3 px-3 py-2 text-dark shadow-sm" style="white-space: pre-line; text-align: start; line-height: 1.5; max-width: 85%; font-size: 0.92rem;">
                                     ${newMsg.message.startsWith("[IMAGE]") ? `<img src="${newMsg.message.replace("[IMAGE]", "")}" class="img-fluid rounded" style="max-height: 200px; cursor: pointer;" onclick="window.open(this.src, '_blank')">` : newMsg.message}
                                 </div>
                             </div>

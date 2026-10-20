@@ -1115,9 +1115,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="d-flex justify-content-between align-items-center pb-2">
                             <span class="badge bg-success px-3 py-2 rounded-pill fs-6 fw-bold">${item.category}</span>
                             <div>
-                                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill me-2 fw-bold report-item-btn" 
-                                        data-item-id="${item.itemId}" data-owner-id="${item.ownerId}" data-title="${item.title}">
-                                    🚨 รายงาน
+                                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2 py-1 fw-bold report-item-btn d-inline-flex align-items-center gap-1 shadow-none me-2" 
+                                        data-item-id="${item.itemId}" data-owner-id="${item.ownerId}" data-title="${item.title}"
+                                        style="font-size: 0.8rem; white-space: nowrap;">
+                                    <i class="bi bi-shield-exclamation text-danger"></i>
+                                    <span>รายงาน</span>
                                 </button>
                                 <button type="button" class="btn-close fs-4" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
