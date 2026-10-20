@@ -575,6 +575,15 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- แท็บกรองสถานะเฉพาะโหมดจัดการสินค้า -->
+                <div class="d-flex align-items-center gap-2 flex-wrap mt-3 pt-3 border-top border-white border-opacity-25" id="myListingStatusPills">
+                    <span class="small text-white-50 me-1"><i class="bi bi-funnel me-1"></i>ดูเฉพาะ:</span>
+                    <button type="button" class="btn btn-sm btn-light text-success fw-bold rounded-pill px-3 my-status-pill active shadow-sm" data-status="">🟢 เปิดรับอยู่</button>
+                    <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 my-status-pill" data-status="pending">⏳ รอแอดมินอนุมัติ</button>
+                    <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 my-status-pill" data-status="completed">📦 ที่หมดแล้ว (เก็บไว้)</button>
+                    <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 my-status-pill" data-status="all">🔄 ทั้งหมด</button>
+                </div>
             </div>
         </div>
 
@@ -582,13 +591,14 @@
             <h3 class="fw-bold text-success mb-0 feed-title" id="feedMainTitle">✨ รายการของแจก ล่าสุดใกล้ตัวคุณ</h3>
         </div>
         
-        <form id="filterForm" autocomplete="off" class="mb-3 mb-md-4 d-flex flex-wrap gap-2 gap-md-3 align-items-center bg-white p-2 p-md-3 rounded-4 shadow-sm border" style="border-color: #e2e8f0 !important;">
-            <div class="fw-bold text-success ms-2 d-none d-md-block">
+        <form id="filterForm" autocomplete="off" class="mb-3 mb-md-4 d-flex flex-wrap gap-2 align-items-center bg-white p-2 p-md-3 rounded-4 shadow-sm border" style="border-color: #edf2f7 !important;">
+            <input type="hidden" id="statusFilter" value="">
+            <div class="fw-bold text-success ms-1 me-1 d-none d-lg-flex align-items-center gap-1" style="font-size: 0.9rem; white-space: nowrap;">
                 <i class="bi bi-funnel-fill"></i> ตัวกรอง:
             </div>
             
-            <div class="filter-col-half" style="width: 150px; flex-grow: 1;">
-                <select class="form-select border-0 bg-light rounded-pill px-3" id="categoryFilter">
+            <div class="filter-col-half" style="min-width: 125px; flex: 1 1 130px;">
+                <select class="form-select border-0 bg-light rounded-pill px-3" id="categoryFilter" style="font-size: 0.88rem;">
                     <option value="">📂 ทุกหมวดหมู่</option>
                     <option value="อาหาร">🥗 อาหาร</option>
                     <option value="เสื้อผ้า">👕 เสื้อผ้า</option>
@@ -597,8 +607,8 @@
                 </select>
             </div>
             
-            <div class="filter-col-half" style="width: 150px; flex-grow: 1;">
-                <select class="form-select border-0 bg-light rounded-pill px-3" id="typeFilter">
+            <div class="filter-col-half" style="min-width: 120px; flex: 1 1 125px;">
+                <select class="form-select border-0 bg-light rounded-pill px-3" id="typeFilter" style="font-size: 0.88rem;">
                     <option value="">📦 ทุกประเภท</option>
                     <option value="free">🎁 แจกฟรี</option>
                     <option value="sell">💰 ขาย</option>
@@ -606,34 +616,29 @@
                 </select>
             </div>
             
-            <div class="input-group bg-light rounded-pill overflow-hidden filter-col-full" style="width: 280px; flex-grow: 1;">
-                <span class="input-group-text border-0 bg-transparent text-muted ps-3"><i class="bi bi-tag-fill"></i></span>
-                <input type="number" class="form-control border-0 bg-transparent px-1" id="minPriceFilter" placeholder="ราคาต่ำสุด">
+            <div class="input-group bg-light rounded-pill overflow-hidden filter-col-full" style="min-width: 170px; flex: 1.2 1 190px;">
+                <span class="input-group-text border-0 bg-transparent text-muted ps-3 pe-1"><i class="bi bi-tag-fill" style="font-size: 0.8rem;"></i></span>
+                <input type="number" class="form-control border-0 bg-transparent px-1" id="minPriceFilter" placeholder="ต่ำสุด" style="font-size: 0.85rem;">
                 <span class="input-group-text border-0 bg-transparent text-muted px-1">-</span>
-                <input type="number" class="form-control border-0 bg-transparent px-1" id="maxPriceFilter" placeholder="ราคาสูงสุด">
+                <input type="number" class="form-control border-0 bg-transparent px-1" id="maxPriceFilter" placeholder="สูงสุด" style="font-size: 0.85rem;">
             </div>
             
-            <div class="filter-col-full" style="width: 180px; flex-grow: 1;">
-                <select class="form-select border-0 bg-light rounded-pill px-3" id="sortFilter">
+            <div class="filter-col-full" style="min-width: 125px; flex: 1 1 130px;">
+                <select class="form-select border-0 bg-light rounded-pill px-3" id="sortFilter" style="font-size: 0.88rem;">
                     <option value="newest">🕒 ล่าสุด</option>
                     <option value="oldest">🕰️ เก่าสุด</option>
                     <option value="price_asc">📈 ราคาต่ำ - สูง</option>
                     <option value="price_desc">📉 ราคาสูง - ต่ำ</option>
                 </select>
             </div>
-
-            <div class="filter-col-half d-none" id="statusFilterCol" style="width: 170px; flex-grow: 1;">
-                <select class="form-select border-0 bg-light rounded-pill px-3" id="statusFilter">
-                    <option value="">🟢 รายการที่เปิดอยู่ (ซ่อนที่หมด)</option>
-                    <option value="pending">⏳ รอแอดมินอนุมัติ</option>
-                    <option value="completed">📦 ประวัติที่หมดแล้ว (ที่เก็บไว้)</option>
-                    <option value="all">🔄 รายการทั้งหมด (รวมที่หมด)</option>
-                </select>
-            </div>
             
-            <div class="ms-auto d-flex gap-2 filter-btn-group">
-                <button type="submit" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold"><i class="bi bi-search"></i> นำไปใช้</button>
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-3 border-0 bg-light" id="resetFilterBtn"><i class="bi bi-arrow-counterclockwise"></i> รีเซ็ต</button>
+            <div class="ms-auto d-flex gap-2 filter-btn-group align-items-center">
+                <button type="submit" class="btn btn-success rounded-pill px-3 px-md-4 py-1 py-md-2 shadow-sm fw-bold d-flex align-items-center gap-1" style="white-space: nowrap; font-size: 0.88rem;">
+                    <i class="bi bi-search"></i> นำไปใช้
+                </button>
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-3 py-1 py-md-2 border-0 bg-light d-flex align-items-center gap-1" id="resetFilterBtn" style="white-space: nowrap; font-size: 0.88rem;">
+                    <i class="bi bi-arrow-counterclockwise"></i> รีเซ็ต
+                </button>
             </div>
         </form>
 

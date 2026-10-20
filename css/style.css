@@ -217,10 +217,40 @@ body {
     }
 }
 
-/* กรอบตัวกรองข้อมูล (Filter Form) ให้เป็นทรงการ์ดโค้งมน 16px สวยงามเหมือนในมือถือทุกขนาดหน้าจอ */
+/* กรอบตัวกรองข้อมูล (Filter Form) ดีไซน์ Modern Card สะอาดตาและจัดเรียงแถวเดียวสวยงาม */
 #filterForm {
-    border-radius: 16px !important;
-    border-color: #e2e8f0 !important;
+    border-radius: 20px !important;
+    border: 1px solid #edf2f7 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+    background: #ffffff !important;
+    transition: all 0.2s ease;
+}
+#filterForm .form-select,
+#filterForm .input-group,
+#filterForm .form-control {
+    background-color: #f8fafc !important;
+    border: 1px solid #f1f5f9 !important;
+    color: #334155 !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease;
+}
+#filterForm .form-select:hover,
+#filterForm .input-group:hover {
+    border-color: #cbd5e1 !important;
+    background-color: #f1f5f9 !important;
+}
+#filterForm .form-select:focus,
+#filterForm .form-control:focus {
+    border-color: #198754 !important;
+    box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.12) !important;
+}
+.my-status-pill {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+}
+.my-status-pill:hover {
+    transform: translateY(-1px);
 }
 
 /* ป้ายหมวดหมู่มุมบนขวาของการ์ด */

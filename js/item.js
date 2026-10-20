@@ -353,9 +353,40 @@ document.addEventListener('DOMContentLoaded', () => {
             if (searchInput) searchInput.value = '';
             const statusFilter = document.getElementById('statusFilter');
             if (statusFilter) statusFilter.value = '';
+            // รีเซ็ตปุ่ม Pill ในแบนเนอร์ของฉัน
+            document.querySelectorAll('.my-status-pill').forEach((btn, idx) => {
+                if (idx === 0) {
+                    btn.classList.add('active', 'btn-light', 'text-success', 'shadow-sm');
+                    btn.classList.remove('btn-outline-light');
+                } else {
+                    btn.classList.remove('active', 'btn-light', 'text-success', 'shadow-sm');
+                    btn.classList.add('btn-outline-light');
+                }
+            });
             loadItemsFromDB();
         });
     }
+
+    // จัดการคลิกปุ่มกรองสถานะเฉพาะในแบนเนอร์ของฉัน (Status Pills)
+    document.addEventListener('click', (e) => {
+        const pill = e.target.closest('.my-status-pill');
+        if (pill) {
+            e.preventDefault();
+            const status = pill.dataset.status ?? '';
+            const statusInput = document.getElementById('statusFilter');
+            if (statusInput) statusInput.value = status;
+
+            document.querySelectorAll('.my-status-pill').forEach(btn => {
+                btn.classList.remove('active', 'btn-light', 'text-success', 'shadow-sm');
+                btn.classList.add('btn-outline-light');
+            });
+            pill.classList.add('active', 'btn-light', 'text-success', 'shadow-sm');
+            pill.classList.remove('btn-outline-light');
+
+            currentPage = 1;
+            window.loadItemsFromDB();
+        }
+    });
 
     // ----------------------------------------------------
     // ฟังก์ชันสลับโหมดหน้ารวมสินค้า: 'all' (สำรวจของใกล้ตัว) VS 'my_listings' (รายการที่ฉันประกาศ)
@@ -366,7 +397,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const banner = document.getElementById('myListingsBanner');
         const feedHeaderContainer = document.getElementById('feedHeaderContainer');
         const feedMainTitle = document.getElementById('feedMainTitle');
-        const statusFilterCol = document.getElementById('statusFilterCol');
 
         const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
         const token = localStorage.getItem('authToken') || localStorage.getItem('token');
@@ -397,7 +427,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (banner) banner.classList.remove('d-none');
             if (feedHeaderContainer) feedHeaderContainer.classList.add('d-none');
-            if (statusFilterCol) statusFilterCol.classList.remove('d-none');
 
             currentPage = 1;
             window.loadItemsFromDB();
@@ -416,6 +445,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (e) {}
             }
 
+            const statusFilter = document.getElementById('statusFilter');
+            if (statusFilter) statusFilter.value = '';
+
+            // รีเซ็ตปุ่มสถานะในแบนเนอร์
+            document.querySelectorAll('.my-status-pill').forEach((btn, idx) => {
+                if (idx === 0) {
+                    btn.classList.add('active', 'btn-light', 'text-success', 'shadow-sm');
+                    btn.classList.remove('btn-outline-light');
+                } else {
+                    btn.classList.remove('active', 'btn-light', 'text-success', 'shadow-sm');
+                    btn.classList.add('btn-outline-light');
+                }
+            });
+
             if (tabAll) {
                 tabAll.classList.add('active');
                 tabAll.classList.remove('text-secondary');
@@ -428,7 +471,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (banner) banner.classList.add('d-none');
             if (feedHeaderContainer) feedHeaderContainer.classList.remove('d-none');
             if (feedMainTitle) feedMainTitle.innerHTML = '✨ รายการของแจก ล่าสุดใกล้ตัวคุณ';
-            if (statusFilterCol) statusFilterCol.classList.add('d-none');
 
             currentPage = 1;
             window.loadItemsFromDB();
