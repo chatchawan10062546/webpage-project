@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const items = itemsData.items.map(item => `
                 <div class="profile-item-row">
-                    <img src="${escapeHtml(item.image_url || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80')}" alt="">
+                    <img src="${escapeHtml(item.image_url || '/assets/pansuk_icon.jpg')}" alt="">
                     <div class="flex-grow-1 min-width-0">
                         <div class="fw-bold text-truncate">
                             ${escapeHtml(item.title)}

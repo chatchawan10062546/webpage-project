@@ -239,7 +239,7 @@ window.openMyRequestsModal = async () => {
 
                             <!-- แถวกลาง: รูปภาพ + ชื่อสินค้าเต็มๆ + เจ้าของ + เวลา -->
                             <div class="d-flex gap-3 align-items-start mb-2">
-                                <img src="${req.item_image || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80'}" 
+                                <img src="${req.item_image || '/assets/pansuk_icon.jpg'}" 
                                      class="rounded-3 shadow-sm flex-shrink-0" style="width: 72px; height: 72px; object-fit: cover;">
                                 <div class="flex-grow-1 min-width-0">
                                     <h6 class="fw-bold mb-1 text-dark" style="font-size: 1rem; line-height: 1.35;">${req.item_title}</h6>

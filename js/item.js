@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (item.image_url) {
             imagesArray = [item.image_url];
         } else {
-            imagesArray = ['https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=800&auto=format&fit=crop&q=80'];
+            imagesArray = ['/assets/pansuk_icon.jpg'];
         }
 
         const itemType = item.item_type || item.itemType || 'free';
@@ -590,7 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!images || images.length === 0) {
                 const singleImg = btn.dataset.image || card?.querySelector('img')?.src;
                 if (singleImg) images.push(singleImg);
-                else images.push('https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=800&auto=format&fit=crop&q=80');
+                else images.push('/assets/pansuk_icon.jpg');
             }
 
             const ownerName = btn.dataset.ownerName || '';

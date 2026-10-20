@@ -124,7 +124,7 @@ window.openMySalesModal = async (initialTab = null) => {
                         <div class="p-3">
                             <!-- แถวสินค้า: รูป + ชื่อ + จำนวน -->
                             <div class="d-flex align-items-center gap-3 mb-3">
-                                <img src="${sale.image_url || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80'}" 
+                                <img src="${sale.image_url || '/assets/pansuk_icon.jpg'}" 
                                      class="rounded-3 shadow-sm flex-shrink-0" style="width: 56px; height: 56px; object-fit: cover;">
                                 <div class="flex-grow-1 min-width-0">
                                     <h6 class="fw-bold mb-1 text-dark text-truncate fs-6">${escapeHtml(sale.title)}</h6>
@@ -259,7 +259,7 @@ window.openMySalesModal = async (initialTab = null) => {
                                 ${emptySales.map(sale => `
                                     <div class="col-12 col-md-6">
                                         <div class="border rounded-3 p-2 bg-white d-flex align-items-center gap-2 shadow-sm">
-                                            <img src="${sale.image_url || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80'}" 
+                                            <img src="${sale.image_url || '/assets/pansuk_icon.jpg'}" 
                                                  class="rounded-2" style="width: 44px; height: 44px; object-fit: cover;">
                                             <div class="flex-grow-1 min-width-0">
                                                 <div class="fw-bold text-dark text-truncate small">${escapeHtml(sale.title)}</div>
@@ -335,7 +335,7 @@ window.openMySalesModal = async (initialTab = null) => {
                         <div class="p-3">
                             <!-- แถวสินค้า -->
                             <div class="d-flex align-items-center gap-3 mb-3">
-                                <img src="${req.item_image || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80'}" 
+                                <img src="${req.item_image || '/assets/pansuk_icon.jpg'}" 
                                      class="rounded-3 shadow-sm flex-shrink-0" style="width: 56px; height: 56px; object-fit: cover;">
                                 <div class="flex-grow-1 min-width-0">
                                     <h6 class="fw-bold mb-1 text-dark text-truncate fs-6">${escapeHtml(req.item_title)}</h6>

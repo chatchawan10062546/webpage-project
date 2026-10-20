@@ -53,6 +53,7 @@ router.get('/chat/rooms', requireAuth, (req, res) => {
       LEFT JOIN chat_messages latest ON latest.id = (
          SELECT m.id FROM chat_messages m WHERE m.room_id = r.id ORDER BY m.id DESC LIMIT 1
       )
+      WHERE (r.item_id IS NULL OR i.item_id IS NOT NULL)
       ORDER BY latest.created_at DESC, r.id DESC
    `;
    db.query(sql, [user_id, user_id, user_id], (err, rooms) => {

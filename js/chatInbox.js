@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `
                 <button type="button" class="list-group-item list-group-item-action chat-room-btn ${unreadCount > 0 ? 'bg-light' : ''}" data-room-id="${room.room_id}" data-item-id="${room.item_id || ''}" data-item-title="${escapeHtml(room.item_title)}" data-other-user-id="${room.other_user_id}">
                     <div class="chat-room-content">
-                        <img class="chat-item-thumb" src="${escapeHtml(room.item_image || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=160&auto=format&fit=crop&q=80')}" alt="">
+                        <img class="chat-item-thumb" src="${escapeHtml(room.item_image || '/assets/pansuk_icon.jpg')}" alt="">
                         <div class="chat-room-details">
                             <div class="d-flex justify-content-between gap-2 align-items-center">
                                 <strong class="chat-item-title">${escapeHtml(room.item_title)}</strong>

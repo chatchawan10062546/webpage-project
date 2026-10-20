@@ -235,6 +235,19 @@ router.delete('/items/:itemId', requireAuth, (req, res) => {
       if (result.affectedRows === 0) {
          return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์ลบรายการนี้' });
       }
+
+      // เมื่อลบโพสต์แล้ว ลบห้องแชตและคำขอที่ผูกกับสินค้านี้ออกทั้งหมด
+      db.query('SELECT id FROM chat_rooms WHERE item_id = ?', [itemId], (rErr, rRows) => {
+         if (!rErr && rRows && rRows.length > 0) {
+            const roomIds = rRows.map(r => r.id);
+            db.query('DELETE FROM chat_messages WHERE room_id IN (?)', [roomIds]);
+            db.query('DELETE FROM chat_room_members WHERE room_id IN (?)', [roomIds]);
+            db.query('DELETE FROM chat_rooms WHERE id IN (?)', [roomIds]);
+         }
+      });
+      db.query('DELETE FROM item_requests WHERE item_id = ?', [itemId]);
+      db.query('DELETE FROM notifications WHERE reference_id = ?', [itemId]);
+
       res.json({ success: true, message: 'ลบรายการสำเร็จ' });
    });
 });

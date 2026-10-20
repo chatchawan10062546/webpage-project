@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 priceCol = '<div class="mt-1 text-muted small">ไม่มีค่าใช้จ่าย</div>';
             }
 
-            const imgUrl = item.image_url || 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=120&auto=format&fit=crop&q=80';
+            const imgUrl = item.image_url || '/assets/pansuk_icon.jpg';
 
             return `
             <tr>
