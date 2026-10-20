@@ -403,9 +403,9 @@ document.addEventListener('DOMContentLoaded', () => {
             window.loadItemsFromDB();
 
             if (scroll) {
-                const switcher = document.getElementById('feedViewSwitcherSection');
-                if (switcher) {
-                    switcher.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const target = document.getElementById('myListingsBanner') || document.getElementById('filterForm') || document.getElementById('itemGrid');
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             }
         } else {
@@ -434,9 +434,9 @@ document.addEventListener('DOMContentLoaded', () => {
             window.loadItemsFromDB();
 
             if (scroll) {
-                const switcher = document.getElementById('feedViewSwitcherSection');
-                if (switcher) {
-                    switcher.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const target = document.getElementById('feedHeaderContainer') || document.getElementById('filterForm') || document.getElementById('itemGrid');
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             }
         }
