@@ -193,7 +193,7 @@
             font-weight: 600 !important;
         }
 
-        /* ปรับสัดส่วนและระยะห่างบนหน้าจอขนาดกลาง / iPad (992px - 1250px) ให้เมนูเรียงบรรทัดเดียวสวยงามเหมือนในคอม */
+        /* ปรับสัดส่วนและระยะห่างบนหน้าจอขนาดกลาง / iPad (992px - 1250px) ให้เมนูเรียงบรรทัดเดียวสวยงามเหมือนในคอม ไม่ติดกันเกินไป */
         @media (min-width: 992px) and (max-width: 1250px) {
             .custom-nav-container {
                 padding-left: 0.5rem !important;
@@ -203,11 +203,11 @@
                 margin-right: 0.35rem !important;
             }
             .navbar-brand img {
-                width: 38px !important;
-                height: 38px !important;
+                width: 36px !important;
+                height: 36px !important;
             }
             .navbar-brand span {
-                font-size: 1.05rem !important;
+                font-size: 1rem !important;
             }
             .custom-main-navbar .navbar-collapse {
                 overflow-x: auto;
@@ -219,19 +219,23 @@
             }
             .custom-main-navbar .navbar-nav {
                 flex-wrap: nowrap !important;
-                gap: 0.15rem !important;
+                gap: 0.45rem !important;
             }
             .custom-main-navbar .navbar-nav .nav-link {
-                font-size: 0.88rem !important;
-                padding: 0.35rem 0.42rem !important;
+                font-size: 0.83rem !important;
+                padding: 0.3rem 0.45rem !important;
+            }
+            .custom-main-navbar .navbar-nav .badge {
+                font-size: 0.68rem !important;
+                padding: 0.2em 0.45em !important;
             }
             #authNavContainer .btn {
-                font-size: 0.88rem !important;
-                padding: 0.35rem 0.65rem !important;
+                font-size: 0.83rem !important;
+                padding: 0.3rem 0.65rem !important;
             }
             #authNavContainer img {
-                width: 24px !important;
-                height: 24px !important;
+                width: 22px !important;
+                height: 22px !important;
             }
         }
 
