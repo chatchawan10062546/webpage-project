@@ -123,9 +123,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <div class="col-md-6"><label class="form-label fw-semibold" for="profilePhone">เบอร์โทรศัพท์</label><input id="profilePhone" class="form-control" value="${escapeHtml(profile.phone || '')}" placeholder="เช่น 0812345678" disabled></div>
                                     </div>
                                     <div class="small text-muted mt-3">อีเมล: ${escapeHtml(profile.email)}</div>
-                                    <div id="profileActionButtons" class="mt-3">
-                                        <button class="btn btn-warning rounded-pill px-4 fw-bold text-dark" type="button" id="editProfileBtn"><i class="bi bi-pencil-square me-2"></i>แก้ไขข้อมูล</button>
-                                        <button class="btn btn-success rounded-pill px-4 fw-bold d-none" type="submit" id="saveProfileBtn"><i class="bi bi-save me-2"></i>บันทึกข้อมูล</button>
+                                    <div id="profileActionButtons" class="mt-3 d-flex gap-2">
+                                        <button class="btn btn-warning rounded-pill px-4 fw-bold text-dark shadow-sm" type="button" id="editProfileBtn"><i class="bi bi-pencil-square me-2"></i>แก้ไขข้อมูล</button>
+                                        <button class="btn btn-success rounded-pill px-4 fw-bold shadow-sm d-none" type="submit" id="saveProfileBtn"><i class="bi bi-check2-circle me-2"></i>บันทึกข้อมูล</button>
+                                        <button class="btn btn-outline-secondary rounded-pill px-3 fw-bold d-none" type="button" id="cancelProfileBtn">ยกเลิก</button>
                                     </div>
                                 </form>
                                 ` : ""}
@@ -158,25 +159,50 @@ document.addEventListener('DOMContentLoaded', () => {
             const pForm = document.getElementById('profileForm');
             const editBtn = document.getElementById('editProfileBtn');
             const saveBtn = document.getElementById('saveProfileBtn');
+            const cancelBtn = document.getElementById('cancelProfileBtn');
+            const nameInput = document.getElementById('profileName');
+            const phoneInput = document.getElementById('profilePhone');
 
             if (editBtn) {
                 editBtn.addEventListener('click', () => {
-                    document.getElementById('profileName').disabled = false;
-                    document.getElementById('profilePhone').disabled = false;
-                    document.getElementById('profilePromptpayNumber').disabled = false;
-                    document.getElementById('profilePromptpayName').disabled = false;
+                    if (nameInput) nameInput.disabled = false;
+                    if (phoneInput) phoneInput.disabled = false;
                     editBtn.classList.add('d-none');
-                    saveBtn.classList.remove('d-none');
+                    if (saveBtn) saveBtn.classList.remove('d-none');
+                    if (cancelBtn) cancelBtn.classList.remove('d-none');
+                    if (nameInput) nameInput.focus();
+                });
+            }
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    if (nameInput) {
+                        nameInput.value = profile.name || '';
+                        nameInput.disabled = true;
+                    }
+                    if (phoneInput) {
+                        phoneInput.value = profile.phone || '';
+                        phoneInput.disabled = true;
+                    }
+                    if (saveBtn) saveBtn.classList.add('d-none');
+                    cancelBtn.classList.add('d-none');
+                    if (editBtn) editBtn.classList.remove('d-none');
                 });
             }
 
             if (pForm) pForm.addEventListener('submit', async event => {
                 event.preventDefault();
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังบันทึก...';
+                }
                 try {
-                    const updatedName = document.getElementById('profileName').value;
-                    const updatedPhone = document.getElementById('profilePhone').value;
-                    const updatedPromptpayNumber = document.getElementById('profilePromptpayNumber').value;
-                    const updatedPromptpayName = document.getElementById('profilePromptpayName').value;
+                    const updatedName = nameInput ? nameInput.value.trim() : '';
+                    const updatedPhone = phoneInput ? phoneInput.value.trim() : '';
+                    const promptpayNumberInput = document.getElementById('profilePromptpayNumber');
+                    const promptpayNameInput = document.getElementById('profilePromptpayName');
+                    const updatedPromptpayNumber = promptpayNumberInput ? promptpayNumberInput.value : (profile.promptpay_number || '');
+                    const updatedPromptpayName = promptpayNameInput ? promptpayNameInput.value : (profile.promptpay_name || '');
 
                     const result = await requestJson('/api/profile', {
                         method: 'PUT',
@@ -190,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         })
                     });
 
-                    const storedUser = getUser();
+                    const storedUser = getUser() || {};
                     localStorage.setItem('user', JSON.stringify({ 
                         ...storedUser, 
                         name: result.profile.name, 
@@ -199,18 +225,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         promptpay_name: result.profile.promptpay_name 
                     }));
 
-                    alert('บันทึกโปรไฟล์และพร้อมเพย์สำเร็จ');
-                    document.getElementById('profileName').disabled = true;
-                    document.getElementById('profilePhone').disabled = true;
-                    document.getElementById('profilePromptpayNumber').disabled = true;
-                    document.getElementById('profilePromptpayName').disabled = true;
-                    saveBtn.classList.add('d-none');
-                    if(editBtn) editBtn.classList.remove('d-none');
+                    alert('บันทึกข้อมูลส่วนตัวสำเร็จ!');
+                    if (nameInput) nameInput.disabled = true;
+                    if (phoneInput) phoneInput.disabled = true;
+                    if (saveBtn) saveBtn.classList.add('d-none');
+                    if (cancelBtn) cancelBtn.classList.add('d-none');
+                    if (editBtn) editBtn.classList.remove('d-none');
                     
                     const headerName = document.querySelector('.profile-header h4');
-                    if(headerName) headerName.innerText = result.profile.name;
+                    if (headerName) headerName.innerText = result.profile.name;
+                    const navName = document.getElementById('navUserName') || document.querySelector('.user-name-display');
+                    if (navName) navName.innerText = result.profile.name;
                 } catch (error) {
                     alert('บันทึกโปรไฟล์ไม่สำเร็จ: ' + error.message);
+                } finally {
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="bi bi-check2-circle me-2"></i>บันทึกข้อมูล';
+                    }
                 }
             });
         } catch (error) {
