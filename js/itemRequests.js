@@ -194,6 +194,11 @@ window.openMyRequestsModal = async () => {
     const userId = getUserId();
     if (!userId) return alert('กรุณาเข้าสู่ระบบก่อนดูคำขอของคุณ');
 
+    // ปิด mySalesModal ที่อาจเปิดค้างอยู่
+    const existingSalesModal = bootstrap.Modal.getInstance(document.getElementById('mySalesModal'));
+    if (existingSalesModal) existingSalesModal.hide();
+    document.getElementById('mySalesModal')?.remove();
+
     try {
         const data = await requestJson('/api/my-requests');
         const requests = data.requests || [];
@@ -345,6 +350,7 @@ window.openMyRequestsModal = async () => {
                     });
                     alert('ยกเลิกคำขอสำเร็จ');
                     card.remove();
+                    if (typeof window.updateAllNavBadges === 'function') window.updateAllNavBadges();
                 } catch (err) {
                     alert('ยกเลิกคำขอไม่สำเร็จ: ' + err.message);
                 }

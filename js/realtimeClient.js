@@ -247,8 +247,8 @@
             icon: isAccepted ? 'bi-check-circle-fill' : 'bi-x-circle-fill',
             bg: isAccepted ? 'bg-success' : 'bg-secondary',
             onClick: () => {
-                if (typeof window.openMySalesModal === 'function') {
-                    window.openMySalesModal('buyer');
+                if (typeof window.openMyRequestsModal === 'function') {
+                    window.openMyRequestsModal();
                 }
             }
         });
