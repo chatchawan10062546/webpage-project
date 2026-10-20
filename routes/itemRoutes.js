@@ -7,6 +7,7 @@ const multer = require('multer');
 const path = require('path');
 const db = require('../config/db');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { emitToUser } = require('../utils/socketHelper');
 
 const storage = multer.diskStorage({
    destination: (req, file, cb) => cb(null, 'uploads/'),
@@ -278,6 +279,25 @@ router.post('/items/:itemId/requests', requireAuth, (req, res) => {
                      [ownerId, requester_id, 'request_received', insertResult.insertId, notifMsg], (notifErr) => {
                 if(notifErr) console.error(notifErr);
             });
+
+            // ⚡ Real-Time Socket Notification to Owner
+            db.query('SELECT COUNT(*) AS pending_count FROM item_requests WHERE item_id = ? AND status = "pending"', [itemId], (cntErr, cntRows) => {
+                const pendingCount = (cntRows && cntRows[0]) ? cntRows[0].pending_count : 1;
+                emitToUser(ownerId, 'request_received', {
+                    requestId: insertResult.insertId,
+                    itemId: Number(itemId),
+                    pendingCount: pendingCount,
+                    requesterId: requester_id,
+                    requesterName: req.authUser.name || 'มีผู้ใช้งาน',
+                    itemTitle: titleMatch,
+                    message: message || ''
+                });
+                emitToUser(ownerId, 'new_notification', {
+                    type: 'request_received',
+                    reference_id: insertResult.insertId,
+                    message: notifMsg
+                });
+            });
             // -------------------------------
             res.json({ success: true, message: 'ส่งคำขอรับของสำเร็จ' });
          }
@@ -344,6 +364,18 @@ router.patch('/item-requests/:requestId', requireAuth, (req, res) => {
                     const notifMsg = `คำขอรับของ "${reqItemTitle}" ของคุณได้รับการอนุมัติแล้ว`;
                     db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, ?, ?, ?, ?)',
                              [reqUserId, user_id, 'request_accepted', requestId, notifMsg]);
+                    emitToUser(reqUserId, 'request_status_updated', {
+                        requestId,
+                        itemId: rows[0].item_id,
+                        status: 'accepted',
+                        itemTitle: reqItemTitle,
+                        message: notifMsg
+                    });
+                    emitToUser(reqUserId, 'new_notification', {
+                        type: 'request_accepted',
+                        reference_id: requestId,
+                        message: notifMsg
+                    });
                 }
             });
             // -------------------------------
@@ -362,6 +394,28 @@ router.patch('/item-requests/:requestId', requireAuth, (req, res) => {
                res.json({ success: true, message: `ยอมรับคำขอและปรับลดจำนวนสำเร็จ (ได้รับ +${xpGained} XP!)` });
             });
          }
+         // ปฏิเสธคำขอ แจ้งเตือนคนขอแบบเรียลไทม์
+         db.query('SELECT r.requester_id, i.title FROM item_requests r JOIN items i ON r.item_id = i.item_id WHERE r.request_id = ?', [requestId], (err, notifRows) => {
+             if(!err && notifRows.length > 0) {
+                 const reqUserId = notifRows[0].requester_id;
+                 const reqItemTitle = notifRows[0].title;
+                 const notifMsg = `คำขอรับของ "${reqItemTitle}" ของคุณไม่ได้รับการอนุมัติ`;
+                 db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, ?, ?, ?, ?)',
+                          [reqUserId, user_id, 'request_rejected', requestId, notifMsg]);
+                 emitToUser(reqUserId, 'request_status_updated', {
+                     requestId,
+                     itemId: rows[0].item_id,
+                     status: 'rejected',
+                     itemTitle: reqItemTitle,
+                     message: notifMsg
+                 });
+                 emitToUser(reqUserId, 'new_notification', {
+                     type: 'request_rejected',
+                     reference_id: requestId,
+                     message: notifMsg
+                 });
+             }
+         });
          res.json({ success: true, message: 'ปฏิเสธคำขอสำเร็จ' });
       });
    });
@@ -503,10 +557,10 @@ router.get('/my-sales', requireAuth, (req, res) => {
              r.request_id, r.message, r.status AS request_status, r.created_at,
              u.name AS requester_name, u.user_id AS requester_id, u.phone AS requester_phone
       FROM items i
-      LEFT JOIN item_requests r ON i.item_id = r.item_id AND r.status IN ('pending', 'accepted')
+      LEFT JOIN item_requests r ON i.item_id = r.item_id AND r.status IN ('pending', 'accepted', 'completed')
       LEFT JOIN users u ON r.requester_id = u.user_id
       WHERE i.user_id = ?
-      ORDER BY i.item_id DESC, r.created_at DESC
+      ORDER BY (CASE WHEN r.status = 'pending' THEN 1 WHEN r.status = 'accepted' THEN 2 WHEN r.status = 'completed' THEN 3 ELSE 4 END) ASC, i.item_id DESC, r.created_at DESC
    `;
    db.query(sql, [ownerId], (err, results) => {
       if (err) return res.status(500).json({ success: false, message: 'ดึงข้อมูลไม่สำเร็จ' });
@@ -532,7 +586,14 @@ router.get('/my-sales', requireAuth, (req, res) => {
             });
          }
       });
-      res.json({ success: true, sales: Object.values(salesMap) });
+      // Sort sales array so items with requests come first!
+      const salesList = Object.values(salesMap).sort((a, b) => {
+         const aActive = a.requests.some(r => r.status === 'pending' || r.status === 'accepted') ? 1 : 0;
+         const bActive = b.requests.some(r => r.status === 'pending' || r.status === 'accepted') ? 1 : 0;
+         if (aActive !== bActive) return bActive - aActive;
+         return b.requests.length - a.requests.length;
+      });
+      res.json({ success: true, sales: salesList });
    });
 });
 
@@ -560,6 +621,39 @@ router.patch('/items/:itemId/toggle-status', requireAuth, (req, res) => {
             });
       });
    });
+});
+
+
+// 📌 15. API รวมจำนวนตัวเลขแจ้งเตือนทุกเมนูของผู้ใช้
+router.get('/user-badges', requireAuth, (req, res) => {
+    const userId = req.authUser.userId;
+
+    const q1 = "SELECT COUNT(*) AS count FROM item_requests WHERE requester_id = ? AND status IN ('pending', 'accepted')";
+    const q2 = "SELECT COUNT(*) AS count FROM item_requests r JOIN items i ON r.item_id = i.item_id WHERE i.user_id = ? AND r.status = 'pending'";
+    const q3 = "SELECT COUNT(*) AS count FROM notifications WHERE user_id = ? AND is_read = 0";
+    const q4 = "SELECT COUNT(*) AS count FROM chat_messages m JOIN chat_room_members crm ON m.room_id = crm.room_id AND crm.user_id = ? WHERE m.sender_id != ? AND m.is_read = 0";
+    const q5 = "SELECT COUNT(*) AS count FROM transactions WHERE (buyer_id = ? OR seller_id = ?) AND status IN ('pending_payment', 'slip_uploaded', 'paid_held', 'in_rental', 'returning', 'damage_claimed')";
+
+    db.query(q1, [userId], (err1, r1) => {
+        db.query(q2, [userId], (err2, r2) => {
+            db.query(q3, [userId], (err3, r3) => {
+                db.query(q4, [userId, userId], (err4, r4) => {
+                    db.query(q5, [userId, userId], (err5, r5) => {
+                        res.json({
+                            success: true,
+                            badges: {
+                                myRequests: (r1 && r1[0]) ? r1[0].count : 0,
+                                mySales: (r2 && r2[0]) ? r2[0].count : 0,
+                                notifications: (r3 && r3[0]) ? r3[0].count : 0,
+                                chat: (r4 && r4[0]) ? r4[0].count : 0,
+                                transactions: (r5 && r5[0]) ? r5[0].count : 0
+                            }
+                        });
+                    });
+                });
+            });
+        });
+    });
 });
 
 module.exports = router;

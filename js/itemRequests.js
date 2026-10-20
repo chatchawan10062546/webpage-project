@@ -15,7 +15,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return user?.id || user?.user_id || user?.userId;
     }
 
-    async function requestJson(url, options) {
+    async function requestJson(url, options = {}) {
+        options.headers = options.headers || {};
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+        if (token && !options.headers['Authorization']) {
+            options.headers['Authorization'] = 'Bearer ' + token;
+        }
         const response = await fetch(url, options);
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.message || 'ดำเนินการไม่สำเร็จ');

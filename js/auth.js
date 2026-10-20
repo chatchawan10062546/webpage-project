@@ -68,7 +68,7 @@ function updateAuthUI() {
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 rounded-3">
                     <li><a class="dropdown-item" href="#" id="profileOpenBtn">👤 โปรไฟล์ของฉัน</a></li>
-                    <li><a class="dropdown-item fw-semibold text-primary" href="#" onclick="if(window.openMySalesModal) window.openMySalesModal(); return false;">📦 การส่งมอบของฉัน (คนขาย)</a></li>
+
                     ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html">หลังบ้านแอดมิน</a></li>' : ''}
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item text-danger fw-bold" href="#" id="logoutBtn">ออกจากระบบ</a></li>

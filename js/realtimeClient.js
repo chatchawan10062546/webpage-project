@@ -126,6 +126,9 @@
         if (typeof window.updateTransactionsBadge === 'function') {
             window.updateTransactionsBadge();
         }
+        if (typeof window.updateAllNavBadges === 'function') {
+            window.updateAllNavBadges();
+        }
 
         // แสดง Toast Popup
         showRealtimeToast({
@@ -156,6 +159,9 @@
 
         playChime('chat');
 
+        if (typeof window.updateAllNavBadges === 'function') {
+            window.updateAllNavBadges();
+        }
         // อัปเดตตัวเลขแชตที่ยังไม่ได้อ่านบน Navbar ทันที
         const chatBadge = document.getElementById('chatUnreadBadge');
         if (chatBadge) {
@@ -173,6 +179,76 @@
             onClick: () => {
                 if (typeof window.openChat === 'function') {
                     window.openChat(data.user_id, data.user_name, null, data.room_id);
+                }
+            }
+        });
+    });
+
+
+    // 7. รับ Event: มีคำขอรับของใหม่เข้ามาหาคนขาย (request_received)
+    socket.on('request_received', (data) => {
+        playChime('notification');
+
+        // อัปเดตตัวเลขคำขอบนการ์ดสินค้าบนหน้าเว็บแบบ Real-Time ทันทีโดยไม่ต้องรีเฟรชหน้า!
+        if (data.itemId) {
+            const card = document.querySelector(`.item-element[data-item-id="${data.itemId}"]`);
+            if (card) {
+                const reqBtn = card.querySelector('.item-requests-btn');
+                if (reqBtn) {
+                    let badge = reqBtn.querySelector('.badge');
+                    const count = data.pendingCount || ((parseInt(badge?.textContent) || 0) + 1);
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'badge rounded-pill bg-danger ms-1 animate__animated animate__heartBeat';
+                        badge.style.fontSize = '0.65rem';
+                        reqBtn.appendChild(badge);
+                    } else {
+                        badge.classList.remove('animate__heartBeat');
+                        void badge.offsetWidth;
+                        badge.classList.add('animate__heartBeat');
+                    }
+                    badge.textContent = count;
+                }
+            }
+        }
+
+        // อัปเดตตัวเลข Badge บน Navbar ทั้งหมด
+        if (typeof window.updateAllNavBadges === 'function') {
+            window.updateAllNavBadges();
+        }
+
+        // แจ้งเตือน Toast Popup
+        showRealtimeToast({
+            title: '📋 มีคำขอรับของใหม่!',
+            message: `${data.requesterName || 'มีผู้ใช้งาน'} ได้ส่งคำขอรับ "${data.itemTitle || ''}" ของคุณ`,
+            icon: 'bi-box-seam',
+            bg: 'bg-success',
+            onClick: () => {
+                if (typeof window.openMySalesModal === 'function') {
+                    window.openMySalesModal('seller');
+                }
+            }
+        });
+    });
+
+    // 8. รับ Event: สถานะคำขอของคนซื้อได้รับการอัปเดต (ยอมรับ/ปฏิเสธ) (request_status_updated)
+    socket.on('request_status_updated', (data) => {
+        playChime('notification');
+
+        // อัปเดตตัวเลข Badge บน Navbar ทั้งหมด
+        if (typeof window.updateAllNavBadges === 'function') {
+            window.updateAllNavBadges();
+        }
+
+        const isAccepted = data.status === 'accepted';
+        showRealtimeToast({
+            title: isAccepted ? '🎉 คำขอของคุณได้รับการอนุมัติแล้ว!' : '❌ คำขอรับของถูกปฏิเสธ',
+            message: `รายการ "${data.itemTitle || ''}" ${isAccepted ? 'ผู้ขายตอบรับคำขอแล้ว เตรียมนัดรับของได้เลย!' : 'ผู้ขายปฏิเสธคำขอ'}`,
+            icon: isAccepted ? 'bi-check-circle-fill' : 'bi-x-circle-fill',
+            bg: isAccepted ? 'bg-success' : 'bg-secondary',
+            onClick: () => {
+                if (typeof window.openMySalesModal === 'function') {
+                    window.openMySalesModal('buyer');
                 }
             }
         });

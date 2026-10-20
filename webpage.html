@@ -211,8 +211,18 @@
                             </div>
                         </ul>
                     </li>
-                    <li class="nav-item d-none" id="myRequestsNavContainer"><a class="nav-link" href="#" id="myRequestsOpenBtn">รายการนัดรับ / ขอของฟรี</a></li>
-                    <li class="nav-item d-none" id="mySalesNavContainer"><a class="nav-link" href="#" id="mySalesOpenBtn">📦 การส่งมอบของฉัน (คนขาย)</a></li>
+                    <li class="nav-item d-none" id="myRequestsNavContainer">
+                        <a class="nav-link position-relative d-flex align-items-center" href="#" id="myRequestsOpenBtn">
+                            <span>รายการนัดรับ / ขอของฟรี</span>
+                            <span class="badge bg-danger rounded-pill ms-1" id="myRequestsBadge" style="display:none; font-size: 0.72rem;">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item d-none" id="mySalesNavContainer">
+                        <a class="nav-link position-relative d-flex align-items-center" href="#" id="mySalesOpenBtn">
+                            <span>📦 การส่งมอบของฉัน (คนขาย)</span>
+                            <span class="badge bg-danger rounded-pill ms-1" id="mySalesBadge" style="display:none; font-size: 0.72rem;">0</span>
+                        </a>
+                    </li>
                     <li class="nav-item d-none" id="myTransactionsNavContainer">
                         <a class="nav-link position-relative d-flex align-items-center" href="#" id="myTransactionsNavBtn">
                             <span>🛡️ ประวัติคนกลาง</span>
@@ -591,6 +601,7 @@
     <script src="js/mySales.js?v=4"></script>
     
     <script src="js/notifications.js?v=4"></script>
+    <script src="js/navBadges.js?v=2"></script>
 
     <!-- Real-time Toast Container -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;" id="realtimeToastContainer"></div>

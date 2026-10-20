@@ -61,9 +61,7 @@ function updateProfileUI() {
                     <li>
                         <a class="dropdown-item" href="#" id="myListingsOpenBtn"><i class="bi bi-box-seam me-2"></i>รายการที่ฉันประกาศ</a>
                     </li>
-                    <li>
-                        <a class="dropdown-item fw-semibold text-primary" href="#" onclick="if(window.openMySalesModal) window.openMySalesModal(); return false;"><i class="bi bi-truck me-2"></i>📦 การส่งมอบของฉัน (คนขาย)</a>
-                    </li>
+
                     ${user.role === 'admin' ? '<li><a class="dropdown-item fw-bold text-success" href="admin.html"><i class="bi bi-speedometer2 me-2"></i>หลังบ้านแอดมิน</a></li>' : ''}
                     <li><hr class="dropdown-divider my-1"></li>
                     <li>
@@ -82,6 +80,9 @@ function updateProfileUI() {
 
         if (typeof window.updateTransactionsBadge === 'function') {
             window.updateTransactionsBadge();
+        }
+        if (typeof window.updateAllNavBadges === 'function') {
+            window.updateAllNavBadges();
         }
     } else {
         const myReqNav = document.getElementById('myRequestsNavContainer');
