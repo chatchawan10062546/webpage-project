@@ -348,6 +348,21 @@ body {
     border-bottom: 1px solid #dce9df;
 }
 
+.profile-modal .btn-close {
+    opacity: 0.8;
+    filter: none !important;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 50%;
+    padding: 0.6rem;
+    transition: all 0.2s ease;
+}
+
+.profile-modal .btn-close:hover {
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.12);
+    transform: rotate(90deg);
+}
+
 .profile-modal .modal-title,
 .profile-form-heading,
 .profile-list-heading {

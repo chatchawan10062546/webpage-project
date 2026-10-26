@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="modal-content profile-modal border-0 shadow-lg rounded-4">
                             <div class="modal-header bg-success text-white">
                                 <h5 class="modal-title fw-bold">${viewMode === "profile" ? "👤 โปรไฟล์ของฉัน" : "📦 รายการที่ฉันประกาศ"}</h5>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.85; font-size: 1.15rem; cursor: pointer;"></button>
                             </div>
                             <div class="modal-body p-4" style="max-height: 80vh; overflow-y: auto;">
                                 
@@ -145,6 +145,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
 ` : ""}
 
+                            </div>
+                            <div class="modal-footer border-top bg-light p-3 d-flex justify-content-end">
+                                <button type="button" class="btn btn-secondary rounded-pill px-4 fw-bold shadow-sm" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle me-1"></i> ปิด
+                                </button>
                             </div>
                         </div>
                     </div>
