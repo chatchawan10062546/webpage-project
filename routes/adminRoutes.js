@@ -22,7 +22,7 @@ const { createNotification } = require('../utils/notificationHelper');
 
 router.get('/admin/summary', requireAdmin, (req, res) => {
     const queries = {
-        users: 'SELECT COUNT(*) AS total FROM users',
+        users: "SELECT COUNT(*) AS total FROM users WHERE is_email_verified = TRUE OR auth_provider != 'local'",
         items: 'SELECT COUNT(*) AS total FROM items',
         pendingItems: "SELECT COUNT(*) AS total FROM items WHERE is_approved = FALSE AND status != 'rejected'",
         pendingReports: "SELECT COUNT(*) AS total FROM reports WHERE status = 'pending'",
@@ -64,7 +64,7 @@ router.get('/admin/reports', requireAdmin, (req, res) => {
 
 router.get('/admin/users', requireAdmin, (req, res) => {
     db.query(
-        'SELECT user_id, name, email, phone, role, created_at FROM users ORDER BY user_id DESC',
+        "SELECT user_id, name, email, phone, role, created_at FROM users WHERE is_email_verified = TRUE OR auth_provider != 'local' ORDER BY user_id DESC",
         (err, users) => {
             if (err) return res.status(500).json({ success: false, message: 'โหลดผู้ใช้ไม่สำเร็จ' });
             res.json({ success: true, users });

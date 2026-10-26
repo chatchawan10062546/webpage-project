@@ -33,23 +33,59 @@ const transporterConfig = (process.env.SMTP_HOST && process.env.SMTP_HOST.includ
     };
 const transporter = nodemailer.createTransport(transporterConfig);
 
+// ตรวจสอบและสร้างตาราง pending_registrations สำหรับเก็บข้อมูลการสมัครชั่วคราวจนกว่าจะยืนยัน OTP
+db.query(`CREATE TABLE IF NOT EXISTS pending_registrations (
+    email VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    otp_code VARCHAR(10) NOT NULL,
+    otp_expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+)`, (err) => {
+    if (err) console.error('Error creating pending_registrations table:', err.message);
+});
+
 // ฟังก์ชันสุ่ม OTP 6 หลัก
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-// 1. API สมัครสมาชิก (/api/register)
+// ฟังก์ชันส่งอีเมล OTP
+function sendOtpMail(name, email, otpCode) {
+    const isSmtpConfigured = !!(process.env.SMTP_USER && process.env.SMTP_USER !== 'your_email@gmail.com');
+    console.log(`\n=========================================`);
+    console.log(`📧 ส่ง OTP สำหรับอีเมล: ${email}`);
+    console.log(`🔑 รหัส OTP ของคุณคือ: ${otpCode}`);
+    console.log(`=========================================\n`);
+
+    if (isSmtpConfigured) {
+        transporter.sendMail({
+            from: `"ปันสุข (PanSuk)" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: 'รหัสยืนยันอีเมลของคุณ (OTP) - ปันสุข',
+            text: `สวัสดีคุณ ${name},\n\nรหัส OTP สำหรับยืนยันอีเมลของคุณคือ: ${otpCode}\nรหัสมีอายุการใช้งาน 10 นาที\n\nขอบคุณที่เข้าร่วมกับเรา`
+        }).then(() => {
+            console.log(`✅ ส่งอีเมล OTP ไปยัง ${email} สำเร็จ!`);
+        }).catch((mailErr) => {
+            console.warn('⚠️ ไม่สามารถส่งอีเมลได้ (ให้ดู OTP จาก Terminal แทน):', mailErr.message);
+        });
+    }
+    return isSmtpConfigured;
+}
+
+// 1. API สมัครสมาชิก (/api/register) - บันทึกเข้าตารางชั่วคราว pending_registrations เท่านั้น
 router.post('/register', async (req, res) => {
     const { name, email, password, phone } = req.body;
 
-    if (!name || !email || !password) {
-        return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+    if (!name || !email || !password || !phone) {
+        return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วนทุกช่อง (รวมถึงเบอร์โทรศัพท์)' });
+    }
+
+    const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+    if (!/^0[0-9]{9}$/.test(cleanPhone)) {
+        return res.status(400).json({ success: false, message: 'เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก (เช่น 0812345678)' });
     }
 
     // 🔒 ตรวจสอบความปลอดภัยของรหัสผ่านครบทั้ง 5 ข้อ:
-    // 1. ความยาวอย่างน้อย 6 ตัวอักษร
-    // 2. ตัวพิมพ์ใหญ่ (A-Z) อย่างน้อย 1 ตัว
-    // 3. ตัวพิมพ์เล็ก (a-z) อย่างน้อย 1 ตัว
-    // 4. ตัวเลข (0-9) อย่างน้อย 1 ตัว
-    // 5. อักขระพิเศษอย่างน้อย 1 ตัว
     const specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
     if (password.length < 6) {
         return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร' });
@@ -68,49 +104,55 @@ router.post('/register', async (req, res) => {
     }
 
     try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const otpCode = generateOTP();
-        const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // หมดอายุใน 10 นาที
+        // ตรวจสอบว่าอีเมลนี้มีอยู่ในตาราง users จริงแล้วหรือไม่
+        db.query('SELECT user_id, is_email_verified FROM users WHERE email = ?', [email], async (chkErr, existingUsers) => {
+            if (chkErr) {
+                return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการตรวจสอบข้อมูล' });
+            }
 
-        const sql = 'INSERT INTO users (name, email, password, phone, otp_code, otp_expires_at, is_email_verified) VALUES (?, ?, ?, ?, ?, ?, ?)';
-        
-        db.query(sql, [name, email, hashedPassword, phone || '', otpCode, otpExpiresAt, false], (err, result) => {
-            if (err) {
-                if (err.code === 'ER_DUP_ENTRY') {
-                    return res.status(400).json({ success: false, message: 'อีเมลนี้ถูกใช้งานแล้ว' });
+            if (existingUsers && existingUsers.length > 0) {
+                const existing = existingUsers[0];
+                if (existing.is_email_verified) {
+                    return res.status(400).json({ success: false, message: 'อีเมลนี้ถูกใช้งานแล้ว กรุณาเข้าสู่ระบบ' });
+                } else {
+                    // หากมี user เก่าที่ค้างแบบยังไม่ยืนยัน ให้ลบออกเพื่อให้สมัครใหม่ได้อย่างราบรื่น
+                    db.query('DELETE FROM users WHERE email = ? AND is_email_verified = FALSE', [email]);
                 }
-                return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' });
             }
 
-            // แสดง OTP ใน Terminal สำหรับใช้ทดสอบโดยไม่ต้องตั้งค่าอีเมลจริง
-            console.log(`\n=========================================`);
-            console.log(`📧 ส่ง OTP สำหรับอีเมล: ${email}`);
-            console.log(`🔑 รหัส OTP ของคุณคือ: ${otpCode}`);
-            console.log(`=========================================\n`);
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const otpCode = generateOTP();
+            const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // หมดอายุใน 10 นาที
 
-            // ส่งอีเมลจริงแบบ Non-blocking (ไม่ต้องรอ await เพื่อให้หน้าเว็บสลับไปหน้า OTP ได้ทันที)
-            const isSmtpConfigured = !!(process.env.SMTP_USER && process.env.SMTP_USER !== 'your_email@gmail.com');
-            if (isSmtpConfigured) {
-                transporter.sendMail({
-                    from: `"ปันสุข (PanSuk)" <${process.env.SMTP_USER}>`,
-                    to: email,
-                    subject: 'รหัสยืนยันอีเมลของคุณ (OTP)',
-                    text: `สวัสดีคุณ ${name},\n\nรหัส OTP สำหรับยืนยันอีเมลของคุณคือ: ${otpCode}\nรหัสมีอายุการใช้งาน 10 นาที\n\nขอบคุณที่เข้าร่วมกับเรา`
-                }).then(() => {
-                    console.log(`✅ ส่งอีเมล OTP ไปยัง ${email} สำเร็จ!`);
-                }).catch((mailErr) => {
-                    console.warn('⚠️ ไม่สามารถส่งอีเมลได้ (ให้ดู OTP จาก Terminal แทน):', mailErr.message);
+            // 💾 พักข้อมูลในตาราง pending_registrations ยังไม่บันทึกเข้าตาราง users จริง
+            const pendingSql = `
+                INSERT INTO pending_registrations (email, name, password, phone, otp_code, otp_expires_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    name = VALUES(name),
+                    password = VALUES(password),
+                    phone = VALUES(phone),
+                    otp_code = VALUES(otp_code),
+                    otp_expires_at = VALUES(otp_expires_at)
+            `;
+
+            db.query(pendingSql, [email, name, hashedPassword, cleanPhone, otpCode, otpExpiresAt], (err) => {
+                if (err) {
+                    console.error('Error inserting pending registration:', err);
+                    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูลการสมัคร' });
+                }
+
+                const isSmtpConfigured = sendOtpMail(name, email, otpCode);
+
+                res.json({
+                    success: true,
+                    message: isSmtpConfigured
+                        ? 'สมัครสมาชิกสำเร็จ! กรุณายืนยันรหัส OTP ที่ส่งไปยังอีเมลของคุณ'
+                        : 'สมัครสมาชิกสำเร็จ! กรุณายืนยันรหัส OTP',
+                    email: email,
+                    otp: isSmtpConfigured ? undefined : otpCode,
+                    emailSent: isSmtpConfigured
                 });
-            }
-
-            res.json({
-                success: true,
-                message: isSmtpConfigured
-                    ? 'สมัครสมาชิกสำเร็จ! กรุณายืนยันรหัส OTP ที่ส่งไปยังอีเมลของคุณ'
-                    : 'สมัครสมาชิกสำเร็จ! กรุณายืนยันรหัส OTP',
-                email: email,
-                otp: isSmtpConfigured ? undefined : otpCode,
-                emailSent: isSmtpConfigured
             });
         });
     } catch (error) {
@@ -118,7 +160,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// 1.5 API ยืนยัน OTP (/api/verify-otp)
+// 1.5 API ยืนยัน OTP (/api/verify-otp) - ยืนยันสำเร็จแล้วจึงย้ายเข้าสู่ตาราง users จริง 100%
 router.post('/verify-otp', (req, res) => {
     const { email, otp } = req.body;
 
@@ -126,38 +168,83 @@ router.post('/verify-otp', (req, res) => {
         return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
     }
 
-    const sql = 'SELECT * FROM users WHERE email = ? AND auth_provider = "local"';
-    db.query(sql, [email], (err, results) => {
-        if (err || results.length === 0) return res.status(400).json({ success: false, message: 'ไม่พบผู้ใช้นี้' });
-        
-        const user = results[0];
+    // 1. ค้นหาจาก pending_registrations ก่อน (ผู้สมัครใหม่ที่รอการยืนยัน OTP)
+    db.query('SELECT * FROM pending_registrations WHERE email = ?', [email], (pendingErr, pendingResults) => {
+        if (!pendingErr && pendingResults && pendingResults.length > 0) {
+            const pending = pendingResults[0];
 
-        if (user.is_email_verified) {
-            return res.status(400).json({ success: false, message: 'อีเมลนี้ยืนยันไปแล้ว' });
+            if (pending.otp_code !== otp) {
+                return res.status(400).json({ success: false, message: 'รหัส OTP ไม่ถูกต้อง' });
+            }
+
+            if (new Date(pending.otp_expires_at) < new Date()) {
+                return res.status(400).json({ success: false, message: 'รหัส OTP หมดอายุแล้ว กรุณากดขอรหัสใหม่' });
+            }
+
+            // ✅ OTP ถูกต้อง ➔ นำข้อมูลเข้าสู่ตาราง users จริง!
+            const insertUserSql = `
+                INSERT INTO users (name, email, password, phone, is_email_verified, auth_provider)
+                VALUES (?, ?, ?, ?, TRUE, 'local')
+            `;
+
+            db.query(insertUserSql, [pending.name, pending.email, pending.password, pending.phone], (insErr, insRes) => {
+                if (insErr) {
+                    if (insErr.code === 'ER_DUP_ENTRY') {
+                        return res.status(400).json({ success: false, message: 'อีเมลนี้มีบัญชีในระบบอยู่แล้ว' });
+                    }
+                    return res.status(500).json({ success: false, message: 'บันทึกข้อมูลผู้ใช้ไม่สำเร็จ' });
+                }
+
+                const newUserId = insRes.insertId;
+
+                // ลบข้อมูลชั่วคราวออกจาก pending_registrations ทันที
+                db.query('DELETE FROM pending_registrations WHERE email = ?', [email]);
+
+                const token = jwt.sign({ userId: newUserId, name: pending.name, role: 'user' }, jwtSecret, { expiresIn: '7d' });
+
+                return res.json({
+                    success: true,
+                    message: 'ยืนยันอีเมลและสมัครสมาชิกสำเร็จ!',
+                    token,
+                    user: { id: newUserId, user_id: newUserId, name: pending.name, email: pending.email, phone: pending.phone, role: 'user' }
+                });
+            });
+            return;
         }
 
-        if (user.otp_code !== otp) {
-            return res.status(400).json({ success: false, message: 'รหัส OTP ไม่ถูกต้อง' });
-        }
+        // 2. Fallback: กรณีผู้ใช้เดิมใน users ที่มีสถานะรอการยืนยัน OTP ค้างอยู่
+        const sql = 'SELECT * FROM users WHERE email = ? AND auth_provider = "local"';
+        db.query(sql, [email], (err, results) => {
+            if (err || results.length === 0) return res.status(400).json({ success: false, message: 'ไม่พบรายการที่รอการยืนยัน OTP' });
 
-        if (new Date(user.otp_expires_at) < new Date()) {
-            return res.status(400).json({ success: false, message: 'รหัส OTP หมดอายุแล้ว' });
-        }
+            const user = results[0];
 
-        // ยืนยันสำเร็จ อัปเดตสถานะ
-        db.query('UPDATE users SET is_email_verified = TRUE, otp_code = NULL, otp_expires_at = NULL WHERE email = ?', [email], (updateErr) => {
-            if (updateErr) return res.status(500).json({ success: false, message: 'อัปเดตข้อมูลไม่สำเร็จ' });
-            
-            const userId = user.user_id;
-            const token = jwt.sign({ userId, name: user.name, role: user.role,
-                promptpay_number: user.promptpay_number,
-                promptpay_name: user.promptpay_name }, jwtSecret, { expiresIn: '7d' });
+            if (user.is_email_verified) {
+                return res.status(400).json({ success: false, message: 'อีเมลนี้ยืนยันไปแล้ว สามารถเข้าสู่ระบบได้ทันที' });
+            }
 
-            res.json({
-                success: true,
-                message: 'ยืนยันอีเมลและเข้าสู่ระบบสำเร็จ',
-                token,
-                user: { id: userId, user_id: userId, name: user.name, email: user.email, phone: user.phone, role: user.role }
+            if (user.otp_code !== otp) {
+                return res.status(400).json({ success: false, message: 'รหัส OTP ไม่ถูกต้อง' });
+            }
+
+            if (new Date(user.otp_expires_at) < new Date()) {
+                return res.status(400).json({ success: false, message: 'รหัส OTP หมดอายุแล้ว กรุณากดขอรหัสใหม่' });
+            }
+
+            db.query('UPDATE users SET is_email_verified = TRUE, otp_code = NULL, otp_expires_at = NULL WHERE email = ?', [email], (updateErr) => {
+                if (updateErr) return res.status(500).json({ success: false, message: 'อัปเดตข้อมูลไม่สำเร็จ' });
+
+                const userId = user.user_id;
+                const token = jwt.sign({ userId, name: user.name, role: user.role,
+                    promptpay_number: user.promptpay_number,
+                    promptpay_name: user.promptpay_name }, jwtSecret, { expiresIn: '7d' });
+
+                res.json({
+                    success: true,
+                    message: 'ยืนยันอีเมลและเข้าสู่ระบบสำเร็จ',
+                    token,
+                    user: { id: userId, user_id: userId, name: user.name, email: user.email, phone: user.phone, role: user.role }
+                });
             });
         });
     });
@@ -171,51 +258,57 @@ router.post('/resend-otp', (req, res) => {
         return res.status(400).json({ success: false, message: 'กรุณาระบุอีเมล' });
     }
 
-    const sql = 'SELECT * FROM users WHERE email = ? AND auth_provider = "local"';
-    db.query(sql, [email], (err, results) => {
-        if (err || results.length === 0) {
-            return res.status(400).json({ success: false, message: 'ไม่พบบัญชีผู้ใช้นี้ในระบบ' });
-        }
+    const otpCode = generateOTP();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-        const user = results[0];
-        if (user.is_email_verified) {
-            return res.status(400).json({ success: false, message: 'อีเมลนี้ได้รับการยืนยันแล้ว สามารถเข้าสู่ระบบได้ทันที' });
-        }
+    // 1. ค้นหาจาก pending_registrations ก่อน
+    db.query('SELECT * FROM pending_registrations WHERE email = ?', [email], (pErr, pResults) => {
+        if (!pErr && pResults && pResults.length > 0) {
+            const pending = pResults[0];
+            db.query('UPDATE pending_registrations SET otp_code = ?, otp_expires_at = ? WHERE email = ?', [otpCode, otpExpiresAt, email], (upErr) => {
+                if (upErr) return res.status(500).json({ success: false, message: 'สร้างรหัส OTP ใหม่ไม่สำเร็จ' });
+                
+                const isSmtpConfigured = sendOtpMail(pending.name, email, otpCode);
 
-        const otpCode = generateOTP();
-        const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-        db.query('UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE user_id = ?', [otpCode, otpExpiresAt, user.user_id], (updateErr) => {
-            if (updateErr) return res.status(500).json({ success: false, message: 'สร้างรหัส OTP ใหม่ไม่สำเร็จ' });
-
-            console.log(`\n=========================================`);
-            console.log(`📧 ส่ง OTP ใหม่สำหรับอีเมล: ${email}`);
-            console.log(`🔑 รหัส OTP ใหม่ของคุณคือ: ${otpCode}`);
-            console.log(`=========================================\n`);
-
-            // ส่งอีเมลจริงแบบ Non-blocking
-            const isSmtpConfigured = !!(process.env.SMTP_USER && process.env.SMTP_USER !== 'your_email@gmail.com');
-            if (isSmtpConfigured) {
-                transporter.sendMail({
-                    from: `"ปันสุข (PanSuk)" <${process.env.SMTP_USER}>`,
-                    to: email,
-                    subject: 'รหัสยืนยันอีเมลของคุณ (OTP ใหม่)',
-                    text: `สวัสดีคุณ ${user.name},\n\nรหัส OTP ใหม่สำหรับยืนยันอีเมลของคุณคือ: ${otpCode}\nรหัสมีอายุการใช้งาน 10 นาที\n\nขอบคุณที่เข้าร่วมกับเรา`
-                }).then(() => {
-                    console.log(`✅ ส่งอีเมล OTP ใหม่ไปยัง ${email} สำเร็จ!`);
-                }).catch((mailErr) => {
-                    console.warn('⚠️ ไม่สามารถส่งอีเมล OTP ใหม่ได้:', mailErr.message);
+                return res.json({
+                    success: true,
+                    message: isSmtpConfigured
+                        ? 'ระบบได้ส่งรหัส OTP ใหม่ไปยังอีเมลของคุณเรียบร้อยแล้ว'
+                        : 'สร้างรหัส OTP ใหม่เรียบร้อยแล้ว',
+                    email: email,
+                    otp: isSmtpConfigured ? undefined : otpCode,
+                    emailSent: isSmtpConfigured
                 });
+            });
+            return;
+        }
+
+        // 2. ถ้าไม่มีใน pending ให้ค้นหาใน users (กรณีบัญชีเดิมที่ยังไม่ verify)
+        const sql = 'SELECT * FROM users WHERE email = ? AND auth_provider = "local"';
+        db.query(sql, [email], (err, results) => {
+            if (err || results.length === 0) {
+                return res.status(400).json({ success: false, message: 'ไม่พบบัญชีหรือรายการที่รอการยืนยัน OTP' });
             }
 
-            res.json({
-                success: true,
-                message: isSmtpConfigured
-                    ? 'ระบบได้ส่งรหัส OTP ใหม่ไปยังอีเมลของคุณเรียบร้อยแล้ว'
-                    : 'สร้างรหัส OTP ใหม่เรียบร้อยแล้ว',
-                email: email,
-                otp: isSmtpConfigured ? undefined : otpCode,
-                emailSent: isSmtpConfigured
+            const user = results[0];
+            if (user.is_email_verified) {
+                return res.status(400).json({ success: false, message: 'อีเมลนี้ได้รับการยืนยันแล้ว สามารถเข้าสู่ระบบได้ทันที' });
+            }
+
+            db.query('UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE user_id = ?', [otpCode, otpExpiresAt, user.user_id], (updateErr) => {
+                if (updateErr) return res.status(500).json({ success: false, message: 'สร้างรหัส OTP ใหม่ไม่สำเร็จ' });
+
+                const isSmtpConfigured = sendOtpMail(user.name, email, otpCode);
+
+                res.json({
+                    success: true,
+                    message: isSmtpConfigured
+                        ? 'ระบบได้ส่งรหัส OTP ใหม่ไปยังอีเมลของคุณเรียบร้อยแล้ว'
+                        : 'สร้างรหัส OTP ใหม่เรียบร้อยแล้ว',
+                    email: email,
+                    otp: isSmtpConfigured ? undefined : otpCode,
+                    emailSent: isSmtpConfigured
+                });
             });
         });
     });

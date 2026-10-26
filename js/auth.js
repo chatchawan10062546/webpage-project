@@ -228,11 +228,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+            if (!cleanPhone || cleanPhone.length !== 10 || !cleanPhone.startsWith('0')) {
+                alert('กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง 10 หลัก (เช่น 0812345678)');
+                const phoneInput = document.getElementById('regPhone');
+                if (phoneInput) phoneInput.focus();
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHtml; }
+                return;
+            }
+
             try {
                 const response = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password, phone })
+                    body: JSON.stringify({ name, email, password, phone: cleanPhone })
                 });
 
                 const data = await response.json();
