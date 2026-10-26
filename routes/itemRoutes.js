@@ -848,7 +848,7 @@ router.get('/my-sales', requireAuth, (req, res) => {
 
    const sql = `
       SELECT i.item_id, i.title, i.category, i.image_url, i.item_type, i.price, i.quantity, i.status AS item_status,
-             r.request_id, r.message, r.status AS request_status, r.created_at,
+             r.request_id, r.message, r.status AS request_status, r.created_at, r.updated_at,
              u.name AS requester_name, u.user_id AS requester_id, u.phone AS requester_phone
       FROM items i
       LEFT JOIN item_requests r ON i.item_id = r.item_id AND r.status IN ('pending', 'accepted', 'renting', 'returning', 'returned', 'completed')
@@ -861,7 +861,7 @@ router.get('/my-sales', requireAuth, (req, res) => {
          WHEN r.status = 'renting' THEN 4 
          WHEN r.status = 'completed' THEN 5 
          ELSE 6 
-      END) ASC, i.item_id DESC, r.created_at DESC
+      END) ASC, COALESCE(r.updated_at, r.created_at) DESC, i.item_id DESC
    `;
    db.query(sql, [ownerId], (err, results) => {
       if (err) return res.status(500).json({ success: false, message: 'ดึงข้อมูลไม่สำเร็จ' });
@@ -883,7 +883,8 @@ router.get('/my-sales', requireAuth, (req, res) => {
                requester_phone: row.requester_phone,
                message: row.message,
                status: row.request_status,
-               created_at: row.created_at
+               created_at: row.created_at,
+               updated_at: row.updated_at
             });
          }
       });
