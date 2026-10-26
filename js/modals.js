@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <div class="form-text text-muted mt-2" style="font-size: 0.8rem;">
                                             รองรับ JPG, PNG, WEBP สูงสุดไม่เกิน 5 รูป (รูปแรกเป็นรูปหน้าปก)
                                         </div>
-                                        <div class="alert alert-info py-2 px-3 mt-2 mb-0 rounded-3 small text-start border border-info-subtle d-flex align-items-center gap-2">
+                                        <div class="alert alert-info py-2 px-3 mt-2 mb-0 rounded-3 small text-start border border-info-subtle d-flex align-items-center gap-2 d-none" id="rentPhotoAdviceBox">
                                             <i class="bi bi-camera-fill text-primary flex-shrink-0 fs-6"></i>
                                             <div><strong>📸 ข้อแนะนำ:</strong> ควรถ่ายและแนบรูปภาพสภาพสินค้าจริงในปัจจุบัน เพื่อเก็บไว้ใช้เป็นหลักฐานเช็กสภาพก่อน-หลัง (Before/After) ในการตรวจสอบความเสียหายเมื่อได้รับของคืน</div>
                                         </div>
@@ -143,28 +143,41 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     `;
 
-    // ซ่อน/แสดง ช่องระบุราคา และเงินมัดจำ
+    // ซ่อน/แสดง ช่องระบุราคา เงินมัดจำ และคำแนะนำรูปภาพสำหรับรายการปล่อยเช่า
     document.addEventListener('change', (e) => {
         if (e.target && e.target.name === 'itemType') {
             const priceContainer = document.getElementById('priceInputContainer');
             const depositContainer = document.getElementById('depositInputContainer');
             const priceLabel = document.getElementById('priceLabel');
             const priceUnitText = document.getElementById('priceUnitText');
+            const rentPhotoAdviceBox = document.getElementById('rentPhotoAdviceBox');
 
             if (e.target.value === 'sell') {
                 priceContainer?.classList.remove('d-none');
                 depositContainer?.classList.add('d-none');
+                rentPhotoAdviceBox?.classList.add('d-none');
                 if (priceLabel) priceLabel.innerText = 'ราคาขาย (บาท)';
                 if (priceUnitText) priceUnitText.innerText = 'บาท';
             } else if (e.target.value === 'rent') {
                 priceContainer?.classList.remove('d-none');
                 depositContainer?.classList.remove('d-none');
+                rentPhotoAdviceBox?.classList.remove('d-none');
                 if (priceLabel) priceLabel.innerText = 'ค่าเช่า (บาท/วัน)';
                 if (priceUnitText) priceUnitText.innerText = 'บาท/วัน';
             } else {
                 priceContainer?.classList.add('d-none');
                 depositContainer?.classList.add('d-none');
+                rentPhotoAdviceBox?.classList.add('d-none');
             }
+        }
+    });
+
+    // รีเซ็ตสถานะเมื่อปิด Modal
+    document.addEventListener('hidden.bs.modal', (e) => {
+        if (e.target && e.target.id === 'postItemModal') {
+            document.getElementById('rentPhotoAdviceBox')?.classList.add('d-none');
+            document.getElementById('depositInputContainer')?.classList.add('d-none');
+            document.getElementById('priceInputContainer')?.classList.add('d-none');
         }
     });
 });
