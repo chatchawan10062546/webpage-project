@@ -1,14 +1,23 @@
+// ====================================================
+// 👤 profileRoutes.js : API ข้อมูลโปรไฟล์และรายการของผู้ใช้
+// ====================================================
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const { requireAuth } = require('../middlewares/authMiddleware');
+const { requireAuth } = require('../middleware/authMiddleware');
 
 function getUserId(req) {
-   return req.authUser ? req.authUser.userId : null;
+   return req.authUser ? req.authUser.userId : (req.query.user_id || req.body.user_id);
 }
 
 // 📌 11. API จัดการโปรไฟล์ผู้ใช้
-router.get('/profile', requireAuth, (req, res) => {
+router.get('/profile', (req, res, next) => {
+   // optional auth: if bearer token provided, parse it; otherwise use user_id param
+   if (req.headers.authorization) {
+      return requireAuth(req, res, next);
+   }
+   next();
+}, (req, res) => {
    const userId = getUserId(req);
    if (!userId) return res.status(400).json({ success: false, message: 'ไม่พบรหัสผู้ใช้' });
 
@@ -23,7 +32,12 @@ router.get('/profile', requireAuth, (req, res) => {
    );
 });
 
-router.get('/profile/items', requireAuth, (req, res) => {
+router.get('/profile/items', (req, res, next) => {
+   if (req.headers.authorization) {
+      return requireAuth(req, res, next);
+   }
+   next();
+}, (req, res) => {
    const userId = getUserId(req);
    if (!userId) return res.status(400).json({ success: false, message: 'ไม่พบรหัสผู้ใช้' });
 
@@ -37,9 +51,14 @@ router.get('/profile/items', requireAuth, (req, res) => {
    );
 });
 
-router.put('/profile', requireAuth, (req, res) => {
+router.put('/profile', (req, res, next) => {
+   if (req.headers.authorization) {
+      return requireAuth(req, res, next);
+   }
+   next();
+}, (req, res) => {
    const { name, phone, promptpay_number, promptpay_name, bank_name, bank_account, bank_account_name, payout_type } = req.body;
-   const user_id = req.authUser.userId;
+   const user_id = getUserId(req);
    if (!user_id || !name?.trim()) {
       return res.status(400).json({ success: false, message: 'กรุณากรอกชื่อผู้ใช้' });
    }
@@ -58,7 +77,7 @@ router.put('/profile', requireAuth, (req, res) => {
          user_id
       ],
       (err, result) => {
-         if (err) return res.status(500).json({ success: false, message: 'บันทึกโปรไฟล์ไม่สำเร็จ' });
+         if (err) return res.status(500).json({ success: false, message: 'บันทึกโปรไฟล์ไม่สำเร็จ: ' + err.message });
          if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
          res.json({
             success: true,
