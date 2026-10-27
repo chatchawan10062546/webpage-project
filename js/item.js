@@ -1364,23 +1364,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden p-3 p-md-4">
                         
                         <!-- Header -->
-                        <div class="d-flex justify-content-between align-items-center pb-2 flex-wrap gap-2">
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="badge bg-success px-3 py-2 rounded-pill fs-6 fw-bold">${item.category}</span>
-                                
-                                ${item.itemType === 'sell' 
-                                    ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fs-6 fw-bold">💰 ขาย ฿${Number(item.price).toLocaleString()}</span>`
-                                    : item.itemType === 'rent'
-                                    ? `<span class="badge bg-warning-subtle text-dark border border-warning-subtle px-3 py-2 rounded-pill fs-6 fw-bold">🔑 ให้เช่า ฿${Number(item.price).toLocaleString()}/วัน</span>`
-                                    : `<span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fs-6 fw-bold">🎁 แจกฟรี</span>`
-                                }
-
-                                ${qty > 0 && !isUnavailable
-                                    ? `<span class="badge bg-info-subtle text-dark border border-info-subtle px-3 py-2 rounded-pill fs-6 fw-bold"><i class="bi bi-box-seam me-1 text-primary"></i>คงเหลือ ${qty} ชิ้น</span>`
-                                    : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill fs-6 fw-bold"><i class="bi bi-x-circle me-1"></i>หมด/ถูกจองแล้ว</span>`
-                                }
-                            </div>
-                            <div class="d-flex align-items-center">
+                        <div class="d-flex justify-content-between align-items-center pb-2">
+                            <span class="badge bg-success px-3 py-2 rounded-pill fs-6 fw-bold">${item.category}</span>
+                            <div>
                                 <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2 py-1 fw-bold report-item-btn d-inline-flex align-items-center gap-1 shadow-none me-2" 
                                         data-item-id="${item.itemId}" data-owner-id="${item.ownerId}" data-title="${item.title}"
                                         style="font-size: 0.8rem; white-space: nowrap;">
