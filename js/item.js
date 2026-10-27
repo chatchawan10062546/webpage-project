@@ -1280,7 +1280,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ปุ่มการทำรายการจะแสดงเฉพาะผู้ใช้ที่ไม่ใช่เจ้าของรายการ และสินค้าต้องพร้อมใช้งาน
         let actionButtonsHTML = '';
-        const isUnavailable = item.status === 'reserved' || item.status === 'completed' || (item.quantity !== undefined && Number(item.quantity) <= 0);
+        const qty = item.quantity !== undefined ? Number(item.quantity) : 1;
+        const isUnavailable = item.status === 'reserved' || item.status === 'completed' || qty <= 0;
 
         if (isOwner) {
             actionButtonsHTML = `
@@ -1363,9 +1364,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden p-3 p-md-4">
                         
                         <!-- Header -->
-                        <div class="d-flex justify-content-between align-items-center pb-2">
-                            <span class="badge bg-success px-3 py-2 rounded-pill fs-6 fw-bold">${item.category}</span>
-                            <div>
+                        <div class="d-flex justify-content-between align-items-center pb-2 flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="badge bg-success px-3 py-2 rounded-pill fs-6 fw-bold">${item.category}</span>
+                                
+                                ${item.itemType === 'sell' 
+                                    ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fs-6 fw-bold">💰 ขาย ฿${Number(item.price).toLocaleString()}</span>`
+                                    : item.itemType === 'rent'
+                                    ? `<span class="badge bg-warning-subtle text-dark border border-warning-subtle px-3 py-2 rounded-pill fs-6 fw-bold">🔑 ให้เช่า ฿${Number(item.price).toLocaleString()}/วัน</span>`
+                                    : `<span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fs-6 fw-bold">🎁 แจกฟรี</span>`
+                                }
+
+                                ${qty > 0 && !isUnavailable
+                                    ? `<span class="badge bg-info-subtle text-dark border border-info-subtle px-3 py-2 rounded-pill fs-6 fw-bold"><i class="bi bi-box-seam me-1 text-primary"></i>คงเหลือ ${qty} ชิ้น</span>`
+                                    : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill fs-6 fw-bold"><i class="bi bi-x-circle me-1"></i>หมด/ถูกจองแล้ว</span>`
+                                }
+                            </div>
+                            <div class="d-flex align-items-center">
                                 <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2 py-1 fw-bold report-item-btn d-inline-flex align-items-center gap-1 shadow-none me-2" 
                                         data-item-id="${item.itemId}" data-owner-id="${item.ownerId}" data-title="${item.title}"
                                         style="font-size: 0.8rem; white-space: nowrap;">
@@ -1425,15 +1440,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             <!-- 📝 2. รายละเอียดสินค้าอยู่ตรงกลาง -->
                             <div class="bg-light p-4 rounded-4 mb-4 border">
-                                <h2 class="fw-bold text-success mb-2">${item.title}</h2>
+                                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                                    <h2 class="fw-bold text-success mb-0">${item.title}</h2>
+                                    <div class="fs-4 fw-bold">
+                                        ${item.itemType === 'sell' ? `<span class="text-primary">฿${Number(item.price).toLocaleString()}</span>` 
+                                        : item.itemType === 'rent' ? `<span class="text-warning-emphasis">฿${Number(item.price).toLocaleString()} <small class="text-muted fs-6 fw-normal">/วัน</small></span>` 
+                                        : '<span class="badge bg-success fs-6">แจกฟรี</span>'}
+                                    </div>
+                                </div>
+
                                 ${item.ownerName ? `
-                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                    <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
                                         <span class="fw-bold text-dark fs-6">👤 ${item.ownerName}</span>
                                         <span class="badge rounded-pill text-white" style="background-color: #6f42c1;">Lv.${item.ownerLevel}</span>
                                         <span class="text-warning fw-bold fs-6">⭐ ${item.ownerRating}</span>
                                     </div>
                                 `: ''}
-                                <p class="text-muted fs-6 mb-3">📍 ${item.location} ${item.distance ? `<span class="text-success fw-semibold">(${item.distance})</span>`: ''}</p>
+
+                                <!-- แถบสรุปจำนวนคงเหลือและพิกัดสถานที่ -->
+                                <div class="d-flex flex-wrap align-items-center gap-3 py-2 px-3 my-3 bg-white rounded-3 border">
+                                    <div class="d-flex align-items-center text-dark">
+                                        <i class="bi bi-box-seam text-success me-2 fs-5"></i>
+                                        <span>จำนวนคงเหลือ: <strong class="${qty > 0 && !isUnavailable ? 'text-success fs-5' : 'text-danger fs-5'}">${qty}</strong> ชิ้น ${qty <= 0 || isUnavailable ? '<span class="badge bg-danger-subtle text-danger ms-1">หมดแล้ว</span>' : ''}</span>
+                                    </div>
+                                    <div class="text-muted d-none d-sm-block">|</div>
+                                    <div class="d-flex align-items-center text-secondary">
+                                        <i class="bi bi-geo-alt-fill text-danger me-1"></i>
+                                        <span>${item.location} ${item.distance ? `<span class="text-success fw-semibold">(${item.distance})</span>`: ''}</span>
+                                    </div>
+                                </div>
                                 
 <!-- Map section in detail -->
 <div class="mt-4 mb-4" id="detailMapSection" style="display: ${item.lat && item.lng ? 'block' : 'none'};" data-lat="${item.lat || ''}" data-lng="${item.lng || ''}">
