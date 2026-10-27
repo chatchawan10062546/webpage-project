@@ -39,12 +39,42 @@ db.query(`CREATE TABLE IF NOT EXISTS pending_registrations (
     name VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
     phone VARCHAR(20) NOT NULL,
+    payout_type VARCHAR(20) DEFAULT 'promptpay',
+    promptpay_number VARCHAR(50) NULL,
+    promptpay_name VARCHAR(100) NULL,
+    bank_name VARCHAR(100) NULL,
+    bank_account VARCHAR(50) NULL,
+    bank_account_name VARCHAR(100) NULL,
     otp_code VARCHAR(10) NOT NULL,
     otp_expires_at DATETIME NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )`, (err) => {
     if (err) console.error('Error creating pending_registrations table:', err.message);
 });
+
+// ฟังก์ชันตรวจสอบและเพิ่มคอลัมน์ใหม่อัตโนมัติ (รองรับทุกเวอร์ชัน MySQL)
+function addColIfNotExists(tableName, columnName, columnDef) {
+    db.query(`SHOW COLUMNS FROM ${tableName} LIKE '${columnName}'`, (err, rows) => {
+        if (!err && rows && rows.length === 0) {
+            db.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnDef}`, (alterErr) => {
+                if (!alterErr) console.log(`✅ เพิ่มคอลัมน์ ${columnName} ในตาราง ${tableName} สำเร็จ`);
+            });
+        }
+    });
+}
+
+// อัปเกรดตาราง users และ pending_registrations
+addColIfNotExists('users', 'payout_type', "payout_type VARCHAR(20) DEFAULT 'promptpay'");
+addColIfNotExists('users', 'bank_name', 'bank_name VARCHAR(100) NULL');
+addColIfNotExists('users', 'bank_account', 'bank_account VARCHAR(50) NULL');
+addColIfNotExists('users', 'bank_account_name', 'bank_account_name VARCHAR(100) NULL');
+
+addColIfNotExists('pending_registrations', 'payout_type', "payout_type VARCHAR(20) DEFAULT 'promptpay'");
+addColIfNotExists('pending_registrations', 'promptpay_number', 'promptpay_number VARCHAR(50) NULL');
+addColIfNotExists('pending_registrations', 'promptpay_name', 'promptpay_name VARCHAR(100) NULL');
+addColIfNotExists('pending_registrations', 'bank_name', 'bank_name VARCHAR(100) NULL');
+addColIfNotExists('pending_registrations', 'bank_account', 'bank_account VARCHAR(50) NULL');
+addColIfNotExists('pending_registrations', 'bank_account_name', 'bank_account_name VARCHAR(100) NULL');
 
 // ฟังก์ชันสุ่ม OTP 6 หลัก
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -74,7 +104,7 @@ function sendOtpMail(name, email, otpCode) {
 
 // 1. API สมัครสมาชิก (/api/register) - บันทึกเข้าตารางชั่วคราว pending_registrations เท่านั้น
 router.post('/register', async (req, res) => {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, payout_type, promptpay_number, promptpay_name, bank_name, bank_account, bank_account_name } = req.body;
 
     if (!name || !email || !password || !phone) {
         return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วนทุกช่อง (รวมถึงเบอร์โทรศัพท์)' });
@@ -83,6 +113,23 @@ router.post('/register', async (req, res) => {
     const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
     if (!/^0[0-9]{9}$/.test(cleanPhone)) {
         return res.status(400).json({ success: false, message: 'เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก (เช่น 0812345678)' });
+    }
+
+    const effectivePayoutType = payout_type === 'bank' ? 'bank' : 'promptpay';
+    const cleanPromptpayNumber = (promptpay_number || '').trim();
+    const cleanPromptpayName = (promptpay_name || '').trim();
+    const cleanBankName = (bank_name || '').trim();
+    const cleanBankAccount = (bank_account || '').trim();
+    const cleanBankAccountName = (bank_account_name || '').trim();
+
+    if (effectivePayoutType === 'promptpay') {
+        if (!cleanPromptpayNumber || !cleanPromptpayName) {
+            return res.status(400).json({ success: false, message: 'กรุณากรอกเบอร์พร้อมเพย์และชื่อบัญชีพร้อมเพย์ให้ครบถ้วน' });
+        }
+    } else {
+        if (!cleanBankName || !cleanBankAccount || !cleanBankAccountName) {
+            return res.status(400).json({ success: false, message: 'กรุณาเลือกธนาคาร ระบุเลขที่บัญชี และชื่อบัญชีให้ครบถ้วน' });
+        }
     }
 
     // 🔒 ตรวจสอบความปลอดภัยของรหัสผ่านครบทั้ง 5 ข้อ:
@@ -126,17 +173,28 @@ router.post('/register', async (req, res) => {
 
             // 💾 พักข้อมูลในตาราง pending_registrations ยังไม่บันทึกเข้าตาราง users จริง
             const pendingSql = `
-                INSERT INTO pending_registrations (email, name, password, phone, otp_code, otp_expires_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO pending_registrations (email, name, password, phone, payout_type, promptpay_number, promptpay_name, bank_name, bank_account, bank_account_name, otp_code, otp_expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     name = VALUES(name),
                     password = VALUES(password),
                     phone = VALUES(phone),
+                    payout_type = VALUES(payout_type),
+                    promptpay_number = VALUES(promptpay_number),
+                    promptpay_name = VALUES(promptpay_name),
+                    bank_name = VALUES(bank_name),
+                    bank_account = VALUES(bank_account),
+                    bank_account_name = VALUES(bank_account_name),
                     otp_code = VALUES(otp_code),
                     otp_expires_at = VALUES(otp_expires_at)
             `;
 
-            db.query(pendingSql, [email, name, hashedPassword, cleanPhone, otpCode, otpExpiresAt], (err) => {
+            db.query(pendingSql, [
+                email, name, hashedPassword, cleanPhone,
+                effectivePayoutType, cleanPromptpayNumber, cleanPromptpayName,
+                cleanBankName, cleanBankAccount, cleanBankAccountName,
+                otpCode, otpExpiresAt
+            ], (err) => {
                 if (err) {
                     console.error('Error inserting pending registration:', err);
                     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูลการสมัคร' });
@@ -183,11 +241,22 @@ router.post('/verify-otp', (req, res) => {
 
             // ✅ OTP ถูกต้อง ➔ นำข้อมูลเข้าสู่ตาราง users จริง!
             const insertUserSql = `
-                INSERT INTO users (name, email, password, phone, is_email_verified, auth_provider)
-                VALUES (?, ?, ?, ?, TRUE, 'local')
+                INSERT INTO users (name, email, password, phone, payout_type, promptpay_number, promptpay_name, bank_name, bank_account, bank_account_name, is_email_verified, auth_provider)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, 'local')
             `;
 
-            db.query(insertUserSql, [pending.name, pending.email, pending.password, pending.phone], (insErr, insRes) => {
+            db.query(insertUserSql, [
+                pending.name,
+                pending.email,
+                pending.password,
+                pending.phone,
+                pending.payout_type || 'promptpay',
+                pending.promptpay_number || '',
+                pending.promptpay_name || '',
+                pending.bank_name || '',
+                pending.bank_account || '',
+                pending.bank_account_name || ''
+            ], (insErr, insRes) => {
                 if (insErr) {
                     if (insErr.code === 'ER_DUP_ENTRY') {
                         return res.status(400).json({ success: false, message: 'อีเมลนี้มีบัญชีในระบบอยู่แล้ว' });
@@ -200,13 +269,36 @@ router.post('/verify-otp', (req, res) => {
                 // ลบข้อมูลชั่วคราวออกจาก pending_registrations ทันที
                 db.query('DELETE FROM pending_registrations WHERE email = ?', [email]);
 
-                const token = jwt.sign({ userId: newUserId, name: pending.name, role: 'user' }, jwtSecret, { expiresIn: '7d' });
+                const token = jwt.sign({ 
+                    userId: newUserId, 
+                    name: pending.name, 
+                    role: 'user',
+                    promptpay_number: pending.promptpay_number,
+                    promptpay_name: pending.promptpay_name,
+                    bank_name: pending.bank_name,
+                    bank_account: pending.bank_account,
+                    bank_account_name: pending.bank_account_name,
+                    payout_type: pending.payout_type
+                }, jwtSecret, { expiresIn: '7d' });
 
                 return res.json({
                     success: true,
                     message: 'ยืนยันอีเมลและสมัครสมาชิกสำเร็จ!',
                     token,
-                    user: { id: newUserId, user_id: newUserId, name: pending.name, email: pending.email, phone: pending.phone, role: 'user' }
+                    user: { 
+                        id: newUserId, 
+                        user_id: newUserId, 
+                        name: pending.name, 
+                        email: pending.email, 
+                        phone: pending.phone, 
+                        payout_type: pending.payout_type,
+                        promptpay_number: pending.promptpay_number,
+                        promptpay_name: pending.promptpay_name,
+                        bank_name: pending.bank_name,
+                        bank_account: pending.bank_account,
+                        bank_account_name: pending.bank_account_name,
+                        role: 'user' 
+                    }
                 });
             });
             return;

@@ -92,7 +92,11 @@ router.get('/admin/transactions', requireAdmin, (req, res) => {
                 t.trans_ref, t.is_slip_verified, t.slip_verified_at,
                 g.name AS giver_name, r.name AS receiver_name, i.item_type, t.rental_start_date, t.rental_end_date, t.rental_days, t.deposit_amount, t.rental_status, t.return_tracking, t.returned_at,
                 t.claim_amount, t.claim_reason, t.claim_image, t.claim_status, t.claim_admin_decision,
-                g.promptpay_number AS seller_promptpay, g.promptpay_name AS seller_promptpay_name, r.promptpay_number AS buyer_promptpay, r.promptpay_name AS buyer_promptpay_name, t.admin_slip, t.deposit_refund_slip, t.created_at
+                g.promptpay_number AS seller_promptpay, g.promptpay_name AS seller_promptpay_name,
+                g.bank_name AS seller_bank_name, g.bank_account AS seller_bank_account, g.bank_account_name AS seller_bank_account_name, g.payout_type AS seller_payout_type,
+                r.promptpay_number AS buyer_promptpay, r.promptpay_name AS buyer_promptpay_name,
+                r.bank_name AS buyer_bank_name, r.bank_account AS buyer_bank_account, r.bank_account_name AS buyer_bank_account_name, r.payout_type AS buyer_payout_type,
+                t.admin_slip, t.deposit_refund_slip, t.created_at
          FROM transactions t
          JOIN items i ON i.item_id = t.item_id
          JOIN users g ON g.user_id = t.giver_id

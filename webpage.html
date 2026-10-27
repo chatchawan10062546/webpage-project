@@ -833,6 +833,81 @@
                             <input type="tel" class="form-control" id="regPhone" placeholder="08xxxxxxxx" required pattern="^0[0-9]{9}$" maxlength="10" minlength="10">
                             <div class="form-text text-muted" style="font-size: 0.78rem;">กรุณากรอกเบอร์โทรศัพท์ 10 หลัก (เช่น 0812345678)</div>
                         </div>
+
+                        <!-- 🏦 ข้อมูลบัญชีสำหรับรับเงิน (ระบบคนกลาง) -->
+                        <div class="card border-0 bg-light rounded-4 p-3 mb-3 border">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <label class="form-label fw-bold mb-0 text-success">
+                                    <i class="bi bi-wallet2 me-1"></i>ช่องทางรับเงิน (สำหรับคนขาย/ปล่อยเช่า)
+                                </label>
+                                <span class="badge bg-success-subtle text-success small rounded-pill px-2">ระบบคนกลาง</span>
+                            </div>
+                            <div class="form-text text-muted mb-3" style="font-size: 0.78rem;">
+                                ใช้สำหรับให้แอดมินโอนเงินค่าสินค้าหรือคืนมัดจำเข้าบัญชีของคุณเมื่อส่งมอบสำเร็จ
+                            </div>
+
+                            <!-- ปุ่มเลือกประเภท: พร้อมเพย์ หรือ บัญชีธนาคาร -->
+                            <div class="btn-group w-100 mb-3" role="group">
+                                <input type="radio" class="btn-check" name="regPayoutType" id="regPayoutPromptpay" value="promptpay" checked autocomplete="off">
+                                <label class="btn btn-outline-success fw-bold py-2 rounded-start-pill" for="regPayoutPromptpay">
+                                    <i class="bi bi-phone me-1"></i>พร้อมเพย์ (PromptPay)
+                                </label>
+
+                                <input type="radio" class="btn-check" name="regPayoutType" id="regPayoutBank" value="bank" autocomplete="off">
+                                <label class="btn btn-outline-success fw-bold py-2 rounded-end-pill" for="regPayoutBank">
+                                    <i class="bi bi-bank me-1"></i>บัญชีธนาคาร
+                                </label>
+                            </div>
+
+                            <!-- ส่วนกรอกพร้อมเพย์ -->
+                            <div id="regPromptpaySection">
+                                <div class="d-flex justify-content-end mb-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 shadow-sm fw-semibold" id="btnAutoFillPromptPay" style="font-size: 0.78rem;">
+                                        <i class="bi bi-magic me-1"></i>ใช้ชื่อและเบอร์โทรที่กรอกไว้ด้านบน
+                                    </button>
+                                </div>
+                                <div class="mb-2">
+                                    <label for="regPromptpayNumber" class="form-label small fw-bold text-dark">เบอร์พร้อมเพย์ / เลขบัตร ปชช. <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="regPromptpayNumber" placeholder="เช่น 0812345678">
+                                </div>
+                                <div>
+                                    <label for="regPromptpayName" class="form-label small fw-bold text-dark">ชื่อ-นามสกุล เจ้าของพร้อมเพย์ <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="regPromptpayName" placeholder="เช่น นายสมชาย ปันสุข">
+                                </div>
+                            </div>
+
+                            <!-- ส่วนกรอกบัญชีธนาคาร -->
+                            <div id="regBankSection" class="d-none">
+                                <div class="d-flex justify-content-end mb-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 shadow-sm fw-semibold" id="btnAutoFillBankName" style="font-size: 0.78rem;">
+                                        <i class="bi bi-magic me-1"></i>ใช้ชื่อที่กรอกไว้ด้านบน
+                                    </button>
+                                </div>
+                                <div class="mb-2">
+                                    <label for="regBankName" class="form-label small fw-bold text-dark">เลือกธนาคาร <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="regBankName">
+                                        <option value="" selected disabled>-- เลือกธนาคาร --</option>
+                                        <option value="ธนาคารกสิกรไทย">ธนาคารกสิกรไทย (KBANK)</option>
+                                        <option value="ธนาคารไทยพาณิชย์">ธนาคารไทยพาณิชย์ (SCB)</option>
+                                        <option value="ธนาคารกรุงไทย">ธนาคารกรุงไทย (KTB)</option>
+                                        <option value="ธนาคารกรุงเทพ">ธนาคารกรุงเทพ (BBL)</option>
+                                        <option value="ธนาคารกรุงศรีอยุธยา">ธนาคารกรุงศรีอยุธยา (BAY)</option>
+                                        <option value="ธนาคารทหารไทยธนชาต">ธนาคารทหารไทยธนชาต (TTB)</option>
+                                        <option value="ธนาคารออมสิน">ธนาคารออมสิน (GSB)</option>
+                                        <option value="ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร">ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร (ธ.ก.ส.)</option>
+                                        <option value="ธนาคารอื่นๆ">ธนาคารอื่นๆ</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label for="regBankAccount" class="form-label small fw-bold text-dark">เลขที่บัญชีธนาคาร <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="regBankAccount" placeholder="เช่น 123-4-56789-0 (เฉพาะตัวเลข)">
+                                </div>
+                                <div>
+                                    <label for="regBankAccountName" class="form-label small fw-bold text-dark">ชื่อ-นามสกุล เจ้าของบัญชี <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="regBankAccountName" placeholder="เช่น นายสมชาย ปันสุข">
+                                </div>
+                            </div>
+                        </div>
                         <button type="submit" class="btn btn-success w-100 py-3 rounded-pill fw-bold">สมัครสมาชิก (และรับรหัส OTP)</button>
                     </form>
                     <div class="text-center mt-3">
@@ -887,11 +962,11 @@
     <script src="js/chat.js?v=1791296061333"></script>
     <script src="js/chatInbox.js?v=3"></script>
     <script src="js/main.js?v=1792348000000"></script>
-    <script src="js/auth.js?v=1793039100000"></script>
+    <script src="js/auth.js?v=1793119000000"></script>
     <script src="js/reports.js?v=1792167844403"></script>
     <script src="js/reviews.js?v=3"></script>
     <script src="js/userProfile.js?v=7"></script>
-    <script src="js/profile.js?v=1793039000000"></script>
+    <script src="js/profile.js?v=1793119000000"></script>
     <script src="js/transactions.js?v=8"></script>
     <script src="js/mySales.js?v=1793052000000"></script>
     

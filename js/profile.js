@@ -40,15 +40,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 requestJson(`/api/users/${userId}/reviews`)
             ]);
             const profile = profileData.profile;
-              // Auto-sync promptpay to localStorage in case it was missing
-              const _stored = JSON.parse(localStorage.getItem('user'));
-              if (_stored) {
-                  localStorage.setItem('user', JSON.stringify({
-                      ..._stored,
-                      promptpay_number: profile.promptpay_number,
-                      promptpay_name: profile.promptpay_name
-                  }));
-              }
+            // Auto-sync payout and details to localStorage in case it was missing
+            const _stored = JSON.parse(localStorage.getItem('user'));
+            if (_stored) {
+                localStorage.setItem('user', JSON.stringify({
+                    ..._stored,
+                    promptpay_number: profile.promptpay_number,
+                    promptpay_name: profile.promptpay_name,
+                    bank_name: profile.bank_name,
+                    bank_account: profile.bank_account,
+                    bank_account_name: profile.bank_account_name,
+                    payout_type: profile.payout_type
+                }));
+            }
             const stats = statsData.profile || {};
             const reviews = reviewsData.reviews || [];
 
@@ -88,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="modal-content profile-modal border-0 shadow-lg rounded-4">
                             <div class="modal-header bg-success text-white">
                                 <h5 class="modal-title fw-bold">${viewMode === "profile" ? "👤 โปรไฟล์ของฉัน" : "📦 รายการที่ฉันประกาศ"}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.85; font-size: 1.15rem; cursor: pointer;"></button>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.85; font-size: 1.15rem; cursor: pointer;"></button>
                             </div>
                             <div class="modal-body p-4" style="max-height: 80vh; overflow-y: auto;">
                                 
@@ -119,11 +123,70 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <form id="profileForm" class="profile-form mb-4 border p-3 rounded-4 bg-light">
                                     <div class="profile-form-heading fw-bold mb-3"><i class="bi bi-person-lines-fill me-2 text-success"></i>ข้อมูลส่วนตัว</div>
                                     <div class="row g-3">
-                                        <div class="col-md-6"><label class="form-label fw-semibold" for="profileName">ชื่อ</label><input id="profileName" class="form-control" value="${escapeHtml(profile.name)}" required disabled></div>
+                                        <div class="col-md-6"><label class="form-label fw-semibold" for="profileName">ชื่อ-นามสกุล</label><input id="profileName" class="form-control" value="${escapeHtml(profile.name)}" required disabled></div>
                                         <div class="col-md-6"><label class="form-label fw-semibold" for="profilePhone">เบอร์โทรศัพท์</label><input id="profilePhone" class="form-control" value="${escapeHtml(profile.phone || '')}" placeholder="เช่น 0812345678" disabled></div>
                                     </div>
-                                    <div class="small text-muted mt-3">อีเมล: ${escapeHtml(profile.email)}</div>
-                                    <div id="profileActionButtons" class="mt-3 d-flex gap-2">
+                                    <div class="small text-muted mt-2 mb-3">อีเมล: ${escapeHtml(profile.email)}</div>
+
+                                    <hr class="my-3">
+                                    <div class="profile-form-heading fw-bold mb-2"><i class="bi bi-wallet2 me-2 text-success"></i>ช่องทางรับเงิน (สำหรับรับเงินโอนจากระบบคนกลางเมื่อขาย/ให้เช่า)</div>
+                                    <div class="mb-3">
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="profilePayoutType" id="profilePayoutPromptpay" value="promptpay" ${profile.payout_type !== 'bank' ? 'checked' : ''} disabled>
+                                            <label class="form-check-label fw-bold" for="profilePayoutPromptpay"><i class="bi bi-qr-code text-success me-1"></i>พร้อมเพย์ (PromptPay)</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="profilePayoutType" id="profilePayoutBank" value="bank" ${profile.payout_type === 'bank' ? 'checked' : ''} disabled>
+                                            <label class="form-check-label fw-bold" for="profilePayoutBank"><i class="bi bi-bank text-primary me-1"></i>บัญชีธนาคาร (Bank Account)</label>
+                                        </div>
+                                    </div>
+
+                                    <div id="profilePromptpaySection" class="${profile.payout_type === 'bank' ? 'd-none' : ''}">
+                                        <div class="row g-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-semibold" for="profilePromptpayNumber">เบอร์พร้อมเพย์ / เลขบัตร ปชช.</label>
+                                                <input type="text" id="profilePromptpayNumber" class="form-control" value="${escapeHtml(profile.promptpay_number || '')}" placeholder="08xxxxxxxx หรือ เลข ปชช." disabled>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-semibold" for="profilePromptpayName">ชื่อ-นามสกุล บัญชีพร้อมเพย์</label>
+                                                <input type="text" id="profilePromptpayName" class="form-control" value="${escapeHtml(profile.promptpay_name || '')}" placeholder="ชื่อ-นามสกุลเจ้าของบัญชี" disabled>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="profileBankSection" class="${profile.payout_type === 'bank' ? '' : 'd-none'}">
+                                        <div class="row g-2">
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-semibold" for="profileBankName">ธนาคาร</label>
+                                                <select id="profileBankName" class="form-select" disabled>
+                                                    <option value="">-- เลือกธนาคาร --</option>
+                                                    <option value="ธนาคารกสิกรไทย (KBANK)" ${profile.bank_name === 'ธนาคารกสิกรไทย (KBANK)' ? 'selected' : ''}>กสิกรไทย (KBANK)</option>
+                                                    <option value="ธนาคารไทยพาณิชย์ (SCB)" ${profile.bank_name === 'ธนาคารไทยพาณิชย์ (SCB)' ? 'selected' : ''}>ไทยพาณิชย์ (SCB)</option>
+                                                    <option value="ธนาคารกรุงเทพ (BBL)" ${profile.bank_name === 'ธนาคารกรุงเทพ (BBL)' ? 'selected' : ''}>กรุงเทพ (BBL)</option>
+                                                    <option value="ธนาคารกรุงไทย (KTB)" ${profile.bank_name === 'ธนาคารกรุงไทย (KTB)' ? 'selected' : ''}>กรุงไทย (KTB)</option>
+                                                    <option value="ธนาคารกรุงศรีอยุธยา (BAY)" ${profile.bank_name === 'ธนาคารกรุงศรีอยุธยา (BAY)' ? 'selected' : ''}>กรุงศรีอยุธยา (BAY)</option>
+                                                    <option value="ธนาคารทหารไทยธนชาต (TTB)" ${profile.bank_name === 'ธนาคารทหารไทยธนชาต (TTB)' ? 'selected' : ''}>ทหารไทยธนชาต (TTB)</option>
+                                                    <option value="ธนาคารออมสิน (GSB)" ${profile.bank_name === 'ธนาคารออมสิน (GSB)' ? 'selected' : ''}>ออมสิน (GSB)</option>
+                                                    <option value="ธ.ก.ส." ${profile.bank_name === 'ธ.ก.ส.' ? 'selected' : ''}>ธ.ก.ส.</option>
+                                                    <option value="ธนาคารเกียรตินาคินภัทร (KKP)" ${profile.bank_name === 'ธนาคารเกียรตินาคินภัทร (KKP)' ? 'selected' : ''}>เกียรตินาคินภัทร (KKP)</option>
+                                                    <option value="ธนาคารซีไอเอ็มบีไทย (CIMB)" ${profile.bank_name === 'ธนาคารซีไอเอ็มบีไทย (CIMB)' ? 'selected' : ''}>ซีไอเอ็มบีไทย (CIMB)</option>
+                                                    <option value="ธนาคารยูโอบี (UOB)" ${profile.bank_name === 'ธนาคารยูโอบี (UOB)' ? 'selected' : ''}>ยูโอบี (UOB)</option>
+                                                    <option value="ธนาคารแลนด์ แอนด์ เฮ้าส์ (LH Bank)" ${profile.bank_name === 'ธนาคารแลนด์ แอนด์ เฮ้าส์ (LH Bank)' ? 'selected' : ''}>แลนด์ แอนด์ เฮ้าส์ (LH Bank)</option>
+                                                    <option value="อื่นๆ" ${profile.bank_name === 'อื่นๆ' ? 'selected' : ''}>อื่นๆ</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-semibold" for="profileBankAccount">เลขที่บัญชี</label>
+                                                <input type="text" id="profileBankAccount" class="form-control" value="${escapeHtml(profile.bank_account || '')}" placeholder="ระบุเฉพาะตัวเลข" disabled>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-semibold" for="profileBankAccountName">ชื่อบัญชี</label>
+                                                <input type="text" id="profileBankAccountName" class="form-control" value="${escapeHtml(profile.bank_account_name || '')}" placeholder="ชื่อ-นามสกุลเจ้าของบัญชี" disabled>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="profileActionButtons" class="mt-4 d-flex gap-2">
                                         <button class="btn btn-warning rounded-pill px-4 fw-bold text-dark shadow-sm" type="button" id="editProfileBtn"><i class="bi bi-pencil-square me-2"></i>แก้ไขข้อมูล</button>
                                         <button class="btn btn-success rounded-pill px-4 fw-bold shadow-sm d-none" type="submit" id="saveProfileBtn"><i class="bi bi-check2-circle me-2"></i>บันทึกข้อมูล</button>
                                         <button class="btn btn-outline-secondary rounded-pill px-3 fw-bold d-none" type="button" id="cancelProfileBtn">ยกเลิก</button>
@@ -132,18 +195,18 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ` : ""}
 
                                 ${viewMode === "listings" ? `
-<div class="mb-4">
+                                <div class="mb-4">
                                     <div class="profile-list-heading fw-bold mb-2"><i class="bi bi-box-seam text-success me-2"></i>รายการที่ฉันประกาศ <span class="badge text-bg-success rounded-pill">${itemsData.items.length}</span></div>
                                     <div class="profile-items-list border p-3 rounded-4 bg-light">${items}</div>
                                 </div>
-` : ""}
+                                ` : ""}
 
                                 ${viewMode === "profile" ? `
-<div>
+                                <div>
                                     <div class="fw-bold mb-2"><i class="bi bi-star-fill text-warning me-2"></i>ความคิดเห็นและรีวิวจากผู้ใช้อื่น <span class="badge text-bg-secondary rounded-pill">${reviews.length}</span></div>
                                     <div class="reviews-list border p-3 rounded-4 bg-light">${reviewsHTML}</div>
                                 </div>
-` : ""}
+                                ` : ""}
 
                             </div>
                             <div class="modal-footer border-top bg-light p-3 d-flex justify-content-end">
@@ -168,10 +231,44 @@ document.addEventListener('DOMContentLoaded', () => {
             const nameInput = document.getElementById('profileName');
             const phoneInput = document.getElementById('profilePhone');
 
+            const ppRadio = document.getElementById('profilePayoutPromptpay');
+            const bankRadio = document.getElementById('profilePayoutBank');
+            const ppSection = document.getElementById('profilePromptpaySection');
+            const bankSection = document.getElementById('profileBankSection');
+
+            const ppNum = document.getElementById('profilePromptpayNumber');
+            const ppName = document.getElementById('profilePromptpayName');
+            const bName = document.getElementById('profileBankName');
+            const bAcc = document.getElementById('profileBankAccount');
+            const bAccName = document.getElementById('profileBankAccountName');
+
+            if (ppRadio && bankRadio) {
+                ppRadio.addEventListener('change', () => {
+                    if (ppRadio.checked) {
+                        ppSection?.classList.remove('d-none');
+                        bankSection?.classList.add('d-none');
+                    }
+                });
+                bankRadio.addEventListener('change', () => {
+                    if (bankRadio.checked) {
+                        bankSection?.classList.remove('d-none');
+                        ppSection?.classList.add('d-none');
+                    }
+                });
+            }
+
             if (editBtn) {
                 editBtn.addEventListener('click', () => {
                     if (nameInput) nameInput.disabled = false;
                     if (phoneInput) phoneInput.disabled = false;
+                    if (ppRadio) ppRadio.disabled = false;
+                    if (bankRadio) bankRadio.disabled = false;
+                    if (ppNum) ppNum.disabled = false;
+                    if (ppName) ppName.disabled = false;
+                    if (bName) bName.disabled = false;
+                    if (bAcc) bAcc.disabled = false;
+                    if (bAccName) bAccName.disabled = false;
+
                     editBtn.classList.add('d-none');
                     if (saveBtn) saveBtn.classList.remove('d-none');
                     if (cancelBtn) cancelBtn.classList.remove('d-none');
@@ -189,6 +286,42 @@ document.addEventListener('DOMContentLoaded', () => {
                         phoneInput.value = profile.phone || '';
                         phoneInput.disabled = true;
                     }
+                    if (ppRadio) {
+                        ppRadio.checked = profile.payout_type !== 'bank';
+                        ppRadio.disabled = true;
+                    }
+                    if (bankRadio) {
+                        bankRadio.checked = profile.payout_type === 'bank';
+                        bankRadio.disabled = true;
+                    }
+                    if (profile.payout_type === 'bank') {
+                        bankSection?.classList.remove('d-none');
+                        ppSection?.classList.add('d-none');
+                    } else {
+                        ppSection?.classList.remove('d-none');
+                        bankSection?.classList.add('d-none');
+                    }
+                    if (ppNum) {
+                        ppNum.value = profile.promptpay_number || '';
+                        ppNum.disabled = true;
+                    }
+                    if (ppName) {
+                        ppName.value = profile.promptpay_name || '';
+                        ppName.disabled = true;
+                    }
+                    if (bName) {
+                        bName.value = profile.bank_name || '';
+                        bName.disabled = true;
+                    }
+                    if (bAcc) {
+                        bAcc.value = profile.bank_account || '';
+                        bAcc.disabled = true;
+                    }
+                    if (bAccName) {
+                        bAccName.value = profile.bank_account_name || '';
+                        bAccName.disabled = true;
+                    }
+
                     if (saveBtn) saveBtn.classList.add('d-none');
                     cancelBtn.classList.add('d-none');
                     if (editBtn) editBtn.classList.remove('d-none');
@@ -204,10 +337,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const updatedName = nameInput ? nameInput.value.trim() : '';
                     const updatedPhone = phoneInput ? phoneInput.value.trim() : '';
-                    const promptpayNumberInput = document.getElementById('profilePromptpayNumber');
-                    const promptpayNameInput = document.getElementById('profilePromptpayName');
-                    const updatedPromptpayNumber = promptpayNumberInput ? promptpayNumberInput.value : (profile.promptpay_number || '');
-                    const updatedPromptpayName = promptpayNameInput ? promptpayNameInput.value : (profile.promptpay_name || '');
+                    const updatedPayoutType = (bankRadio && bankRadio.checked) ? 'bank' : 'promptpay';
+                    const updatedPromptpayNumber = ppNum ? ppNum.value.trim() : '';
+                    const updatedPromptpayName = ppName ? ppName.value.trim() : '';
+                    const updatedBankName = bName ? bName.value : '';
+                    const updatedBankAccount = bAcc ? bAcc.value.trim() : '';
+                    const updatedBankAccountName = bAccName ? bAccName.value.trim() : '';
 
                     const result = await requestJson('/api/profile', {
                         method: 'PUT',
@@ -216,10 +351,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             user_id: userId, 
                             name: updatedName, 
                             phone: updatedPhone,
+                            payout_type: updatedPayoutType,
                             promptpay_number: updatedPromptpayNumber,
-                            promptpay_name: updatedPromptpayName
+                            promptpay_name: updatedPromptpayName,
+                            bank_name: updatedBankName,
+                            bank_account: updatedBankAccount,
+                            bank_account_name: updatedBankAccountName
                         })
                     });
+
+                    // Update local profile object
+                    Object.assign(profile, result.profile);
 
                     const storedUser = getUser() || {};
                     localStorage.setItem('user', JSON.stringify({ 
@@ -227,12 +369,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         name: result.profile.name, 
                         phone: result.profile.phone, 
                         promptpay_number: result.profile.promptpay_number, 
-                        promptpay_name: result.profile.promptpay_name 
+                        promptpay_name: result.profile.promptpay_name,
+                        bank_name: result.profile.bank_name,
+                        bank_account: result.profile.bank_account,
+                        bank_account_name: result.profile.bank_account_name,
+                        payout_type: result.profile.payout_type
                     }));
 
                     alert('บันทึกข้อมูลส่วนตัวสำเร็จ!');
                     if (nameInput) nameInput.disabled = true;
                     if (phoneInput) phoneInput.disabled = true;
+                    if (ppRadio) ppRadio.disabled = true;
+                    if (bankRadio) bankRadio.disabled = true;
+                    if (ppNum) ppNum.disabled = true;
+                    if (ppName) ppName.disabled = true;
+                    if (bName) bName.disabled = true;
+                    if (bAcc) bAcc.disabled = true;
+                    if (bAccName) bAccName.disabled = true;
+
                     if (saveBtn) saveBtn.classList.add('d-none');
                     if (cancelBtn) cancelBtn.classList.add('d-none');
                     if (editBtn) editBtn.classList.remove('d-none');

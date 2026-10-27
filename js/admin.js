@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTransactions(transactions) {
         currentAdminTransactions = transactions;
-        renderTable(document.getElementById('adminTransactionsList'), ['สินค้า', 'ผู้ขาย / ให้เช่า', 'พร้อมเพย์ผู้ให้เช่า', 'ผู้ซื้อ / ผู้เช่า', 'จำนวนเงิน', 'สถานะ', 'จัดการ'], transactions.map(t => {
+        renderTable(document.getElementById('adminTransactionsList'), ['สินค้า', 'ผู้ขาย / ให้เช่า', 'บัญชีรับเงิน (ผู้ขาย/ให้เช่า)', 'ผู้ซื้อ / ผู้เช่า', 'จำนวนเงิน', 'สถานะ', 'จัดการ'], transactions.map(t => {
             const isRental = t.item_type === 'rent';
             const isCompleted = t.status === 'completed' || Boolean(t.admin_slip);
             const isReleased = t.status === 'released';
@@ -319,14 +319,33 @@ document.addEventListener('DOMContentLoaded', () => {
             if (t.is_slip_verified) {
                 buyerCol += `<span class="badge bg-success-subtle text-success border border-success mt-1 ms-1 d-inline-block" title="รหัสอ้างอิง: ${escapeHtml(t.trans_ref || '')}"><i class="bi bi-patch-check-fill me-1"></i>SlipOK ผ่านแล้ว</span>`;
             }
-            if (isRental && t.buyer_promptpay) {
-                buyerCol += `<small class="text-primary d-block mt-1">พร้อมเพย์คืนมัดจำ: <strong>${escapeHtml(t.buyer_promptpay)}</strong>${t.buyer_promptpay_name ? ` (${escapeHtml(t.buyer_promptpay_name)})` : ''}</small>`;
+            if (isRental) {
+                if (t.buyer_bank_account) {
+                    buyerCol += `<div class="mt-1 small text-primary"><span class="badge bg-primary-subtle text-primary border border-primary me-1"><i class="bi bi-bank me-1"></i>${escapeHtml(t.buyer_bank_name || 'ธนาคาร')}</span><strong>${escapeHtml(t.buyer_bank_account)}</strong><br><small class="text-muted">${escapeHtml(t.buyer_bank_account_name || '')}</small></div>`;
+                } else if (t.buyer_promptpay) {
+                    buyerCol += `<small class="text-primary d-block mt-1"><i class="bi bi-qr-code me-1"></i>พร้อมเพย์คืนมัดจำ: <strong>${escapeHtml(t.buyer_promptpay)}</strong>${t.buyer_promptpay_name ? ` (${escapeHtml(t.buyer_promptpay_name)})` : ''}</small>`;
+                }
+            }
+
+            let sellerPayoutDisplay = '<span class="text-muted">-</span>';
+            if (t.seller_bank_account) {
+                sellerPayoutDisplay = `
+                    <span class="badge bg-primary-subtle text-primary border border-primary mb-1"><i class="bi bi-bank me-1"></i>${escapeHtml(t.seller_bank_name || 'ธนาคาร')}</span><br>
+                    <span class="fw-bold font-monospace text-dark">${escapeHtml(t.seller_bank_account)}</span><br>
+                    <small class="text-muted">${escapeHtml(t.seller_bank_account_name || t.giver_name || '')}</small>
+                `;
+            } else if (t.seller_promptpay) {
+                sellerPayoutDisplay = `
+                    <span class="badge bg-success-subtle text-success border border-success mb-1"><i class="bi bi-qr-code me-1"></i>พร้อมเพย์</span><br>
+                    <span class="fw-bold font-monospace text-success">${escapeHtml(t.seller_promptpay)}</span><br>
+                    <small class="text-muted">${escapeHtml(t.seller_promptpay_name || '')}</small>
+                `;
             }
 
             return `<tr>
                 <td>${itemCol}</td>
                 <td>${escapeHtml(t.giver_name)}</td>
-                <td>${t.seller_promptpay ? `<span class="fw-bold text-success">${escapeHtml(t.seller_promptpay)}</span><br><small class="text-muted">${escapeHtml(t.seller_promptpay_name || '')}</small>` : '<span class="text-muted">-</span>'}</td>
+                <td>${sellerPayoutDisplay}</td>
                 <td>${buyerCol}</td>
                 <td>${amountCol}</td>
                 <td>${statusBadge}${over2DaysWarning}</td>
@@ -377,11 +396,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content rounded-4 border-0 shadow-lg">
                         <div class="modal-header bg-success text-white">
-                            <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>อัปโหลดหลักฐานการโอนเงิน</h5>
+                            <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>อัปโหลดหลักฐานการโอนเงินให้ผู้ขาย</h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body p-4">
-                            <p class="text-muted mb-4">กรุณาแนบสลิปการโอนเงินเข้าบัญชีพร้อมเพย์ของผู้ขาย เพื่อเป็นหลักฐานว่าแอดมินได้ทำการโอนเงินเรียบร้อยแล้ว</p>
+                            <div id="adminSlipPayoutInfo" class="mb-3"></div>
                             <input type="hidden" id="adminSlipTxId">
                             <div class="mb-3">
                                 <label class="form-label fw-bold">แนบสลิปโอนเงิน</label>
@@ -443,7 +462,57 @@ document.addEventListener('DOMContentLoaded', () => {
         const completeBtn = event.target.closest('.complete-tx-btn');
         if (completeBtn) {
             const txId = completeBtn.dataset.id;
+            const tx = currentAdminTransactions.find(t => String(t.trans_id) === String(txId));
             document.getElementById('adminSlipTxId').value = txId;
+
+            const payoutBox = document.getElementById('adminSlipPayoutInfo');
+            if (payoutBox && tx) {
+                let payoutDetails = '';
+                const transferAmt = tx.item_type === 'rent' ? Math.max(0, Number(tx.amount || 0) - Number(tx.deposit_amount || 0)) : Number(tx.amount || 0);
+                if (tx.seller_bank_account) {
+                    payoutDetails = `
+                        <div class="p-3 bg-light rounded-3 border">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold text-dark"><i class="bi bi-person-fill text-primary me-1"></i>ผู้ขาย / ผู้ให้เช่า: ${escapeHtml(tx.giver_name)}</span>
+                                <span class="badge bg-success fs-6">ยอดโอน: ฿${transferAmt.toLocaleString()}</span>
+                            </div>
+                            <div class="mb-1">
+                                <span class="badge bg-primary-subtle text-primary border border-primary me-1"><i class="bi bi-bank me-1"></i>${escapeHtml(tx.seller_bank_name || 'ธนาคาร')}</span>
+                                เลขบัญชี: <strong class="font-monospace fs-6 text-dark">${escapeHtml(tx.seller_bank_account)}</strong>
+                            </div>
+                            <div class="small text-muted mb-2">ชื่อบัญชี: <strong>${escapeHtml(tx.seller_bank_account_name || tx.giver_name)}</strong></div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="navigator.clipboard.writeText('${escapeHtml(tx.seller_bank_account)}'); alert('คัดลอกเลขบัญชีแล้ว!');"><i class="bi bi-clipboard me-1"></i>คัดลอกเลขบัญชี</button>
+                        </div>
+                    `;
+                } else if (tx.seller_promptpay) {
+                    payoutDetails = `
+                        <div class="p-3 bg-light rounded-3 border">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold text-dark"><i class="bi bi-person-fill text-primary me-1"></i>ผู้ขาย / ผู้ให้เช่า: ${escapeHtml(tx.giver_name)}</span>
+                                <span class="badge bg-success fs-6">ยอดโอน: ฿${transferAmt.toLocaleString()}</span>
+                            </div>
+                            <div class="mb-1">
+                                <span class="badge bg-success-subtle text-success border border-success me-1"><i class="bi bi-qr-code me-1"></i>พร้อมเพย์</span>
+                                เบอร์/เลข: <strong class="font-monospace fs-6 text-dark">${escapeHtml(tx.seller_promptpay)}</strong>
+                            </div>
+                            <div class="small text-muted mb-2">ชื่อพร้อมเพย์: <strong>${escapeHtml(tx.seller_promptpay_name || tx.giver_name)}</strong></div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="navigator.clipboard.writeText('${escapeHtml(tx.seller_promptpay)}'); alert('คัดลอกพร้อมเพย์แล้ว!');"><i class="bi bi-clipboard me-1"></i>คัดลอกพร้อมเพย์</button>
+                        </div>
+                    `;
+                } else {
+                    payoutDetails = `
+                        <div class="p-3 bg-light rounded-3 border text-muted">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>ผู้รับเงิน: <strong>${escapeHtml(tx.giver_name)}</strong></span>
+                                <span class="badge bg-success fs-6">ยอดโอน: ฿${transferAmt.toLocaleString()}</span>
+                            </div>
+                            <div class="small text-danger mt-1"><i class="bi bi-exclamation-circle me-1"></i>ผู้ใช้นี้ยังไม่ได้ระบุพร้อมเพย์หรือบัญชีธนาคาร</div>
+                        </div>
+                    `;
+                }
+                payoutBox.innerHTML = payoutDetails;
+            }
+
             const modal = new bootstrap.Modal(document.getElementById('adminSlipModal'));
             modal.show();
         }
@@ -580,14 +649,30 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <div class="p-2 rounded border bg-light small h-100">
                                         <span class="text-muted d-block"><i class="bi bi-person-fill text-primary me-1"></i>ผู้ให้เช่า (รับค่าเช่า + ค่าชดเชย):</span>
                                         <strong>${escapeHtml(tx.giver_name)}</strong>
-                                        <div class="text-success mt-1">พร้อมเพย์: <strong>${escapeHtml(tx.seller_promptpay || 'ไม่ระบุ')}</strong> ${tx.seller_promptpay_name ? `(${escapeHtml(tx.seller_promptpay_name)})` : ''}</div>
+                                        ${tx.seller_bank_account ? `
+                                            <div class="mt-1">
+                                                <span class="badge bg-primary-subtle text-primary border border-primary me-1"><i class="bi bi-bank me-1"></i>${escapeHtml(tx.seller_bank_name || 'ธนาคาร')}</span>
+                                                <strong class="font-monospace text-dark">${escapeHtml(tx.seller_bank_account)}</strong>
+                                                <div class="small text-muted">ชื่อ: ${escapeHtml(tx.seller_bank_account_name || tx.giver_name)}</div>
+                                            </div>
+                                        ` : `
+                                            <div class="text-success mt-1"><i class="bi bi-qr-code me-1"></i>พร้อมเพย์: <strong>${escapeHtml(tx.seller_promptpay || 'ไม่ระบุ')}</strong> ${tx.seller_promptpay_name ? `(${escapeHtml(tx.seller_promptpay_name)})` : ''}</div>
+                                        `}
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="p-2 rounded border bg-light small h-100">
                                         <span class="text-muted d-block"><i class="bi bi-person-fill text-warning me-1"></i>ผู้เช่า (รับเงินมัดจำคืน):</span>
                                         <strong>${escapeHtml(tx.receiver_name)}</strong>
-                                        <div class="text-primary mt-1">พร้อมเพย์คืนมัดจำ: <strong>${escapeHtml(tx.buyer_promptpay || 'ไม่ระบุ')}</strong> ${tx.buyer_promptpay_name ? `(${escapeHtml(tx.buyer_promptpay_name)})` : ''}</div>
+                                        ${tx.buyer_bank_account ? `
+                                            <div class="mt-1">
+                                                <span class="badge bg-primary-subtle text-primary border border-primary me-1"><i class="bi bi-bank me-1"></i>${escapeHtml(tx.buyer_bank_name || 'ธนาคาร')}</span>
+                                                <strong class="font-monospace text-dark">${escapeHtml(tx.buyer_bank_account)}</strong>
+                                                <div class="small text-muted">ชื่อ: ${escapeHtml(tx.buyer_bank_account_name || tx.receiver_name)}</div>
+                                            </div>
+                                        ` : `
+                                            <div class="text-primary mt-1"><i class="bi bi-qr-code me-1"></i>พร้อมเพย์คืนมัดจำ: <strong>${escapeHtml(tx.buyer_promptpay || 'ไม่ระบุ')}</strong> ${tx.buyer_promptpay_name ? `(${escapeHtml(tx.buyer_promptpay_name)})` : ''}</div>
+                                        `}
                                     </div>
                                 </div>
                             </div>
@@ -648,7 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 <strong class="text-success small"><i class="bi bi-arrow-up-right-circle me-1"></i>สลิปโอนให้ผู้ให้เช่า</strong>
                                                 <span class="badge bg-success" id="ownerSlipBadgeAmt">฿0</span>
                                             </div>
-                                            <div class="small text-muted mb-2 text-truncate">พร้อมเพย์: <strong>${escapeHtml(tx.seller_promptpay || 'ไม่ระบุ')}</strong></div>
+                                            <div class="small text-muted mb-2 text-truncate">${tx.seller_bank_account ? `<span class="badge bg-primary-subtle text-primary border border-primary me-1">${escapeHtml(tx.seller_bank_name || 'ธนาคาร')}</span><strong>${escapeHtml(tx.seller_bank_account)}</strong>` : `พร้อมเพย์: <strong>${escapeHtml(tx.seller_promptpay || 'ไม่ระบุ')}</strong>`}</div>
                                             <input type="file" id="settleOwnerSlipInput" class="form-control form-control-sm border" accept="image/jpeg,image/png">
                                             <small class="text-secondary d-block mt-1" style="font-size: 0.72rem;">* ค่าเช่า + ค่าชดเชยความเสียหาย</small>
                                         </div>
@@ -660,7 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 <strong class="text-primary small"><i class="bi bi-arrow-down-left-circle me-1"></i>สลิปโอนคืนให้ผู้เช่า</strong>
                                                 <span class="badge bg-primary" id="renterSlipBadgeAmt">฿0</span>
                                             </div>
-                                            <div class="small text-muted mb-2 text-truncate">พร้อมเพย์: <strong>${escapeHtml(tx.buyer_promptpay || 'ไม่ระบุ')}</strong></div>
+                                            <div class="small text-muted mb-2 text-truncate">${tx.buyer_bank_account ? `<span class="badge bg-primary-subtle text-primary border border-primary me-1">${escapeHtml(tx.buyer_bank_name || 'ธนาคาร')}</span><strong>${escapeHtml(tx.buyer_bank_account)}</strong>` : `พร้อมเพย์: <strong>${escapeHtml(tx.buyer_promptpay || 'ไม่ระบุ')}</strong>`}</div>
                                             <input type="file" id="settleRenterSlipInput" class="form-control form-control-sm border" accept="image/jpeg,image/png">
                                             <small class="text-secondary d-block mt-1" style="font-size: 0.72rem;">* เงินมัดจำส่วนที่เหลือ</small>
                                         </div>

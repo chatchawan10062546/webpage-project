@@ -201,10 +201,75 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ----------------------------------------------------
-    // ----------------------------------------------------
     // 🔥 3. ระบบสมัครสมาชิก (ส่งข้อมูลเข้า Database ผ่าน API)
     // ----------------------------------------------------
     const registerForm = document.getElementById('registerForm');
+
+    // สลับส่วนกรอก พร้อมเพย์ / บัญชีธนาคารในหน้าสมัครสมาชิก
+    const regPayoutPromptpay = document.getElementById('regPayoutPromptpay');
+    const regPayoutBank = document.getElementById('regPayoutBank');
+    const regPromptpaySection = document.getElementById('regPromptpaySection');
+    const regBankSection = document.getElementById('regBankSection');
+
+    if (regPayoutPromptpay && regPayoutBank) {
+        regPayoutPromptpay.addEventListener('change', () => {
+            if (regPayoutPromptpay.checked) {
+                regPromptpaySection?.classList.remove('d-none');
+                regBankSection?.classList.add('d-none');
+            }
+        });
+        regPayoutBank.addEventListener('change', () => {
+            if (regPayoutBank.checked) {
+                regPromptpaySection?.classList.add('d-none');
+                regBankSection?.classList.remove('d-none');
+            }
+        });
+    }
+
+    // ปุ่มดึงชื่อและเบอร์โทรศัพท์มาใส่ในช่องพร้อมเพย์อัตโนมัติ
+    const btnAutoFillPromptPay = document.getElementById('btnAutoFillPromptPay');
+    if (btnAutoFillPromptPay) {
+        btnAutoFillPromptPay.addEventListener('click', () => {
+            const nameVal = document.getElementById('regName')?.value.trim() || '';
+            const phoneVal = document.getElementById('regPhone')?.value.trim() || '';
+            
+            if (nameVal) {
+                const nameInput = document.getElementById('regPromptpayName');
+                if (nameInput) nameInput.value = nameVal;
+            }
+            if (phoneVal) {
+                const phoneInput = document.getElementById('regPromptpayNumber');
+                if (phoneInput) phoneInput.value = phoneVal;
+            }
+            if (!nameVal && !phoneVal) {
+                alert('กรุณากรอกชื่อ-นามสกุล และเบอร์โทรศัพท์ด้านบนก่อนกดปุ่มนี้ครับ');
+            } else {
+                btnAutoFillPromptPay.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i>ดึงข้อมูลเรียบร้อย';
+                setTimeout(() => {
+                    btnAutoFillPromptPay.innerHTML = '<i class="bi bi-magic me-1"></i>ใช้ชื่อและเบอร์โทรที่กรอกไว้ด้านบน';
+                }, 2000);
+            }
+        });
+    }
+
+    // ปุ่มดึงชื่อมาใส่ในช่องชื่อบัญชีธนาคารอัตโนมัติ
+    const btnAutoFillBankName = document.getElementById('btnAutoFillBankName');
+    if (btnAutoFillBankName) {
+        btnAutoFillBankName.addEventListener('click', () => {
+            const nameVal = document.getElementById('regName')?.value.trim() || '';
+            if (nameVal) {
+                const bankNameInput = document.getElementById('regBankAccountName');
+                if (bankNameInput) bankNameInput.value = nameVal;
+                btnAutoFillBankName.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i>ดึงชื่อเรียบร้อย';
+                setTimeout(() => {
+                    btnAutoFillBankName.innerHTML = '<i class="bi bi-magic me-1"></i>ใช้ชื่อที่กรอกไว้ด้านบน';
+                }, 2000);
+            } else {
+                alert('กรุณากรอกชื่อ-นามสกุลด้านบนก่อนกดปุ่มนี้ครับ');
+            }
+        });
+    }
+
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -237,11 +302,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // ข้อมูลช่องทางรับเงิน (ระบบคนกลาง)
+            const payoutTypeRadio = document.querySelector('input[name="regPayoutType"]:checked');
+            const payout_type = payoutTypeRadio ? payoutTypeRadio.value : 'promptpay';
+            const promptpay_number = document.getElementById('regPromptpayNumber')?.value.trim() || '';
+            const promptpay_name = document.getElementById('regPromptpayName')?.value.trim() || '';
+            const bank_name = document.getElementById('regBankName')?.value || '';
+            const bank_account = document.getElementById('regBankAccount')?.value.trim() || '';
+            const bank_account_name = document.getElementById('regBankAccountName')?.value.trim() || '';
+
+            if (payout_type === 'promptpay') {
+                if (!promptpay_number || !promptpay_name) {
+                    alert('กรุณากรอกเบอร์พร้อมเพย์และชื่อบัญชี หรือกดปุ่ม "ใช้ชื่อและเบอร์โทรที่กรอกไว้ด้านบน" ครับ');
+                    document.getElementById('regPromptpayNumber')?.focus();
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHtml; }
+                    return;
+                }
+            } else {
+                if (!bank_name || !bank_account || !bank_account_name) {
+                    alert('กรุณาเลือกธนาคาร ระบุเลขที่บัญชี และชื่อเจ้าของบัญชีให้ครบถ้วนครับ');
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHtml; }
+                    return;
+                }
+            }
+
             try {
                 const response = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password, phone: cleanPhone })
+                    body: JSON.stringify({
+                        name,
+                        email,
+                        password,
+                        phone: cleanPhone,
+                        payout_type,
+                        promptpay_number,
+                        promptpay_name,
+                        bank_name,
+                        bank_account,
+                        bank_account_name
+                    })
                 });
 
                 const data = await response.json();
