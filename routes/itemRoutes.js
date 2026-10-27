@@ -282,8 +282,8 @@ router.post('/items', requireAuth, upload.any(), (req, res) => {
    });
 });
 
-// 📌 3. API แก้ไขรายการของตัวเอง
-router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => {
+// 📌 3. API แก้ไขรายการของตัวเอง (รองรับอัปโหลดรูปภาพใหม่ได้สูงสุด 5 รูป)
+router.put('/items/:itemId', requireAuth, upload.any(), (req, res) => {
    const { title, category, description, location, latitude, longitude, item_type, price, quantity, deposit } = req.body;
    const user_id = req.authUser.userId;
    const { itemId } = req.params;
@@ -315,11 +315,24 @@ router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => 
       SET title = ?, category = ?, description = ?, location = ?, latitude = ?, longitude = ?, lat = ?, lng = ?, item_type = ?, price = ?, deposit = ?, quantity = ?, is_approved = 0, is_edited = 1
    `;
 
-   let newImageUrl = null;
-   if (req.file) {
-      newImageUrl = `/uploads/${req.file.filename}`;
+   // รวบรวมไฟล์รูปภาพใหม่ (รองรับสูงสุด 5 รูป)
+   let uploadedFiles = [];
+   if (req.files && req.files.length > 0) {
+       const imagesFiles = req.files.filter(f => f.fieldname === 'images');
+       if (imagesFiles.length > 0) {
+           uploadedFiles = imagesFiles.slice(0, 5);
+       } else {
+           uploadedFiles = req.files.filter(f => f.fieldname === 'image').slice(0, 5);
+       }
+   } else if (req.file) {
+       uploadedFiles = [req.file];
+   }
+
+   let newPrimaryImageUrl = null;
+   if (uploadedFiles.length > 0) {
+      newPrimaryImageUrl = `/uploads/${uploadedFiles[0].filename}`;
       sql += ', image_url = ?';
-      values.push(newImageUrl);
+      values.push(newPrimaryImageUrl);
    }
 
    sql += ' WHERE item_id = ? AND user_id = ?';
@@ -342,11 +355,12 @@ router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => 
          });
       }
 
-      // 🔔 อัปเดตรูปภาพใหม่ลงตาราง item_images ด้วย เพื่อให้แสดงผลตรงกันทันทีทุกหน้า
-      if (newImageUrl) {
+      // 🔔 อัปเดตรูปภาพใหม่ทั้งหมดลงตาราง item_images (สูงสุด 5 รูป)
+      if (uploadedFiles.length > 0) {
          db.query('DELETE FROM item_images WHERE item_id = ?', [itemId], (delErr) => {
             if (delErr) console.error('Delete old item_images Error:', delErr);
-            db.query('INSERT INTO item_images (item_id, image_url, sort_order) VALUES (?, ?, 0)', [itemId, newImageUrl], (insErr) => {
+            const imgValues = uploadedFiles.map((f, idx) => [itemId, `/uploads/${f.filename}`, idx]);
+            db.query('INSERT INTO item_images (item_id, image_url, sort_order) VALUES ?', [imgValues], (insErr) => {
                if (insErr) console.error('Insert new item_images Error:', insErr);
             });
          });
