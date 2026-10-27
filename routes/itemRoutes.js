@@ -292,15 +292,34 @@ router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => 
       return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
    }
 
-   const values = [title, category, description || '', location || '', latitude, longitude, item_type || 'free', price || 0, deposit || 0, quantity || 1];
+   const lat = latitude ? Number(latitude) : null;
+   const lng = longitude ? Number(longitude) : null;
+
+   const values = [
+      title.trim(), 
+      category, 
+      description || '', 
+      location || '', 
+      lat, 
+      lng, 
+      lat, 
+      lng, 
+      item_type || 'free', 
+      Number(price) || 0, 
+      Number(deposit) || 0, 
+      Number(quantity) || 1
+   ];
+
    let sql = `
       UPDATE items
-      SET title = ?, category = ?, description = ?, location = ?, latitude = ?, longitude = ?, item_type = ?, price = ?, deposit = ?, quantity = ?, is_approved = 0, is_edited = 1
+      SET title = ?, category = ?, description = ?, location = ?, latitude = ?, longitude = ?, lat = ?, lng = ?, item_type = ?, price = ?, deposit = ?, quantity = ?, is_approved = 0, is_edited = 1
    `;
 
+   let newImageUrl = null;
    if (req.file) {
+      newImageUrl = `/uploads/${req.file.filename}`;
       sql += ', image_url = ?';
-      values.push(`/uploads/${req.file.filename}`);
+      values.push(newImageUrl);
    }
 
    sql += ' WHERE item_id = ? AND user_id = ?';
@@ -322,6 +341,30 @@ router.put('/items/:itemId', requireAuth, upload.single('image'), (req, res) => 
             res.json({ success: true, message: 'แก้ไขรายการสำเร็จ' });
          });
       }
+
+      // 🔔 อัปเดตรูปภาพใหม่ลงตาราง item_images ด้วย เพื่อให้แสดงผลตรงกันทันทีทุกหน้า
+      if (newImageUrl) {
+         db.query('DELETE FROM item_images WHERE item_id = ?', [itemId], (delErr) => {
+            if (delErr) console.error('Delete old item_images Error:', delErr);
+            db.query('INSERT INTO item_images (item_id, image_url, sort_order) VALUES (?, ?, 0)', [itemId, newImageUrl], (insErr) => {
+               if (insErr) console.error('Insert new item_images Error:', insErr);
+            });
+         });
+      }
+
+      // 🔔 ส่งการแจ้งเตือนหาแอดมินทุกคนว่ามีรายการแก้ไขรอตรวจสอบ
+      db.query("SELECT user_id FROM users WHERE role = 'admin'", (admErr, adminRows) => {
+         if (!admErr && adminRows && adminRows.length > 0) {
+            const typeText = (item_type === 'rent') ? 'ปล่อยเช่า' : (item_type === 'sell') ? 'ขาย' : 'ส่งต่อฟรี';
+            const notifMsg = `รายการ${typeText} "${title.trim()}" ได้รับการแก้ไขข้อมูล รอแอดมินตรวจสอบความถูกต้องอีกครั้ง`;
+            adminRows.forEach(adm => {
+               db.query('INSERT INTO notifications (user_id, sender_id, type, reference_id, message) VALUES (?, ?, ?, ?, ?)',
+                  [adm.user_id, user_id, 'item_pending', itemId, notifMsg]
+               );
+            });
+         }
+      });
+
       res.json({ success: true, message: 'แก้ไขรายการสำเร็จ' });
    });
 });

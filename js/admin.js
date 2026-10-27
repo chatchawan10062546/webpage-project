@@ -158,6 +158,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const imgUrl = item.image_url || '/assets/pansuk_icon.jpg';
 
+            const editBadge = item.is_edited 
+                ? '<span class="badge bg-warning text-dark"><i class="bi bi-pencil-square me-1"></i>แก้ไขข้อมูล</span>' 
+                : '<span class="badge bg-info-subtle text-info border border-info"><i class="bi bi-plus-circle me-1"></i>โพสต์ใหม่</span>';
+
             return `
             <tr>
                 <td style="min-width: 200px;">
@@ -165,7 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <img src="${imgUrl}" alt="" style="width: 55px; height: 55px; object-fit: cover; border-radius: 8px; flex-shrink: 0;" class="border shadow-sm">
                         <div class="min-width-0">
                             <strong class="d-block text-truncate" style="max-width: 220px;">${escapeHtml(item.title)}</strong>
-                            <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>${new Date(item.created_at).toLocaleDateString('th-TH')}</small>
+                            <div class="d-flex align-items-center gap-1 mt-1">
+                                ${editBadge}
+                                <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>${new Date(item.created_at).toLocaleDateString('th-TH')}</small>
+                            </div>
                         </div>
                     </div>
                 </td>

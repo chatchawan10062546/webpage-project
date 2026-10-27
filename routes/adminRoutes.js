@@ -128,7 +128,7 @@ router.patch('/admin/reports/:reportId', requireAdmin, (req, res) => {
 // 📌 ดึงรายการสินค้าที่รอตรวจสอบ
 router.get('/admin/items/pending', requireAdmin, (req, res) => {
     db.query(
-        `SELECT i.item_id, i.title, i.category, i.item_type, i.price, i.deposit, i.quantity, i.status,
+        `SELECT i.item_id, i.title, i.category, i.item_type, i.price, i.deposit, i.quantity, i.status, i.is_edited,
                 i.description, i.location, i.image_url, i.created_at,
                 u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,
                 (SELECT GROUP_CONCAT(img.image_url ORDER BY img.sort_order ASC) FROM item_images img WHERE img.item_id = i.item_id) AS gallery_images
